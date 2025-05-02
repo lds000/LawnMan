@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.35931.197 d17.13
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LawnBoss", "WpfApp1\LawnBoss.csproj", "{E6517272-8452-4E15-905E-4B94BAB3AE71}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E6517272-8452-4E15-905E-4B94BAB3AE71}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E6517272-8452-4E15-905E-4B94BAB3AE71}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E6517272-8452-4E15-905E-4B94BAB3AE71}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E6517272-8452-4E15-905E-4B94BAB3AE71}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {928F01A1-B4AA-46E3-B3AF-83DD0B30F030}
+	EndGlobalSection
+EndGlobal

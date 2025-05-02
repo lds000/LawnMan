@@ -1,0 +1,61 @@
+﻿using BackyardBoss.ViewModels;
+using System.Windows;
+using System.Windows.Controls;
+using BackyardBoss.Views; // Needed to open PickTimeWindow
+
+
+namespace BackyardBoss.Views
+{
+    public partial class ProgramEditorView : UserControl
+    {
+        public ProgramEditorView()
+        {
+            InitializeComponent();
+        }
+
+
+
+
+        private void StartTimesListBox_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (DataContext is ProgramEditorViewModel viewModel && !string.IsNullOrEmpty(viewModel.SelectedStartTime))
+            {
+                var window = new PickTimeWindow
+                {
+                    Owner = Application.Current.MainWindow
+                    
+                };
+
+                window.ViewModel = viewModel;
+
+                var parts = viewModel.SelectedStartTime.Split(':');
+                if (parts.Length == 2 &&
+                    int.TryParse(parts[0], out int hour) &&
+                    int.TryParse(parts[1], out int minute))
+                {
+                    window.SetInitialTime(hour, minute);
+                }
+
+                if (window.ShowDialog() == true)
+                {
+                    if (!string.IsNullOrEmpty(window.SelectedTime))
+                    {
+                        int index = viewModel.SelectedProgram.StartTimes.IndexOf(viewModel.SelectedStartTime);
+                        if (index >= 0)
+                        {
+                            viewModel.SelectedProgram.StartTimes.RemoveAt(index);
+                            viewModel.SelectedProgram.StartTimes.Insert(index, window.SelectedTime);
+
+                            viewModel.SortStartTimes();
+                            viewModel.SelectedStartTime = window.SelectedTime;
+                            viewModel.OnPropertyChanged(nameof(viewModel.SelectedProgram));
+                            viewModel.MarkDirty();
+        
+                        }
+                    }
+                }
+            }
+        }
+
+    }
+}
