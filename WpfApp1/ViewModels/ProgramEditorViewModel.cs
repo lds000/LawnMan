@@ -8,86 +8,22 @@ using System.Windows.Input;
 using BackyardBoss.Models;
 using BackyardBoss.Commands;
 using BackyardBoss.Services;
+using System.Collections.Specialized;
+using BackyardBoss.Views;
 
 namespace BackyardBoss.ViewModels
 {
-    /// <summary>
-    /// ViewModel for editing sprinkler programs, including sets and start times.
-    /// Handles UI interaction and command logic.
-    /// </summary>
     public class ProgramEditorViewModel : INotifyPropertyChanged
     {
-        // Private fields for selection and dirty tracking
         private WateringProgram _selectedProgram;
         private ProgramSet _selectedSet;
         private string _selectedStartTime;
         private bool _isDirty;
 
-        // Constructor: Initializes the ViewModel and sets up commands
-        public ProgramEditorViewModel()
+        public ICommand OpenTimePickerCommand
         {
-            LoadSchedule();
-
-            AddProgramCommand = new RelayCommand(AddProgram);
-            RemoveProgramCommand = new RelayCommand(RemoveProgram);
-            AddSetCommand = new RelayCommand(AddSet);
-            RemoveSetCommand = new RelayCommand(RemoveSet);
-            AddStartTimeCommand = new RelayCommand(AddStartTime);
-            RemoveStartTimeCommand = new RelayCommand(RemoveStartTime);
-            SaveScheduleCommand = new RelayCommand(SaveSchedule);
+            get;
         }
-
-        #region Public Properties
-
-        public SprinklerSchedule Schedule { get; private set; } = new SprinklerSchedule();
-
-        public ObservableCollection<WateringProgram> Programs => Schedule.Programs;
-
-        public ObservableCollection<ScheduledRunPreview> UpcomingRuns { get; private set; } = new ObservableCollection<ScheduledRunPreview>();
-
-        public bool HasUnsavedChanges => _isDirty;
-
-        public WateringProgram SelectedProgram
-        {
-            get => _selectedProgram;
-            set
-            {
-                _selectedProgram = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(IsProgramSelected));
-            }
-        }
-
-        public ProgramSet SelectedSet
-        {
-            get => _selectedSet;
-            set
-            {
-                _selectedSet = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(IsSetSelected));
-            }
-        }
-
-        public string SelectedStartTime
-        {
-            get => _selectedStartTime;
-            set
-            {
-                _selectedStartTime = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(IsStartTimeSelected));
-            }
-        }
-
-        public bool IsProgramSelected => SelectedProgram != null;
-        public bool IsSetSelected => SelectedSet != null;
-        public bool IsStartTimeSelected => !string.IsNullOrEmpty(SelectedStartTime);
-
-        #endregion
-
-        #region Commands
-
         public ICommand SaveScheduleCommand
         {
             get;
@@ -117,9 +53,102 @@ namespace BackyardBoss.ViewModels
             get;
         }
 
-        #endregion
+        public ProgramEditorViewModel()
+        {
+            LoadSchedule();
 
-        #region Load and Save
+            AddProgramCommand = new RelayCommand(AddProgram);
+            RemoveProgramCommand = new RelayCommand(RemoveProgram);
+            AddSetCommand = new RelayCommand(AddSet);
+            RemoveSetCommand = new RelayCommand(RemoveSet);
+            AddStartTimeCommand = new RelayCommand(AddStartTime);
+            RemoveStartTimeCommand = new RelayCommand(RemoveStartTime);
+            SaveScheduleCommand = new RelayCommand(SaveSchedule);
+
+
+            OpenTimePickerCommand = new RelayCommand<StartTimeViewModel>(entry =>
+            {
+                var dialog = new RadialTimePickerDialog
+                {
+                    Owner = Application.Current.MainWindow
+                };
+
+                // Pre-load the time into the dialog
+                dialog.SetTime(entry.ParsedTime);
+
+                // Show the dialog modally
+                if (dialog.ShowDialog() == true)
+                {
+                    // Update the selected time after user confirms
+                    entry.ParsedTime = dialog.SelectedTime;
+                }
+            });
+
+        }
+
+        public StartTimeViewModel StartTime1 { get; set; } = new StartTimeViewModel { Time = "06:00" };
+
+
+
+        public SprinklerSchedule Schedule { get; private set; } = new SprinklerSchedule();
+        public ObservableCollection<WateringProgram> Programs => Schedule.Programs;
+        public ObservableCollection<ScheduledRunPreview> UpcomingRuns { get; private set; } = new ObservableCollection<ScheduledRunPreview>();
+        public ObservableCollection<StartTimeViewModel> StartTimes { get; set; } = new ObservableCollection<StartTimeViewModel>();
+
+        public bool HasUnsavedChanges => _isDirty;
+
+        public WateringProgram SelectedProgram
+        {
+            get => _selectedProgram;
+            set
+            {
+                _selectedProgram = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(IsProgramSelected));
+
+                if (_selectedProgram != null)
+                {
+                    StartTimes.Clear();
+                    foreach (var t in _selectedProgram.StartTimes)
+                        StartTimes.Add(new StartTimeViewModel { Time = t });
+
+                    foreach (var vm in StartTimes)
+                    {
+                        vm.PropertyChanged += (_, e) =>
+                        {
+                            if (e.PropertyName == nameof(StartTimeViewModel.Time))
+                                UpdateStartTimeCollectionFromViewModels();
+                        };
+                    }
+                }
+            }
+        }
+
+        public ProgramSet SelectedSet
+        {
+            get => _selectedSet;
+            set
+            {
+                _selectedSet = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(IsSetSelected));
+            }
+        }
+
+        public string SelectedStartTime
+        {
+            get => _selectedStartTime;
+            set
+            {
+                _selectedStartTime = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(IsStartTimeSelected));
+            }
+        }
+
+        public bool IsProgramSelected => SelectedProgram != null;
+        public bool IsSetSelected => SelectedSet != null;
+        public bool IsStartTimeSelected => !string.IsNullOrEmpty(SelectedStartTime);
 
         private async void LoadSchedule()
         {
@@ -130,36 +159,31 @@ namespace BackyardBoss.ViewModels
             foreach (var program in Programs)
             {
                 program.PropertyChanged += Program_PropertyChanged;
-                program.StartTimes.CollectionChanged += (s, e) => {
+                program.StartTimes.CollectionChanged += (s, e) =>
+                {
                     MarkDirty();
                     UpdateUpcomingRunsPreview();
                 };
             }
 
+            SelectedProgram = Programs.FirstOrDefault();
             UpdateUpcomingRunsPreview();
         }
 
         private async void SaveSchedule()
         {
+            UpdateStartTimeCollectionFromViewModels();
             await ProgramDataService.SaveScheduleAsync(Schedule);
             _isDirty = false;
             MessageBox.Show("Schedule saved successfully!", "Save Complete", MessageBoxButton.OK, MessageBoxImage.Information);
             UpdateUpcomingRunsPreview();
         }
 
-        #endregion
-
-        #region Command Handlers
-
         private void AddProgram()
         {
             var newProgram = new WateringProgram { Name = "New Program" };
             newProgram.PropertyChanged += Program_PropertyChanged;
-            newProgram.StartTimes.CollectionChanged += (s, e) => {
-                MarkDirty();
-                UpdateUpcomingRunsPreview();
-            };
-
+            newProgram.StartTimes.CollectionChanged += (s, e) => { MarkDirty(); UpdateUpcomingRunsPreview(); };
             Programs.Add(newProgram);
             SelectedProgram = newProgram;
             MarkDirty();
@@ -181,11 +205,7 @@ namespace BackyardBoss.ViewModels
         {
             if (SelectedProgram != null)
             {
-                SelectedProgram.Sets.Add(new ProgramSet
-                {
-                    SetName = "New Set",
-                    RunDurationMinutes = 10
-                });
+                SelectedProgram.Sets.Add(new ProgramSet { SetName = "New Set", RunDurationMinutes = 10 });
                 OnPropertyChanged(nameof(SelectedProgram));
                 MarkDirty();
                 UpdateUpcomingRunsPreview();
@@ -206,39 +226,31 @@ namespace BackyardBoss.ViewModels
 
         private void AddStartTime()
         {
-            if (SelectedProgram != null)
-            {
-                var window = new Views.PickTimeWindow
-                {
-                    Owner = Application.Current.MainWindow,
-                    ViewModel = this
-                };
-
-                if (window.ShowDialog() == true && !string.IsNullOrEmpty(window.SelectedTime))
-                {
-                    SelectedProgram.StartTimes.Add(window.SelectedTime);
-                    SortStartTimes();
-                    OnPropertyChanged(nameof(SelectedProgram));
-                    MarkDirty();
-                    UpdateUpcomingRunsPreview();
-                }
-            }
+            StartTimes.Add(new StartTimeViewModel { Time = "06:00" });
+            MarkDirty();
         }
 
         private void RemoveStartTime()
         {
-            if (SelectedProgram != null && SelectedProgram.StartTimes.Count > 0)
+            if (StartTimes.Count > 0)
             {
-                SelectedProgram.StartTimes.RemoveAt(SelectedProgram.StartTimes.Count - 1);
-                OnPropertyChanged(nameof(SelectedProgram));
+                StartTimes.RemoveAt(StartTimes.Count - 1);
                 MarkDirty();
-                UpdateUpcomingRunsPreview();
             }
         }
 
-        #endregion
+        private void UpdateStartTimeCollectionFromViewModels()
+        {
+            if (SelectedProgram != null)
+            {
+                SelectedProgram.StartTimes.Clear();
+                foreach (var vm in StartTimes)
+                    SelectedProgram.StartTimes.Add(vm.Time);
 
-        #region Helper Methods
+                SortStartTimes();
+                MarkDirty();
+            }
+        }
 
         public void SortStartTimes()
         {
@@ -290,18 +302,9 @@ namespace BackyardBoss.ViewModels
 
         public void MarkDirty() => _isDirty = true;
 
-        #endregion
-
-        #region INotifyPropertyChanged
-
         public event PropertyChangedEventHandler PropertyChanged;
-
         public void OnPropertyChanged([CallerMemberName] string propertyName = null) =>
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-
-        #endregion
-
-        #region Event Handlers
 
         private void Program_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
@@ -311,7 +314,5 @@ namespace BackyardBoss.ViewModels
                 UpdateUpcomingRunsPreview();
             }
         }
-
-        #endregion
     }
 }
