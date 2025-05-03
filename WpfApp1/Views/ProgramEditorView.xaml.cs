@@ -43,12 +43,11 @@ namespace BackyardBoss.Views
             {
                 var window = new PickTimeWindow
                 {
-                    Owner = Application.Current.MainWindow
-                    
+                    Owner = Application.Current.MainWindow,
+                    ViewModel = viewModel
                 };
 
-                window.ViewModel = viewModel;
-
+                // Preload current time
                 var parts = viewModel.SelectedStartTime.Split(':');
                 if (parts.Length == 2 &&
                     int.TryParse(parts[0], out int hour) &&
@@ -57,22 +56,17 @@ namespace BackyardBoss.Views
                     window.SetInitialTime(hour, minute);
                 }
 
-                if (window.ShowDialog() == true)
+                if (window.ShowDialog() == true && !string.IsNullOrEmpty(window.SelectedTime))
                 {
-                    if (!string.IsNullOrEmpty(window.SelectedTime))
+                    int index = viewModel.StartTimes.IndexOf(viewModel.SelectedStartTime);
+                    if (index >= 0)
                     {
-                        int index = viewModel.SelectedProgram.StartTimes.IndexOf(viewModel.SelectedStartTime);
-                        if (index >= 0)
-                        {
-                            viewModel.SelectedProgram.StartTimes.RemoveAt(index);
-                            viewModel.SelectedProgram.StartTimes.Insert(index, window.SelectedTime);
+                        viewModel.StartTimes[index] = window.SelectedTime;
 
-                            viewModel.SortStartTimes();
-                            viewModel.SelectedStartTime = window.SelectedTime;
-                            viewModel.OnPropertyChanged(nameof(viewModel.SelectedProgram));
-                            viewModel.MarkDirty();
-        
-                        }
+                        viewModel.SortStartTimes();
+                        viewModel.SelectedStartTime = window.SelectedTime;
+                        viewModel.OnPropertyChanged(nameof(viewModel.StartTimes));
+                        viewModel.MarkDirty();
                     }
                 }
             }

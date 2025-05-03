@@ -14,14 +14,13 @@ using BackyardBoss.Views;
 namespace BackyardBoss.ViewModels
 {
     /// <summary>
-    /// ViewModel for managing sprinkler programs using the MVVM pattern.
-    /// Handles program scheduling, editing, and start time previewing.
+    /// ViewModel for managing a single sprinkler schedule using the MVVM pattern.
+    /// Handles scheduling, editing, and start time previewing.
     /// </summary>
     public class ProgramEditorViewModel : INotifyPropertyChanged
     {
         #region Fields
 
-        private WateringProgram _selectedProgram;
         private ProgramSet _selectedSet;
         private string _selectedStartTime;
         private bool _isDirty;
@@ -35,14 +34,6 @@ namespace BackyardBoss.ViewModels
             get;
         }
         public ICommand SaveScheduleCommand
-        {
-            get;
-        }
-        public ICommand AddProgramCommand
-        {
-            get;
-        }
-        public ICommand RemoveProgramCommand
         {
             get;
         }
@@ -71,13 +62,11 @@ namespace BackyardBoss.ViewModels
         {
             LoadSchedule();
 
-            AddProgramCommand = new RelayCommand(AddProgram);
-            RemoveProgramCommand = new RelayCommand(RemoveProgram);
-            AddSetCommand = new RelayCommand(AddSet);
-            RemoveSetCommand = new RelayCommand(RemoveSet);
-            AddStartTimeCommand = new RelayCommand(AddStartTime);
-            RemoveStartTimeCommand = new RelayCommand(RemoveStartTime);
-            SaveScheduleCommand = new RelayCommand(SaveSchedule);
+            AddSetCommand = new RelayCommand(_ => AddSet());
+            RemoveSetCommand = new RelayCommand(_ => RemoveSet());
+            AddStartTimeCommand = new RelayCommand(_ => AddStartTime());
+            RemoveStartTimeCommand = new RelayCommand(_ => RemoveStartTime());
+            SaveScheduleCommand = new RelayCommand(_ => SaveSchedule());
 
             OpenTimePickerCommand = new RelayCommand<StartTimeViewModel>(entry =>
             {
@@ -103,40 +92,13 @@ namespace BackyardBoss.ViewModels
 
         public SprinklerSchedule Schedule { get; private set; } = new SprinklerSchedule();
 
-        public ObservableCollection<WateringProgram> Programs => Schedule.Programs;
+        public ObservableCollection<ProgramSet> Sets => Schedule.Sets;
+
+        public ObservableCollection<string> StartTimes => Schedule.StartTimes;
 
         public ObservableCollection<ScheduledRunPreview> UpcomingRuns { get; private set; } = new ObservableCollection<ScheduledRunPreview>();
 
-        public ObservableCollection<StartTimeViewModel> StartTimes { get; set; } = new ObservableCollection<StartTimeViewModel>();
-
         public bool HasUnsavedChanges => _isDirty;
-
-        public WateringProgram SelectedProgram
-        {
-            get => _selectedProgram;
-            set
-            {
-                _selectedProgram = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(IsProgramSelected));
-
-                if (_selectedProgram != null)
-                {
-                    StartTimes.Clear();
-                    foreach (var t in _selectedProgram.StartTimes)
-                        StartTimes.Add(new StartTimeViewModel { Time = t });
-
-                    foreach (var vm in StartTimes)
-                    {
-                        vm.PropertyChanged += (_, e) =>
-                        {
-                            if (e.PropertyName == nameof(StartTimeViewModel.Time))
-                                UpdateStartTimeCollectionFromViewModels();
-                        };
-                    }
-                }
-            }
-        }
 
         public ProgramSet SelectedSet
         {
@@ -160,7 +122,6 @@ namespace BackyardBoss.ViewModels
             }
         }
 
-        public bool IsProgramSelected => SelectedProgram != null;
         public bool IsSetSelected => SelectedSet != null;
         public bool IsStartTimeSelected => !string.IsNullOrEmpty(SelectedStartTime);
 
@@ -172,25 +133,11 @@ namespace BackyardBoss.ViewModels
         {
             Schedule = await ProgramDataService.LoadScheduleAsync();
             _isDirty = false;
-            OnPropertyChanged(nameof(Programs));
-
-            foreach (var program in Programs)
-            {
-                program.PropertyChanged += Program_PropertyChanged;
-                program.StartTimes.CollectionChanged += (s, e) =>
-                {
-                    MarkDirty();
-                    UpdateUpcomingRunsPreview();
-                };
-            }
-
-            SelectedProgram = Programs.FirstOrDefault();
             UpdateUpcomingRunsPreview();
         }
 
         private async void SaveSchedule()
         {
-            UpdateStartTimeCollectionFromViewModels();
             await ProgramDataService.SaveScheduleAsync(Schedule);
             _isDirty = false;
             MessageBox.Show("Schedule saved successfully!", "Save Complete", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -199,48 +146,21 @@ namespace BackyardBoss.ViewModels
 
         #endregion
 
-        #region Program & Set Management
+        #region Set Management
 
-        private void AddProgram()
+        private void AddSet()
         {
-            var newProgram = new WateringProgram { Name = "New Program" };
-            newProgram.PropertyChanged += Program_PropertyChanged;
-            newProgram.StartTimes.CollectionChanged += (s, e) => { MarkDirty(); UpdateUpcomingRunsPreview(); };
-            Programs.Add(newProgram);
-            SelectedProgram = newProgram;
+            Sets.Add(new ProgramSet { SetName = "New Set", RunDurationMinutes = 10 });
             MarkDirty();
             UpdateUpcomingRunsPreview();
         }
 
-        private void RemoveProgram()
-        {
-            if (SelectedProgram != null)
-            {
-                Programs.Remove(SelectedProgram);
-                SelectedProgram = null;
-                MarkDirty();
-                UpdateUpcomingRunsPreview();
-            }
-        }
-
-        private void AddSet()
-        {
-            if (SelectedProgram != null)
-            {
-                SelectedProgram.Sets.Add(new ProgramSet { SetName = "New Set", RunDurationMinutes = 10 });
-                OnPropertyChanged(nameof(SelectedProgram));
-                MarkDirty();
-                UpdateUpcomingRunsPreview();
-            }
-        }
-
         private void RemoveSet()
         {
-            if (SelectedProgram != null && SelectedSet != null)
+            if (SelectedSet != null)
             {
-                SelectedProgram.Sets.Remove(SelectedSet);
+                Sets.Remove(SelectedSet);
                 SelectedSet = null;
-                OnPropertyChanged(nameof(SelectedProgram));
                 MarkDirty();
                 UpdateUpcomingRunsPreview();
             }
@@ -252,8 +172,9 @@ namespace BackyardBoss.ViewModels
 
         private void AddStartTime()
         {
-            StartTimes.Add(new StartTimeViewModel { Time = "06:00" });
+            StartTimes.Add("06:00");
             MarkDirty();
+            UpdateUpcomingRunsPreview();
         }
 
         private void RemoveStartTime()
@@ -262,34 +183,18 @@ namespace BackyardBoss.ViewModels
             {
                 StartTimes.RemoveAt(StartTimes.Count - 1);
                 MarkDirty();
-            }
-        }
-
-        private void UpdateStartTimeCollectionFromViewModels()
-        {
-            if (SelectedProgram != null)
-            {
-                SelectedProgram.StartTimes.Clear();
-                foreach (var vm in StartTimes)
-                    SelectedProgram.StartTimes.Add(vm.Time);
-
-                SortStartTimes();
-                MarkDirty();
+                UpdateUpcomingRunsPreview();
             }
         }
 
         public void SortStartTimes()
         {
-            if (SelectedProgram != null)
-            {
-                var sorted = SelectedProgram.StartTimes.OrderBy(t => TimeSpan.Parse(t)).ToList();
-                SelectedProgram.StartTimes.Clear();
-                foreach (var time in sorted)
-                    SelectedProgram.StartTimes.Add(time);
+            var sorted = StartTimes.OrderBy(t => TimeSpan.Parse(t)).ToList();
+            StartTimes.Clear();
+            foreach (var time in sorted)
+                StartTimes.Add(time);
 
-                OnPropertyChanged(nameof(SelectedProgram));
-                UpdateUpcomingRunsPreview();
-            }
+            UpdateUpcomingRunsPreview();
         }
 
         #endregion
@@ -301,25 +206,22 @@ namespace BackyardBoss.ViewModels
             UpcomingRuns.Clear();
             var now = DateTime.Now.TimeOfDay;
 
-            foreach (var program in Programs.Where(p => p.IsActive))
+            foreach (var start in StartTimes)
             {
-                foreach (var start in program.StartTimes)
+                if (TimeSpan.TryParse(start, out var programStartTime) && programStartTime >= now)
                 {
-                    if (TimeSpan.TryParse(start, out var programStartTime) && programStartTime >= now)
+                    var cumulativeTime = programStartTime;
+
+                    foreach (var set in Sets)
                     {
-                        var cumulativeTime = programStartTime;
-
-                        foreach (var set in program.Sets)
+                        UpcomingRuns.Add(new ScheduledRunPreview
                         {
-                            UpcomingRuns.Add(new ScheduledRunPreview
-                            {
-                                SetName = set.SetName,
-                                StartTime = cumulativeTime.ToString(@"hh\:mm"),
-                                RunDurationMinutes = set.RunDurationMinutes
-                            });
+                            SetName = set.SetName,
+                            StartTime = cumulativeTime.ToString(@"hh\:mm"),
+                            RunDurationMinutes = set.RunDurationMinutes
+                        });
 
-                            cumulativeTime = cumulativeTime.Add(TimeSpan.FromMinutes(set.RunDurationMinutes));
-                        }
+                        cumulativeTime = cumulativeTime.Add(TimeSpan.FromMinutes(set.RunDurationMinutes));
                     }
                 }
             }
@@ -336,19 +238,10 @@ namespace BackyardBoss.ViewModels
 
         public void MarkDirty() => _isDirty = true;
 
-        public event PropertyChangedEventHandler PropertyChanged;
+        public event PropertyChangedEventHandler? PropertyChanged;
 
         public void OnPropertyChanged([CallerMemberName] string propertyName = null) =>
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-
-        private void Program_PropertyChanged(object sender, PropertyChangedEventArgs e)
-        {
-            if (e.PropertyName == nameof(WateringProgram.IsActive))
-            {
-                MarkDirty();
-                UpdateUpcomingRunsPreview();
-            }
-        }
 
         #endregion
     }

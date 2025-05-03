@@ -1,14 +1,14 @@
 ﻿using System.Collections.ObjectModel;
-using Newtonsoft.Json;
 
 namespace BackyardBoss.Models
 {
+    /// <summary>
+    /// Represents the entire sprinkler schedule configuration.
+    /// Supports only a single program with global StartTimes and Sets.
+    /// </summary>
     public class SprinklerSchedule
     {
-        [JsonProperty("seasonal_adjustment")]
-        public double SeasonalAdjustment { get; set; } = 1.0;
-
-        [JsonProperty("programs")]
-        public ObservableCollection<WateringProgram> Programs { get; set; } = new ObservableCollection<WateringProgram>();
+        public ObservableCollection<string> StartTimes { get; set; } = new ObservableCollection<string>();
+        public ObservableCollection<ProgramSet> Sets { get; set; } = new ObservableCollection<ProgramSet>();
     }
 }

@@ -1,8 +1,8 @@
 ﻿using System.IO;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Shapes;
 using BackyardBoss.Models;
-using Newtonsoft.Json;
 
 namespace BackyardBoss.Services
 {
@@ -23,12 +23,15 @@ namespace BackyardBoss.Services
                 return new SprinklerSchedule();  // Return empty if missing
 
             var json = await Task.Run(() => File.ReadAllText(_scheduleFilePath));
-            return JsonConvert.DeserializeObject<SprinklerSchedule>(json) ?? new SprinklerSchedule();
+            return JsonSerializer.Deserialize<SprinklerSchedule>(json) ?? new SprinklerSchedule();
         }
 
         public async Task SaveScheduleAsync(SprinklerSchedule schedule)
         {
-            var json = JsonConvert.SerializeObject(schedule, Formatting.Indented);
+            var json = JsonSerializer.Serialize(schedule, new JsonSerializerOptions
+            {
+                WriteIndented = true
+            });
             await Task.Run(() => File.ReadAllText(_scheduleFilePath));
         }
 
@@ -38,12 +41,17 @@ namespace BackyardBoss.Services
                 return new ManualOverrideCommand();  // Return empty if missing
 
             var json = await Task.Run(() => File.ReadAllText(_manualCommandFilePath));
-            return JsonConvert.DeserializeObject<ManualOverrideCommand>(json) ?? new ManualOverrideCommand();
+            return JsonSerializer.Deserialize<ManualOverrideCommand>(json)
+                   ?? new ManualOverrideCommand();
         }
 
         public async Task SaveManualCommandAsync(ManualOverrideCommand command)
         {
-            var json = JsonConvert.SerializeObject(command, Formatting.Indented);
+
+            var json = JsonSerializer.Serialize(command, new JsonSerializerOptions
+            {
+                WriteIndented = true
+            });
             await Task.Run(() => File.ReadAllText(_manualCommandFilePath));
         }
     }

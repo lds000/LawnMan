@@ -7,9 +7,6 @@ namespace BackyardBoss.Models
     /// </summary>
     public class ScheduleModel
     {
-        public List<WateringProgram> Programs
-        {
-            get; set;
-        }
+
     }
 }

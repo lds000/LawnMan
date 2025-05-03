@@ -1,16 +1,16 @@
-﻿using Newtonsoft.Json;
+﻿using System.Text.Json.Serialization;
 
 namespace BackyardBoss.Models
 {
     public class ProgramSet
     {
-        [JsonProperty("set_name")]
+        [JsonPropertyName("set_name")]
         public string SetName
         {
             get; set;
         } // e.g., "Set1", "Set2", "Set3"
 
-        [JsonProperty("run_duration_minutes")]
+        [JsonPropertyName("run_duration_minutes")]
         public int RunDurationMinutes
         {
             get; set;

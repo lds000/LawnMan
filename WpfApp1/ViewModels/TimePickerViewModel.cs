@@ -41,7 +41,7 @@ public class TimePickerViewModel : INotifyPropertyChanged
 
     public TimeSpan SelectedTime => new TimeSpan(SelectedHour, SelectedMinute, 0);
 
-    public event PropertyChangedEventHandler PropertyChanged;
+    public event PropertyChangedEventHandler? PropertyChanged;
     protected void OnPropertyChanged([CallerMemberName] string name = "") =>
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
