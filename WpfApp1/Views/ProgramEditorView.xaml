@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:vm="clr-namespace:BackyardBoss.ViewModels"
+             xmlns:viewModels="clr-namespace:BackyardBoss.ViewModels"
 
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:usercontrols="clr-namespace:BackyardBoss.UserControls"
@@ -33,20 +34,27 @@
         <StackPanel Grid.Row="1" Orientation="Vertical">
             <!-- Zone Controls -->
             <StackPanel Orientation="Vertical" Margin="0,0,0,20">
-                <TextBlock Text="Zone Durations" FontSize="20" Foreground="White" FontWeight="Bold" Margin="0,0,0,10" />
-                <StackPanel Orientation="Vertical" Margin="0,0,0,10">
-                    <TextBlock Text="Hanging Flowers" Foreground="White" FontSize="16" />
-                    <Slider Minimum="0" Maximum="30" Value="{Binding HangingFlowersDuration}" Height="30"
+                <TextBlock Text="Zone Durations"
+               FontSize="20" Foreground="White"
+               FontWeight="Bold" Margin="0,0,0,10" />
+
+                <ItemsControl ItemsSource="{Binding Schedule.Sets}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Vertical" Margin="0,0,0,10">
+                                <TextBlock Text="{Binding SetName}" Foreground="White" FontSize="16" />
+                                <Slider Minimum="0" Maximum="30"
+                            Value="{Binding RunDurationMinutes, Mode=TwoWay}"
+                            Height="30"
                             TickFrequency="1" IsSnapToTickEnabled="True"
-                            TickPlacement="BottomRight" Ticks="0,5,10,15,20,25,30" />
-                </StackPanel>
-                <StackPanel Orientation="Vertical">
-                    <TextBlock Text="Garden" Foreground="White" FontSize="16" />
-                    <Slider Minimum="0" Maximum="30" Value="{Binding GardenDuration}" Height="30"
-                            TickFrequency="1" IsSnapToTickEnabled="True"
-                            TickPlacement="BottomRight" Ticks="0,5,10,15,20,25,30" />
-                </StackPanel>
+                            TickPlacement="BottomRight"
+                            Ticks="0,5,10,15,20,25,30" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </StackPanel>
+
 
             <!-- Two Week Scheduler (14 Toggle Grids) -->
             <StackPanel Orientation="Vertical" Margin="0,0,0,20">

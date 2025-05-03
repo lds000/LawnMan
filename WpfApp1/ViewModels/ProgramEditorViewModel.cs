@@ -21,7 +21,7 @@ namespace BackyardBoss.ViewModels
     {
         #region Fields
 
-        private ProgramSet _selectedSet;
+        private SprinklerSet _selectedSet;
         private string _selectedStartTime;
         private bool _isDirty;
 
@@ -92,7 +92,7 @@ namespace BackyardBoss.ViewModels
 
         public SprinklerSchedule Schedule { get; private set; } = new SprinklerSchedule();
 
-        public ObservableCollection<ProgramSet> Sets => Schedule.Sets;
+        public ObservableCollection<SprinklerSet> Sets => Schedule.Sets;
 
         public ObservableCollection<string> StartTimes => Schedule.StartTimes;
 
@@ -100,7 +100,7 @@ namespace BackyardBoss.ViewModels
 
         public bool HasUnsavedChanges => _isDirty;
 
-        public ProgramSet SelectedSet
+        public SprinklerSet SelectedSet
         {
             get => _selectedSet;
             set
@@ -131,10 +131,21 @@ namespace BackyardBoss.ViewModels
 
         private async void LoadSchedule()
         {
-            Schedule = await ProgramDataService.LoadScheduleAsync();
-            _isDirty = false;
-            UpdateUpcomingRunsPreview();
+            var loaded = await ProgramDataService.LoadScheduleAsync();
+            if (loaded != null)
+            {
+                Schedule = loaded;
+                OnPropertyChanged(nameof(Sets));
+                OnPropertyChanged(nameof(StartTimes));
+                _isDirty = false;
+                UpdateUpcomingRunsPreview();
+            }
+            else
+            {
+                MessageBox.Show("Failed to load schedule. Check JSON format.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
+
 
         private async void SaveSchedule()
         {
@@ -150,7 +161,7 @@ namespace BackyardBoss.ViewModels
 
         private void AddSet()
         {
-            Sets.Add(new ProgramSet { SetName = "New Set", RunDurationMinutes = 10 });
+            Sets.Add(new SprinklerSet { SetName = "New Set", RunDurationMinutes = 10 });
             MarkDirty();
             UpdateUpcomingRunsPreview();
         }
@@ -235,6 +246,8 @@ namespace BackyardBoss.ViewModels
         #endregion
 
         #region Helpers
+        
+
 
         public void MarkDirty() => _isDirty = true;
 

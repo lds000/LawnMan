@@ -22,5 +22,17 @@ namespace BackyardBoss.Properties {
                 return defaultInstance;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool DEBUG_VERBOSE {
+            get {
+                return ((bool)(this["DEBUG_VERBOSE"]));
+            }
+            set {
+                this["DEBUG_VERBOSE"] = value;
+            }
+        }
     }
 }

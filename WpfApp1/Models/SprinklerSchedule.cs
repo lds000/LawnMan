@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.Text.Json.Serialization;
 
 namespace BackyardBoss.Models
 {
@@ -8,7 +9,11 @@ namespace BackyardBoss.Models
     /// </summary>
     public class SprinklerSchedule
     {
-        public ObservableCollection<string> StartTimes { get; set; } = new ObservableCollection<string>();
-        public ObservableCollection<ProgramSet> Sets { get; set; } = new ObservableCollection<ProgramSet>();
+        [JsonPropertyName("start_times")]
+        public ObservableCollection<string> StartTimes { get; set; } = new();
+
+        [JsonPropertyName("sets")]
+        public ObservableCollection<SprinklerSet> Sets { get; set; } = new();
     }
 }
+
