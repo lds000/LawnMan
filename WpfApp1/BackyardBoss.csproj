@@ -65,6 +65,7 @@
     </ApplicationDefinition>
     <Compile Include="Commands\RelayCommandGeneric.cs" />
     <Compile Include="Converters\BoolToVisibilityConverter.cs" />
+    <Compile Include="Models\ScheduleModel.cs" />
     <Compile Include="Services\ISprinklerDataService.cs" />
     <Compile Include="Services\JsonSprinklerDataService.cs" />
     <Compile Include="Services\ProgramDataService.cs" />

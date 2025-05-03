@@ -5,20 +5,30 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
+using System.Collections.Specialized;
 using BackyardBoss.Models;
 using BackyardBoss.Commands;
 using BackyardBoss.Services;
-using System.Collections.Specialized;
 using BackyardBoss.Views;
 
 namespace BackyardBoss.ViewModels
 {
+    /// <summary>
+    /// ViewModel for managing sprinkler programs using the MVVM pattern.
+    /// Handles program scheduling, editing, and start time previewing.
+    /// </summary>
     public class ProgramEditorViewModel : INotifyPropertyChanged
     {
+        #region Fields
+
         private WateringProgram _selectedProgram;
         private ProgramSet _selectedSet;
         private string _selectedStartTime;
         private bool _isDirty;
+
+        #endregion
+
+        #region Commands
 
         public ICommand OpenTimePickerCommand
         {
@@ -53,6 +63,10 @@ namespace BackyardBoss.ViewModels
             get;
         }
 
+        #endregion
+
+        #region Constructor
+
         public ProgramEditorViewModel()
         {
             LoadSchedule();
@@ -65,7 +79,6 @@ namespace BackyardBoss.ViewModels
             RemoveStartTimeCommand = new RelayCommand(RemoveStartTime);
             SaveScheduleCommand = new RelayCommand(SaveSchedule);
 
-
             OpenTimePickerCommand = new RelayCommand<StartTimeViewModel>(entry =>
             {
                 var dialog = new RadialTimePickerDialog
@@ -73,26 +86,27 @@ namespace BackyardBoss.ViewModels
                     Owner = Application.Current.MainWindow
                 };
 
-                // Pre-load the time into the dialog
                 dialog.SetTime(entry.ParsedTime);
 
-                // Show the dialog modally
                 if (dialog.ShowDialog() == true)
                 {
-                    // Update the selected time after user confirms
                     entry.ParsedTime = dialog.SelectedTime;
                 }
             });
-
         }
+
+        #endregion
+
+        #region Properties
 
         public StartTimeViewModel StartTime1 { get; set; } = new StartTimeViewModel { Time = "06:00" };
 
-
-
         public SprinklerSchedule Schedule { get; private set; } = new SprinklerSchedule();
+
         public ObservableCollection<WateringProgram> Programs => Schedule.Programs;
+
         public ObservableCollection<ScheduledRunPreview> UpcomingRuns { get; private set; } = new ObservableCollection<ScheduledRunPreview>();
+
         public ObservableCollection<StartTimeViewModel> StartTimes { get; set; } = new ObservableCollection<StartTimeViewModel>();
 
         public bool HasUnsavedChanges => _isDirty;
@@ -150,6 +164,10 @@ namespace BackyardBoss.ViewModels
         public bool IsSetSelected => SelectedSet != null;
         public bool IsStartTimeSelected => !string.IsNullOrEmpty(SelectedStartTime);
 
+        #endregion
+
+        #region Schedule Load/Save
+
         private async void LoadSchedule()
         {
             Schedule = await ProgramDataService.LoadScheduleAsync();
@@ -178,6 +196,10 @@ namespace BackyardBoss.ViewModels
             MessageBox.Show("Schedule saved successfully!", "Save Complete", MessageBoxButton.OK, MessageBoxImage.Information);
             UpdateUpcomingRunsPreview();
         }
+
+        #endregion
+
+        #region Program & Set Management
 
         private void AddProgram()
         {
@@ -224,6 +246,10 @@ namespace BackyardBoss.ViewModels
             }
         }
 
+        #endregion
+
+        #region Start Time Management
+
         private void AddStartTime()
         {
             StartTimes.Add(new StartTimeViewModel { Time = "06:00" });
@@ -266,6 +292,10 @@ namespace BackyardBoss.ViewModels
             }
         }
 
+        #endregion
+
+        #region Preview Generation
+
         public void UpdateUpcomingRunsPreview()
         {
             UpcomingRuns.Clear();
@@ -300,9 +330,14 @@ namespace BackyardBoss.ViewModels
                 UpcomingRuns.Add(run);
         }
 
+        #endregion
+
+        #region Helpers
+
         public void MarkDirty() => _isDirty = true;
 
         public event PropertyChangedEventHandler PropertyChanged;
+
         public void OnPropertyChanged([CallerMemberName] string propertyName = null) =>
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
@@ -314,5 +349,7 @@ namespace BackyardBoss.ViewModels
                 UpdateUpcomingRunsPreview();
             }
         }
+
+        #endregion
     }
 }
