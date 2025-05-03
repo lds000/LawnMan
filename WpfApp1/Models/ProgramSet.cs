@@ -1,4 +1,5 @@
-﻿using System.Text.Json.Serialization;
+﻿using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace BackyardBoss.Models
 {
@@ -8,12 +9,15 @@ namespace BackyardBoss.Models
         public string SetName
         {
             get; set;
-        } // e.g., "Set1", "Set2", "Set3"
+        }
 
         [JsonPropertyName("run_duration_minutes")]
         public int RunDurationMinutes
         {
             get; set;
-        } // 0 means skip this set
+        }
+
+        [JsonPropertyName("start_times")]
+        public List<string> StartTimes { get; set; } = new();  // Add this line
     }
 }

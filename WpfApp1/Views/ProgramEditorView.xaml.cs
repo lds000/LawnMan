@@ -37,40 +37,6 @@ namespace BackyardBoss.Views
         }
 
 
-        private void StartTimesListBox_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
-        {
-            if (DataContext is ProgramEditorViewModel viewModel && !string.IsNullOrEmpty(viewModel.SelectedStartTime))
-            {
-                var window = new PickTimeWindow
-                {
-                    Owner = Application.Current.MainWindow,
-                    ViewModel = viewModel
-                };
-
-                // Preload current time
-                var parts = viewModel.SelectedStartTime.Split(':');
-                if (parts.Length == 2 &&
-                    int.TryParse(parts[0], out int hour) &&
-                    int.TryParse(parts[1], out int minute))
-                {
-                    window.SetInitialTime(hour, minute);
-                }
-
-                if (window.ShowDialog() == true && !string.IsNullOrEmpty(window.SelectedTime))
-                {
-                    int index = viewModel.StartTimes.IndexOf(viewModel.SelectedStartTime);
-                    if (index >= 0)
-                    {
-                        viewModel.StartTimes[index] = window.SelectedTime;
-
-                        viewModel.SortStartTimes();
-                        viewModel.SelectedStartTime = window.SelectedTime;
-                        viewModel.OnPropertyChanged(nameof(viewModel.StartTimes));
-                        viewModel.MarkDirty();
-                    }
-                }
-            }
-        }
 
     }
 }

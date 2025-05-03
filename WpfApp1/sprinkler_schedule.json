@@ -1,18 +1,14 @@
 ﻿{
-  "seasonal_adjustment": 0.8,
-  "startTimes": [ "06:00", "18:00" ],
+  "start_times": [ "06:00", "18:00" ],
   "sets": [
     {
-      "setName": "Set1",
-      "runDurationMinutes": 10
+      "set_name": "Set1",
+      "run_duration_minutes": 10
     },
     {
-      "setName": "Set2",
-      "runDurationMinutes": 8
-    },
-    {
-      "setName": "Set3",
-      "runDurationMinutes": 5
+      "set_name": "Set2",
+      "run_duration_minutes": 8
     }
   ]
 }
+
