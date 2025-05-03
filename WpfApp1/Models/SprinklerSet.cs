@@ -1,4 +1,6 @@
-﻿using System.ComponentModel;
+﻿using BackyardBoss.ViewModels;
+using System;
+using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 
@@ -22,11 +24,17 @@ public class SprinklerSet : INotifyPropertyChanged
             {
                 _runDurationMinutes = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(SeasonallyAdjustedMinutes)); // <- This is the fix
             }
         }
     }
 
+    public int SeasonallyAdjustedMinutes
+    {
+        get => (int)Math.Round(RunDurationMinutes * ProgramEditorViewModel.Current?.SeasonalAdjustment ?? 1.0);
+    }
+
     public event PropertyChangedEventHandler PropertyChanged;
-    private void OnPropertyChanged([CallerMemberName] string name = null)
+    public void OnPropertyChanged([CallerMemberName] string name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }

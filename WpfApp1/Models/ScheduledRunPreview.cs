@@ -16,5 +16,10 @@ namespace BackyardBoss.Models
         {
             get; set;
         }
+
+        public int SeasonallyAdjustedMinutes
+        {
+            get; set;
+        }
     }
 }

@@ -13,6 +13,71 @@
         <vm:ProgramEditorViewModel />
     </UserControl.DataContext>
 
+    <UserControl.Resources>
+        <!-- Title TextBlock Style -->
+        <Style x:Key="TitleTextBlockStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
+        <ControlTemplate x:Key="EmptyButtonTemplate" TargetType="RepeatButton">
+            <Border Background="Transparent" BorderThickness="0" />
+        </ControlTemplate>
+        <Style x:Key="TouchSliderStyle" TargetType="Slider">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Grid>
+                            <!-- Background track line -->
+                            <Rectangle Height="3"
+                               Fill="White"
+                               VerticalAlignment="Center"
+                               
+                               HorizontalAlignment="Stretch"
+                               Margin="20,0" />
+
+                            <!-- Slider mechanics -->
+                            <Track x:Name="PART_Track"
+                           VerticalAlignment="Center"
+                           Focusable="False">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton IsEnabled="False"
+                                          Template="{StaticResource EmptyButtonTemplate}" />
+                                </Track.DecreaseRepeatButton>
+
+                                <Track.Thumb>
+                                    <Thumb Width="40" Height="40">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Ellipse Width="40" Height="40"
+                                                 Fill="Black"
+                                                 Stroke="White"
+                                                 StrokeThickness="2" />
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton IsEnabled="False"
+                                          Template="{StaticResource EmptyButtonTemplate}" />
+                                </Track.IncreaseRepeatButton>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+
+
+    </UserControl.Resources>
+
+
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -22,12 +87,18 @@
 
         <!-- Header with Clock and Season Slider -->
         <DockPanel Grid.Row="0" Margin="0,0,0,20">
-            <TextBlock Text="{Binding CurrentTime}" FontSize="24" Foreground="White" DockPanel.Dock="Left" />
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <TextBlock Text="Seasonal Adj (%):" Foreground="White" FontSize="16" Margin="0,0,10,0" VerticalAlignment="Center" />
-                <Slider Width="200" Minimum="50" Maximum="200" Value="{Binding Schedule.SeasonalAdjustment}" TickFrequency="10"
-                        IsSnapToTickEnabled="True" VerticalAlignment="Center" />
-            </StackPanel>
+            <TextBlock Style="{StaticResource TitleTextBlockStyle}"
+                       Text="Seasonal Adj (%):"
+                        VerticalAlignment="Center" />
+            <Slider Width="200"
+                    Style="{StaticResource TouchSliderStyle}"
+                    
+            Minimum="50" Maximum="200"
+            TickFrequency="10"
+            IsSnapToTickEnabled="True"
+            Value="{Binding SeasonalAdjustmentPercent, Mode=TwoWay}" />
+            <TextBlock Text="{Binding SeasonalAdjustmentPercent, StringFormat={}{0}%}"
+               Style="{StaticResource TitleTextBlockStyle}" VerticalAlignment="Center"/>
         </DockPanel>
 
         <!-- Main Panel -->
@@ -35,53 +106,68 @@
             <!-- Zone Controls -->
             <StackPanel Orientation="Vertical" Margin="0,0,0,20">
                 <TextBlock Text="Zone Durations"
-               FontSize="20" Foreground="White"
-               FontWeight="Bold" Margin="0,0,0,10" />
+               Style="{StaticResource TitleTextBlockStyle}" />
 
-                <ItemsControl ItemsSource="{Binding Schedule.Sets}">
+                <ItemsControl ItemsSource="{Binding Sets}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Vertical" Margin="0,0,0,10">
-                                <TextBlock Text="{Binding SetName}" Foreground="White" FontSize="16" />
+                                <!-- Zone Label with current value -->
+                                <TextBlock FontSize="16" Foreground="White">
+    <Run Text="{Binding SetName}" />
+    <Run Text=" (" />
+    <Run Text="{Binding RunDurationMinutes}" />
+    <Run Text="m → " />
+    <Run Text="{Binding SeasonallyAdjustedMinutes, Mode=OneWay}" />
+
+    <Run Text="m)" />
+                                </TextBlock>
+
+
+                                <!-- Simple Slider (no labels) -->
                                 <Slider Minimum="0" Maximum="30"
-                            Value="{Binding RunDurationMinutes, Mode=TwoWay}"
-                            Height="30"
-                            TickFrequency="1" IsSnapToTickEnabled="True"
-                            TickPlacement="BottomRight"
-                            Ticks="0,5,10,15,20,25,30" />
+                                        Style="{StaticResource TouchSliderStyle }"
+                        TickFrequency="1"
+                        IsSnapToTickEnabled="True"
+                        TickPlacement="BottomRight"
+                        Value="{Binding RunDurationMinutes, Mode=TwoWay}"
+                        HorizontalAlignment="Stretch"
+                        Margin="0"
+                        Height="50"/>
                             </StackPanel>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+
             </StackPanel>
 
 
             <!-- Two Week Scheduler (14 Toggle Grids) -->
             <StackPanel Orientation="Vertical" Margin="0,0,0,20">
-                <TextBlock Text="Schedule Days (2 Weeks)" FontSize="20" Foreground="White" FontWeight="Bold" Margin="0,0,0,10" />
+                <TextBlock Text="Schedule Days (2 Weeks)" Style="{StaticResource ResourceKey=TitleTextBlockStyle}" />
                 <UniformGrid Rows="2" Columns="7" Margin="0,5">
-                    <ToggleButton Content="Sun 1" IsChecked="{Binding Schedule.Week1Sunday}" />
-                    <ToggleButton Content="Mon 1" IsChecked="{Binding Schedule.Week1Monday}" />
-                    <ToggleButton Content="Tue 1" IsChecked="{Binding Schedule.Week1Tuesday}" />
-                    <ToggleButton Content="Wed 1" IsChecked="{Binding Schedule.Week1Wednesday}" />
-                    <ToggleButton Content="Thu 1" IsChecked="{Binding Schedule.Week1Thursday}" />
-                    <ToggleButton Content="Fri 1" IsChecked="{Binding Schedule.Week1Friday}" />
-                    <ToggleButton Content="Sat 1" IsChecked="{Binding Schedule.Week1Saturday}" />
+                    <ToggleButton Content="Sun 1" IsChecked="{Binding Week1Sunday}" />
+                    <ToggleButton Content="Mon 1" IsChecked="{Binding Week1Monday}" />
+                    <ToggleButton Content="Tue 1" IsChecked="{Binding Week1Tuesday}" />
+                    <ToggleButton Content="Wed 1" IsChecked="{Binding Week1Wednesday}" />
+                    <ToggleButton Content="Thu 1" IsChecked="{Binding Week1Thursday}" />
+                    <ToggleButton Content="Fri 1" IsChecked="{Binding Week1Friday}" />
+                    <ToggleButton Content="Sat 1" IsChecked="{Binding Week1Saturday}" />
                 </UniformGrid>
                 <UniformGrid Rows="2" Columns="7">
-                    <ToggleButton Content="Sun 2" IsChecked="{Binding Schedule.Week2Sunday}" />
-                    <ToggleButton Content="Mon 2" IsChecked="{Binding Schedule.Week2Monday}" />
-                    <ToggleButton Content="Tue 2" IsChecked="{Binding Schedule.Week2Tuesday}" />
-                    <ToggleButton Content="Wed 2" IsChecked="{Binding Schedule.Week2Wednesday}" />
-                    <ToggleButton Content="Thu 2" IsChecked="{Binding Schedule.Week2Thursday}" />
-                    <ToggleButton Content="Fri 2" IsChecked="{Binding Schedule.Week2Friday}" />
-                    <ToggleButton Content="Sat 2" IsChecked="{Binding Schedule.Week2Saturday}" />
+                    <ToggleButton Content="Sun 2" IsChecked="{Binding Week2Sunday}" />
+                    <ToggleButton Content="Mon 2" IsChecked="{Binding Week2Monday}" />
+                    <ToggleButton Content="Tue 2" IsChecked="{Binding Week2Tuesday}" />
+                    <ToggleButton Content="Wed 2" IsChecked="{Binding Week2Wednesday}" />
+                    <ToggleButton Content="Thu 2" IsChecked="{Binding Week2Thursday}" />
+                    <ToggleButton Content="Fri 2" IsChecked="{Binding Week2Friday}" />
+                    <ToggleButton Content="Sat 2" IsChecked="{Binding Week2Saturday}" />
                 </UniformGrid>
             </StackPanel>
 
             <!-- Start Times with RadialTimePickers -->
             <StackPanel Orientation="Vertical">
-                <TextBlock Text="Start Times" FontSize="20" Foreground="White" FontWeight="Bold" />
+                <TextBlock Text="Start Times" Style="{StaticResource TitleTextBlockStyle}" />
 
 
                 <ItemsControl ItemsSource="{Binding StartTimes}">

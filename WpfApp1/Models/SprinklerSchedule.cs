@@ -1,19 +1,40 @@
 ﻿using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 
-namespace BackyardBoss.Models
+public class SprinklerSchedule : INotifyPropertyChanged
 {
-    /// <summary>
-    /// Represents the entire sprinkler schedule configuration.
-    /// Supports only a single program with global StartTimes and Sets.
-    /// </summary>
-    public class SprinklerSchedule
-    {
-        [JsonPropertyName("start_times")]
-        public ObservableCollection<string> StartTimes { get; set; } = new();
+    private double _seasonalAdjustment = 1.0;
 
-        [JsonPropertyName("sets")]
-        public ObservableCollection<SprinklerSet> Sets { get; set; } = new();
+    [JsonPropertyName("start_times")]
+    public ObservableCollection<string> StartTimes { get; set; } = new();
+
+    [JsonPropertyName("sets")]
+    public ObservableCollection<SprinklerSet> Sets { get; set; } = new();
+
+    [JsonPropertyName("seasonal_adjustment")]
+    public double SeasonalAdjustment
+    {
+        get => _seasonalAdjustment;
+        set
+        {
+            if (_seasonalAdjustment != value)
+            {
+                _seasonalAdjustment = value;
+                OnPropertyChanged();
+            }
+        }
     }
+
+    [JsonPropertyName("schedule_days")]
+    public ObservableCollection<bool> ScheduleDays { get; set; } = new(Enumerable.Repeat(false, 14));
+
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    protected void OnPropertyChanged([CallerMemberName] string propName = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
 }
+
 
