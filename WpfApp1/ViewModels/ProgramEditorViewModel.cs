@@ -135,6 +135,27 @@ namespace BackyardBoss.ViewModels
             }
         }
 
+        public class CurrentRunInfo
+        {
+            public bool Running
+            {
+                get; set;
+            }
+            public string Set
+            {
+                get; set;
+            }
+            public int Time_Remaining_Sec
+            {
+                get; set;
+            }
+            public string Phase
+            {
+                get; set;
+            }  // ✅ Add this
+        }
+
+
         private string _currentRunStatus = "Unknown"; // Default status
         public string CurrentRunStatus
         {
@@ -201,12 +222,15 @@ namespace BackyardBoss.ViewModels
                     {
                         var minutes = parsed.Current_Run.Time_Remaining_Sec / 60;
                         var seconds = parsed.Current_Run.Time_Remaining_Sec % 60;
-                        CurrentRunStatus = $"{parsed.Current_Run.Set}\n({minutes:D2}:{seconds:D2})";
+                        var phase = parsed.Current_Run.Phase ?? "Watering";
+
+                        CurrentRunStatus = $"{parsed.Current_Run.Set}\n({minutes:D2}:{seconds:D2}) - {phase}";
                     }
                     else
                     {
                         CurrentRunStatus = "Idle";
                     }
+
                 });
             }
             catch (Exception ex)
@@ -227,22 +251,6 @@ namespace BackyardBoss.ViewModels
         {
             public List<string> Log { get; set; } = new();
             public CurrentRunInfo Current_Run { get; set; } = new();
-        }
-
-        public class CurrentRunInfo
-        {
-            public bool Running
-            {
-                get; set;
-            }
-            public string Set
-            {
-                get; set;
-            }
-            public int Time_Remaining_Sec
-            {
-                get; set;
-            }
         }
 
 
@@ -828,6 +836,8 @@ namespace BackyardBoss.ViewModels
     };
                 }
 
+                OnPropertyChanged(nameof(MistPulseDuration));
+                OnPropertyChanged(nameof(MistSoakDuration));
 
 
                 OnPropertyChanged(nameof(StartTimes));

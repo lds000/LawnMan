@@ -8,8 +8,8 @@ public class MistSettings : INotifyPropertyChanged
     private bool _time1030;
     private bool _time1330;
     private bool _time1600;
-    private int? _pulseDurationMinutes = 1;
-    private int? _soakDurationMinutes = 1;
+    private int? _pulseDurationMinutes;
+    private int? _soakDurationMinutes;
 
     [JsonPropertyName("duration_minutes")]
     public int DurationMinutes
@@ -67,33 +67,33 @@ public class MistSettings : INotifyPropertyChanged
         }
     }
 
-    [JsonPropertyName("pulse_duration_minutes")]
-    public int? PulseDurationMinutes
-    {
-        get => _pulseDurationMinutes;
-        set
+        [JsonPropertyName("pulse_duration_minutes")]
+        public int? PulseDurationMinutes
         {
-            if (_pulseDurationMinutes != value)
+            get => _pulseDurationMinutes;
+            set
             {
-                _pulseDurationMinutes = value;
-                OnPropertyChanged();
+                if (_pulseDurationMinutes != value)
+                {
+                    _pulseDurationMinutes = value;
+                    OnPropertyChanged();
+                }
             }
         }
-    }
 
-    [JsonPropertyName("soak_duration_minutes")]
-    public int? SoakDurationMinutes
-    {
-        get => _soakDurationMinutes;
-        set
+        [JsonPropertyName("soak_duration_minutes")]
+        public int? SoakDurationMinutes
         {
-            if (_soakDurationMinutes != value)
+            get => _soakDurationMinutes;
+            set
             {
-                _soakDurationMinutes = value;
-                OnPropertyChanged();
+                if (_soakDurationMinutes != value)
+                {
+                    _soakDurationMinutes = value;
+                    OnPropertyChanged();
+                }
             }
         }
-    }
 
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnPropertyChanged([CallerMemberName] string name = null) =>
