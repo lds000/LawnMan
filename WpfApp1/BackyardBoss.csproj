@@ -9,13 +9,38 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+	  <None Remove="Assets\Icons\idle.PNG" />
+	  <None Remove="Assets\Icons\loading.png" />
+	  <None Remove="Assets\Icons\offline.PNG" />
+	  <None Remove="Assets\Icons\running.PNG" />
+	  <None Remove="Assets\Icons\unknown.PNG" />
 	  <None Remove="sprinkler_schedule.json" />
 	</ItemGroup>
 
 	<ItemGroup>
+	  <Resource Include="Assets\Icons\idle.PNG">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Icons\loading.png">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Icons\offline.PNG">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Icons\running.PNG">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Icons\unknown.PNG">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Resource>
 	  <Content Include="sprinkler_schedule.json">
 	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 	  </Content>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <PackageReference Include="FontAwesome.WPF" Version="4.7.0.9" />
+	  <PackageReference Include="SSH.NET" Version="2025.0.0" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -31,6 +56,10 @@
 	    <Generator>SettingsSingleFileGenerator</Generator>
 	    <LastGenOutput>Settings.Designer.cs</LastGenOutput>
 	  </None>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="Assets\Weather\" />
 	</ItemGroup>
 
 </Project>

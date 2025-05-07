@@ -1,0 +1,87 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:conv="clr-namespace:BackyardBoss.Converters">
+
+    <!-- Add converters used by the style -->
+    <conv:TodayHighlightConverter x:Key="TodayHighlightConverter" />
+
+    <!-- ScheduleDayToggleStyle -->
+    <Style x:Key="ScheduleDayToggleStyle" TargetType="ToggleButton">
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="Background" Value="Black"/>
+        <Setter Property="BorderBrush" Value="Gray"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="FontSize" Value="18"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="Margin" Value="2"/>
+        <Setter Property="Width" Value="120"/>
+        <Setter Property="Height" Value="35"/>
+        <Setter Property="Effect" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Grid>
+                        <Border x:Name="Border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              Margin="4"/>
+                        </Border>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <!-- Selected (Checked) -->
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Border" Property="Background" Value="Green"/>
+                            <Setter TargetName="Border" Property="BorderBrush" Value="White"/>
+                        </Trigger>
+
+                        <!-- Hover when not selected -->
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsMouseOver" Value="True"/>
+                                <Condition Property="IsChecked" Value="False"/>
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="Border" Property="Background" Value="Red"/>
+                            <Setter TargetName="Border" Property="BorderBrush" Value="Aqua"/>
+                        </MultiTrigger>
+
+                        <!-- Hover when selected -->
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsMouseOver" Value="True"/>
+                                <Condition Property="IsChecked" Value="True"/>
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="Border" Property="Background" Value="DarkGreen"/>
+                            <Setter TargetName="Border" Property="BorderBrush" Value="White"/>
+                        </MultiTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+
+        <!-- Glow if today and unchecked -->
+        <Style.Triggers>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding IsChecked, RelativeSource={RelativeSource Self}}" Value="False"/>
+                    <Condition>
+                        <Condition.Binding>
+                            <MultiBinding Converter="{StaticResource TodayHighlightConverter}">
+                                <Binding Path="Tag" RelativeSource="{RelativeSource Self}"/>
+                            </MultiBinding>
+                        </Condition.Binding>
+                        <Condition.Value>True</Condition.Value>
+                    </Condition>
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Effect">
+                    <Setter.Value>
+                        <DropShadowEffect Color="DodgerBlue" BlurRadius="12" ShadowDepth="0" Opacity="0.8"/>
+                    </Setter.Value>
+                </Setter>
+            </MultiDataTrigger>
+        </Style.Triggers>
+    </Style>
+
+</ResourceDictionary>

@@ -32,7 +32,7 @@ namespace BackyardBoss.Services
             {
                 WriteIndented = true
             });
-            await Task.Run(() => File.ReadAllText(_scheduleFilePath));
+            await Task.Run(() => File.WriteAllText(_scheduleFilePath, json)); // ← FIXED
         }
 
         public async Task<ManualOverrideCommand> LoadManualCommandAsync()
@@ -47,12 +47,11 @@ namespace BackyardBoss.Services
 
         public async Task SaveManualCommandAsync(ManualOverrideCommand command)
         {
-
             var json = JsonSerializer.Serialize(command, new JsonSerializerOptions
             {
                 WriteIndented = true
             });
-            await Task.Run(() => File.ReadAllText(_manualCommandFilePath));
+            await Task.Run(() => File.WriteAllText(_manualCommandFilePath, json)); // ← FIXED
         }
     }
 }

@@ -9,7 +9,8 @@ public class SprinklerSchedule : INotifyPropertyChanged
     private double _seasonalAdjustment = 1.0;
 
     [JsonPropertyName("start_times")]
-    public ObservableCollection<string> StartTimes { get; set; } = new();
+    public ObservableCollection<StartTimeViewModel> StartTimes { get; set; } = new();
+
 
     [JsonPropertyName("sets")]
     public ObservableCollection<SprinklerSet> Sets { get; set; } = new();
@@ -31,10 +32,10 @@ public class SprinklerSchedule : INotifyPropertyChanged
     [JsonPropertyName("schedule_days")]
     public ObservableCollection<bool> ScheduleDays { get; set; } = new(Enumerable.Repeat(false, 14));
 
+    [JsonPropertyName("mist")]
+    public MistSettings Mist { get; set; } = new();
 
     public event PropertyChangedEventHandler? PropertyChanged;
     protected void OnPropertyChanged([CallerMemberName] string propName = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
 }
-
-

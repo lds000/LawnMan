@@ -4,128 +4,170 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:vm="clr-namespace:BackyardBoss.ViewModels"
              xmlns:viewModels="clr-namespace:BackyardBoss.ViewModels"
+             xmlns:conv="clr-namespace:BackyardBoss.Converters"
+             xmlns:fa="http://schemas.fontawesome.io/icons/"
 
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:usercontrols="clr-namespace:BackyardBoss.UserControls"
              mc:Ignorable="d"
+             
              Background="#111111">
     <UserControl.DataContext>
         <vm:ProgramEditorViewModel />
     </UserControl.DataContext>
 
     <UserControl.Resources>
-        <!-- Title TextBlock Style -->
-        <Style x:Key="TitleTextBlockStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="20"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Margin" Value="0,0,0,10"/>
-        </Style>
-        <ControlTemplate x:Key="EmptyButtonTemplate" TargetType="RepeatButton">
-            <Border Background="Transparent" BorderThickness="0" />
-        </ControlTemplate>
-        <Style x:Key="TouchSliderStyle" TargetType="Slider">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Slider">
-                        <Grid>
-                            <!-- Background track line -->
-                            <Rectangle Height="3"
-                               Fill="White"
-                               VerticalAlignment="Center"
-                               
-                               HorizontalAlignment="Stretch"
-                               Margin="20,0" />
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/BackyardBoss;component/Styles/ToggleButtonStyles.xaml" />
+                <ResourceDictionary Source="/BackyardBoss;component/Styles/Converters.xaml" />
+            </ResourceDictionary.MergedDictionaries>
 
-                            <!-- Slider mechanics -->
-                            <Track x:Name="PART_Track"
-                           VerticalAlignment="Center"
-                           Focusable="False">
-                                <Track.DecreaseRepeatButton>
-                                    <RepeatButton IsEnabled="False"
-                                          Template="{StaticResource EmptyButtonTemplate}" />
-                                </Track.DecreaseRepeatButton>
-
-                                <Track.Thumb>
-                                    <Thumb Width="40" Height="40">
-                                        <Thumb.Template>
-                                            <ControlTemplate TargetType="Thumb">
-                                                <Ellipse Width="40" Height="40"
-                                                 Fill="Black"
-                                                 Stroke="White"
-                                                 StrokeThickness="2" />
-                                            </ControlTemplate>
-                                        </Thumb.Template>
-                                    </Thumb>
-                                </Track.Thumb>
-
-                                <Track.IncreaseRepeatButton>
-                                    <RepeatButton IsEnabled="False"
-                                          Template="{StaticResource EmptyButtonTemplate}" />
-                                </Track.IncreaseRepeatButton>
-                            </Track>
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-
-
+            <!-- CircleCheckboxStyle must go inside the same ResourceDictionary block -->
+            <Style x:Key="CircleCheckboxStyle" TargetType="CheckBox">
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="CheckBox">
+                            <Grid Width="24" Height="24">
+                                <Ellipse x:Name="Circle"
+                                     Stroke="White"
+                                     StrokeThickness="2"
+                                     Fill="Black"
+                                     Width="24"
+                                     Height="24" />
+                            </Grid>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsChecked" Value="True">
+                                    <Setter TargetName="Circle" Property="Fill" Value="White"/>
+                                </Trigger>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Circle" Property="StrokeThickness" Value="3"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+                <Setter Property="Cursor" Value="Hand"/>
+            </Style>
+        </ResourceDictionary>
     </UserControl.Resources>
+
+
+
 
 
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- Header with Clock and Season Slider -->
-        <DockPanel Grid.Row="0" Margin="0,0,0,20">
-            <TextBlock Style="{StaticResource TitleTextBlockStyle}"
+
+        <!-- Main Panel -->
+        <StackPanel Grid.Row="0" Orientation="Vertical">
+            <!-- Zone Controls -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        
+
+                    <!-- Header with Clock and Season Slider -->
+                        <DockPanel Grid.Column="0" Grid.RowSpan="2"  Margin="0,0,0,10">
+                        <TextBlock Style="{StaticResource TitleTextBlockStyle}"
                        Text="Seasonal Adj (%):"
                         VerticalAlignment="Center" />
-            <Slider Width="200"
+
+                            <Slider Width="200"
                     Style="{StaticResource TouchSliderStyle}"
                     
             Minimum="50" Maximum="200"
             TickFrequency="10"
             IsSnapToTickEnabled="True"
             Value="{Binding SeasonalAdjustmentPercent, Mode=TwoWay}" />
-            <TextBlock Text="{Binding SeasonalAdjustmentPercent, StringFormat={}{0}%}"
+                            <TextBlock Text="{Binding SeasonalAdjustmentPercent, StringFormat={}{0}%}"
+                                       
                Style="{StaticResource TitleTextBlockStyle}" VerticalAlignment="Center"/>
-        </DockPanel>
+                            
+                        </DockPanel>
+                        <StackPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <StackPanel VerticalAlignment="Center">
+                            <Image Source="{Binding StatusIconPath}" Width="50" Height="50" Margin="0,0,5,0"/>
+                            <TextBlock Text="{Binding CurrentRunStatus}" TextAlignment="Center" HorizontalAlignment="Center" FontSize="16" Foreground="Lime"/>
+                            </StackPanel>
+                            
+                            <Border Grid.Column="1" Grid.Row="1" CornerRadius="10" Background="#20232A" Padding="10" Margin="10" Width="160">
+                            <StackPanel DataContext="{Binding WeatherVM}" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Image VerticalAlignment="Center" Source="{Binding WeatherIcon}" Width="80" Height="80" Margin="0,0,10,0"/>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Temperature}" FontSize="18" Foreground="White" FontWeight="Bold"/>
+                                    <TextBlock Text="{Binding Condition}" FontSize="12" Foreground="LightGray"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                        </StackPanel>
 
-        <!-- Main Panel -->
-        <StackPanel Grid.Row="1" Orientation="Vertical">
-            <!-- Zone Controls -->
-            <StackPanel Orientation="Vertical" Margin="0,0,0,20">
-                <TextBlock Text="Zone Durations"
-               Style="{StaticResource TitleTextBlockStyle}" />
+                    </Grid>
 
-                <ItemsControl ItemsSource="{Binding Sets}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel Orientation="Vertical" Margin="0,0,0,10">
-                                <!-- Zone Label with current value -->
-                                <TextBlock FontSize="16" Foreground="White">
-    <Run Text="{Binding SetName}" />
-    <Run Text=" (" />
-    <Run Text="{Binding RunDurationMinutes}" />
-    <Run Text="m → " />
-    <Run Text="{Binding SeasonallyAdjustedMinutes, Mode=OneWay}" />
+                    <ItemsControl ItemsSource="{Binding VisibleSets}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Vertical" Margin="0,0,0,0">
+                                        <!-- Zone Label with current value -->
+                                        <StackPanel Orientation="Horizontal">
+                                        <ComboBox ItemsSource="{Binding DataContext.Modes, RelativeSource={RelativeSource AncestorType=UserControl}}"
+          SelectedItem="{Binding Mode}" />
+                                        <StackPanel Orientation="Horizontal" Margin="0,5">
+                                            <TextBlock Text="Pulse (min):" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                            <TextBox Width="50"
+             Text="{Binding PulseDurationMinutes, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
-    <Run Text="m)" />
-                                </TextBlock>
+                                            <TextBlock Text="Soak (min):" VerticalAlignment="Center" Margin="10,0,5,0"/>
+                                            <TextBox Width="50"
+             Text="{Binding SoakDurationMinutes, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                        </StackPanel>
 
 
-                                <!-- Simple Slider (no labels) -->
-                                <Slider Minimum="0" Maximum="30"
+                                        <TextBlock Margin="10,0,0,0" Text="{Binding SetName}" Foreground="White" FontSize="16" />
+                                            <TextBlock Text=" (" Foreground="White" FontSize="16"/>
+                                            <TextBlock Text="{Binding RunDurationMinutes}" Foreground="White" FontSize="16" />
+                                            <TextBlock Text="m" Foreground="White" FontSize="16"/>
+
+                                            <!-- Conditionally visible adjusted section -->
+                                            <TextBlock Text=" → " 
+               Foreground="White" FontSize="16"
+               Visibility="{Binding DataContext.SeasonalAdjustment, 
+                            RelativeSource={RelativeSource AncestorType=UserControl},
+                            Converter={StaticResource AdjustmentVisibilityConverter}}" />
+
+                                            <TextBlock Text="{Binding SeasonallyAdjustedMinutes}" 
+               Foreground="White" FontSize="16"
+               Visibility="{Binding DataContext.SeasonalAdjustment, 
+                            RelativeSource={RelativeSource AncestorType=UserControl},
+                            Converter={StaticResource AdjustmentVisibilityConverter}}" />
+                                            <TextBlock Text="m" 
+Foreground="White" FontSize="16"
+Visibility="{Binding DataContext.SeasonalAdjustment, 
+             RelativeSource={RelativeSource AncestorType=UserControl},
+             Converter={StaticResource AdjustmentVisibilityConverter}}" />
+                                        <TextBlock Text=")" 
+Foreground="White" FontSize="16"></TextBlock>
+                                    </StackPanel>
+
+
+                                        <!-- Simple Slider (no labels) -->
+                                        <Slider Minimum="0" Maximum="30"
                                         Style="{StaticResource TouchSliderStyle }"
                         TickFrequency="1"
                         IsSnapToTickEnabled="True"
@@ -134,64 +176,179 @@
                         HorizontalAlignment="Stretch"
                         Margin="0"
                         Height="50"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                    </StackPanel>
+                <StackPanel Grid.Column="1">
+                    <Border Grid.Column="1" Background="#333" 
+                            CornerRadius="10" 
+                            Padding="10" 
+                            Margin="10,0,10,0"
+                            HorizontalAlignment="Right" VerticalAlignment="Top"
+        Width="250">
+                        <StackPanel>
+                            <TextBlock Text="Mist Settings" FontSize="16" FontWeight="Bold" Foreground="White" Margin="0,0,0,10" />
+
+                            <!-- Duration Display -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                                <TextBlock Text="Duration (" Foreground="White" />
+                                <TextBlock Text="{Binding MistDuration}" Foreground="White" />
+                                <TextBlock Text=" minutes)" Foreground="White" Margin="2,0,0,0" />
                             </StackPanel>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                            <Slider Minimum="1" Maximum="10"
+                Value="{Binding MistDuration, Mode=TwoWay}"
+                TickFrequency="1"
+                IsSnapToTickEnabled="True"
+                TickPlacement="BottomRight"
+                Style="{StaticResource TouchSliderStyle}" 
+                Height="40" Margin="0,0,0,10"/>
 
-            </StackPanel>
+                            <!-- Time Checkboxes -->
+                            <StackPanel Orientation="Vertical">
+                                <CheckBox Content="10:30 AM" IsChecked="{Binding MistTime1030}" Foreground="White" />
+                                <CheckBox Content="1:30 PM" IsChecked="{Binding MistTime1330}" Foreground="White" />
+                                <CheckBox Content="4:00 PM" IsChecked="{Binding MistTime1600}" Foreground="White" />
+                            </StackPanel>
+                            <TextBlock Text="Pulse (min):" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Pulse:" ToolTip="Duration of being on prior to soak." Foreground="White" />
+                                <TextBox Width="20" Text="{Binding MistPulseDuration, Mode=TwoWay}" />
+                                <TextBlock Text="Soak:" ToolTip="Duration of being on prior to soak." Foreground="White" />
+                                <TextBox Text="{Binding MistSoakDuration, Mode=TwoWay}" />
+                            </StackPanel>
 
 
+
+                            <!-- Quick Mist Button -->
+                            <Button Content="Quick Mist" Margin="0,10,0,0" Height="40"
+                Command="{Binding QuickMistCommand}" />
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+
+
+            </Grid>
             <!-- Two Week Scheduler (14 Toggle Grids) -->
-            <StackPanel Orientation="Vertical" Margin="0,0,0,20">
-                <TextBlock Text="Schedule Days (2 Weeks)" Style="{StaticResource ResourceKey=TitleTextBlockStyle}" />
-                <UniformGrid Rows="2" Columns="7" Margin="0,5">
-                    <ToggleButton Content="Sun 1" IsChecked="{Binding Week1Sunday}" />
-                    <ToggleButton Content="Mon 1" IsChecked="{Binding Week1Monday}" />
-                    <ToggleButton Content="Tue 1" IsChecked="{Binding Week1Tuesday}" />
-                    <ToggleButton Content="Wed 1" IsChecked="{Binding Week1Wednesday}" />
-                    <ToggleButton Content="Thu 1" IsChecked="{Binding Week1Thursday}" />
-                    <ToggleButton Content="Fri 1" IsChecked="{Binding Week1Friday}" />
-                    <ToggleButton Content="Sat 1" IsChecked="{Binding Week1Saturday}" />
+            <!-- Two Week Scheduler (14 Toggle Grids) -->
+            <StackPanel Orientation="Vertical" Margin="0">
+
+                <!-- Week 1 (indices 0–6) -->
+                <UniformGrid Height="80" Rows="2" Columns="7" Margin="0">
+                    <ToggleButton Content="Sun" IsChecked="{Binding Week1Sunday}" Tag="0" Style="{StaticResource ScheduleDayToggleStyle}" />
+                    <ToggleButton Content="Mon" IsChecked="{Binding Week1Monday}" Tag="1" Style="{StaticResource ScheduleDayToggleStyle}" />
+                    <ToggleButton Content="Tue" IsChecked="{Binding Week1Tuesday}" Tag="2" Style="{StaticResource ScheduleDayToggleStyle}" />
+                    <ToggleButton Content="Wed" IsChecked="{Binding Week1Wednesday}" Tag="3" Style="{StaticResource ScheduleDayToggleStyle}" />
+                    <ToggleButton Content="Thu" IsChecked="{Binding Week1Thursday}" Tag="4" Style="{StaticResource ScheduleDayToggleStyle}" />
+                    <ToggleButton Content="Fri" IsChecked="{Binding Week1Friday}" Tag="5" Style="{StaticResource ScheduleDayToggleStyle}" />
+                    <ToggleButton Content="Sat" IsChecked="{Binding Week1Saturday}" Tag="6" Style="{StaticResource ScheduleDayToggleStyle}" />
                 </UniformGrid>
-                <UniformGrid Rows="2" Columns="7">
-                    <ToggleButton Content="Sun 2" IsChecked="{Binding Week2Sunday}" />
-                    <ToggleButton Content="Mon 2" IsChecked="{Binding Week2Monday}" />
-                    <ToggleButton Content="Tue 2" IsChecked="{Binding Week2Tuesday}" />
-                    <ToggleButton Content="Wed 2" IsChecked="{Binding Week2Wednesday}" />
-                    <ToggleButton Content="Thu 2" IsChecked="{Binding Week2Thursday}" />
-                    <ToggleButton Content="Fri 2" IsChecked="{Binding Week2Friday}" />
-                    <ToggleButton Content="Sat 2" IsChecked="{Binding Week2Saturday}" />
+
+                <!-- Week 2 (indices 7–13) -->
+                <UniformGrid Height="80" Rows="2" Columns="7">
+                    <ToggleButton Content="Sun" IsChecked="{Binding Week2Sunday}" Tag="7" Style="{StaticResource ScheduleDayToggleStyle}" />
+                    <ToggleButton Content="Mon" IsChecked="{Binding Week2Monday}" Tag="8" Style="{StaticResource ScheduleDayToggleStyle}" />
+                    <ToggleButton Content="Tue" IsChecked="{Binding Week2Tuesday}" Tag="9" Style="{StaticResource ScheduleDayToggleStyle}" />
+                    <ToggleButton Content="Wed" IsChecked="{Binding Week2Wednesday}" Tag="10" Style="{StaticResource ScheduleDayToggleStyle}" />
+                    <ToggleButton Content="Thu" IsChecked="{Binding Week2Thursday}" Tag="11" Style="{StaticResource ScheduleDayToggleStyle}" />
+                    <ToggleButton Content="Fri" IsChecked="{Binding Week2Friday}" Tag="12" Style="{StaticResource ScheduleDayToggleStyle}" />
+                    <ToggleButton Content="Sat" IsChecked="{Binding Week2Saturday}" Tag="13" Style="{StaticResource ScheduleDayToggleStyle}" />
                 </UniformGrid>
             </StackPanel>
 
+<Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
             <!-- Start Times with RadialTimePickers -->
-            <StackPanel Orientation="Vertical">
-                <TextBlock Text="Start Times" Style="{StaticResource TitleTextBlockStyle}" />
+            <StackPanel Grid.Column="0" Orientation="Vertical">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <ItemsControl ItemsSource="{Binding StartTimes}" Margin="0,10">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Vertical" Margin="10,0">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <!-- Checkbox to enable/disable -->
+                                            <CheckBox Style="{StaticResource CircleCheckboxStyle}" IsChecked="{Binding IsEnabled}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                                            <Border Background="#333" CornerRadius="6" Padding="8">
+                                                <StackPanel Orientation="Vertical">
+                                                    <TextBlock Text="Start Time" Foreground="White" FontWeight="SemiBold" FontSize="12" Margin="0,0,0,4" HorizontalAlignment="Center"/>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBox Width="80"
+                                 Text="{Binding Time, Mode=TwoWay}"
+                                 IsEnabled="{Binding IsEnabled}"
+                                 HorizontalContentAlignment="Center"
+                                 Foreground="White"
+                                 Background="#444"
+                                 BorderBrush="#555"
+                                 BorderThickness="1"
+                                 Padding="4"
+                                 Margin="0,0,0,6"/>
+                                                        <Button Width="36" Height="36"
+                                ToolTip="Pick Time"
+                                Command="{Binding DataContext.OpenTimePickerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{Binding}"
+                                IsEnabled="{Binding IsEnabled}">
+                                                            <fa:ImageAwesome Icon="ClockOutline" Width="20" Height="12" Foreground="White"/>
+                                                        </Button>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </DataTemplate>
+
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
 
 
-                <ItemsControl ItemsSource="{Binding StartTimes}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel Orientation="Horizontal" Margin="0,5">
-                                <TextBox Width="100" Text="{Binding Time, Mode=TwoWay}" Margin="5" />
-                                <Button Content="Pick Time"
-                        Width="100"
-                        Command="{Binding DataContext.OpenTimePickerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                        CommandParameter="{Binding}" />
-                            </StackPanel>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                    </StackPanel>
+
+                </Grid>
             </StackPanel>
-        </StackPanel>
+                <!-- Footer Buttons -->
+                <Border BorderBrush="White" BorderThickness="2" CornerRadius="8" Margin="10" VerticalAlignment="Bottom" HorizontalAlignment="Center" Padding="10" Grid.Column="1">
+                    <StackPanel>    
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,0">
+                    <Button Content="Run Once" FontSize="20"
+            Width="100" Height="40" Margin="5,0"
+            Command="{Binding RunOnceCommand}" />
+                    <Button Content="Save/Send" FontSize="20"
+            Width="100" Height="40" Margin="5,0"
+            Command="{Binding SaveAndSendCommand}" />
+                    <Button Content="Copy" FontSize="20"
+            Width="100" Height="40" Margin="5,0"
+            Command="{Binding CopyProject}" />
+                            <Button Content="Log"
+                                    FontSize="20"
+        Width="100" Height="40" Margin="5,0"
+        Command="{Binding ShowPiLogCommand}" />
+                            <Button Content="Plots"
+                            FontSize="20"
+Width="100" Height="40" Margin="5,0"
+Command="{Binding ShowPlotsCommand}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+    </StackPanel>
 
-        <!-- Footer Buttons -->
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,20,0,0">
-            <Button Content="Auto" Width="100" Height="40" Margin="5,0" />
-            <Button Content="Off" Width="100" Height="40" Margin="5,0" />
-            <Button Content="Run Once" Width="100" Height="40" Margin="5,0" />
-            <Button Content="Reset" Width="100" Height="40" Background="DarkRed" Foreground="White" Margin="5,0" />
-        </StackPanel>
+
     </Grid>
 </UserControl>

@@ -1,35 +1,59 @@
 ﻿{
   "start_times": [
-    "06:00",
-    "18:00"
+    {
+      "time": "9:10",
+      "isEnabled": true
+    },
+    {
+      "time": "15:25",
+      "isEnabled": false
+    }
   ],
   "sets": [
     {
       "set_name": "Hanging Pots",
-      "run_duration_minutes": 6,
-      "SeasonallyAdjustedMinutes": 6
+      "run_duration_minutes": 7,
+      "seasonallyAdjustedMinutes": 7,
+      "mode": "scheduled",
+      "pulse_duration_minutes": 1,
+      "soak_duration_minutes": 1
     },
     {
       "set_name": "Garden",
       "run_duration_minutes": 10,
-      "SeasonallyAdjustedMinutes": 10
+      "seasonallyAdjustedMinutes": 10,
+      "mode": "scheduled",
+      "pulse_duration_minutes": 2,
+      "soak_duration_minutes": 2
+    },
+    {
+      "set_name": "Misters",
+      "mode": "manual"
     }
   ],
   "seasonal_adjustment": 1,
   "schedule_days": [
     true,
-    false,
-    false,
-    false,
     true,
-    false,
     true,
-    false,
     true,
-    false,
     true,
-    false,
     true,
-    false
-  ]
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+  ],
+  "mist": {
+    "duration_minutes": 2,
+    "time_1030": false,
+    "time_1330": true,
+    "time_1600": false,
+    "pulse_duration_minutes": 1,
+    "soak_duration_minutes": 1
+  }
 }

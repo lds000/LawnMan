@@ -1,0 +1,29 @@
+{
+  "start_times": [],
+  "sets": [],
+  "seasonal_adjustment": 1,
+  "schedule_days": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+  ],
+  "mist": {
+    "duration_minutes": 2,
+    "time_1030": false,
+    "time_1330": false,
+    "time_1600": false,
+    "pulse_duration_minutes": 1,
+    "soak_duration_minutes": 1
+  }
+}
