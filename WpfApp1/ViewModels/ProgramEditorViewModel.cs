@@ -21,7 +21,8 @@ using BackyardBoss.Services;
 using BackyardBoss.Views;
 using Renci.SshNet;
 using WpfApp1;
-using BackyardBoss.ViewModels; // or wherever your WeatherViewModel class is
+using BackyardBoss.ViewModels;
+using System.Windows.Media; // or wherever your WeatherViewModel class is
 
 
 
@@ -94,6 +95,12 @@ namespace BackyardBoss.ViewModels
         {
             get;
         }
+        public ICommand ToggleTestModeCommand
+        {
+            get;
+        }
+
+
 
         public WeatherViewModel WeatherVM { get; } = new WeatherViewModel();
 
@@ -111,6 +118,7 @@ namespace BackyardBoss.ViewModels
             }
         }
 
+    
         private void CalculateTodayScheduleIndex()
         {
             var baseDate = new DateTime(2024, 1, 1); // Must match Pi logic
@@ -149,11 +157,16 @@ namespace BackyardBoss.ViewModels
             {
                 get; set;
             }
+            public int Soak_Remaining_Sec
+            {
+                get; set;
+            }  // ✅ new
             public string Phase
             {
                 get; set;
-            }  // ✅ Add this
+            }
         }
+
 
 
         private string _currentRunStatus = "Unknown"; // Default status
@@ -167,6 +180,33 @@ namespace BackyardBoss.ViewModels
                 UpdateStatusIcon(value); // 👈 new method
             }
         }
+
+        private bool _isSet1On, _isSet2On, _isSet3On;
+        public bool IsSet1On
+        {
+            get => _isSet1On; set
+            {
+                _isSet1On = value;
+                OnPropertyChanged();
+            }
+        }
+        public bool IsSet2On
+        {
+            get => _isSet2On; set
+            {
+                _isSet2On = value;
+                OnPropertyChanged();
+            }
+        }
+        public bool IsSet3On
+        {
+            get => _isSet3On; set
+            {
+                _isSet3On = value;
+                OnPropertyChanged();
+            }
+        }
+
 
         private void UpdateStatusIcon(string status)
         {
@@ -205,11 +245,21 @@ namespace BackyardBoss.ViewModels
                     new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
                 );
 
+                PiReportedTestMode = parsed.TestMode;
+
+
                 if (parsed?.Log == null)
                 {
                     Debug.WriteLine("Deserialization failed or log is null.");
                     return;
                 }
+
+                if ((DateTime.Now - _lastManualTestModeChange).TotalSeconds > 3)
+                {
+                    IsTestMode = parsed.TestMode;
+                }
+    
+                OnPropertyChanged(nameof(IsTestMode));
 
                 App.Current.Dispatcher.Invoke(() =>
                 {
@@ -222,14 +272,33 @@ namespace BackyardBoss.ViewModels
                     {
                         var minutes = parsed.Current_Run.Time_Remaining_Sec / 60;
                         var seconds = parsed.Current_Run.Time_Remaining_Sec % 60;
+                        var soak = parsed.Current_Run.Soak_Remaining_Sec;
                         var phase = parsed.Current_Run.Phase ?? "Watering";
 
-                        CurrentRunStatus = $"{parsed.Current_Run.Set}\n({minutes:D2}:{seconds:D2}) - {phase}";
+                        if (phase == "Soaking")
+                        {
+                            var soakMin = soak / 60;
+                            var soakSec = soak % 60;
+                            CurrentRunStatus = $"{parsed.Current_Run.Set}\nWatering ({minutes:D2}:{seconds:D2}\nSoaking ({soakMin:D2}:{soakSec:D2})";
+                        }
+                        else
+                        {
+                            CurrentRunStatus = $"{parsed.Current_Run.Set}\nWatering ({minutes:D2}:{seconds:D2})";
+                        }
                     }
                     else
                     {
                         CurrentRunStatus = "Idle";
                     }
+
+                    var last10 = parsed.Log.TakeLast(10).ToList();
+
+                    Set1Color = last10.LastOrDefault(l => l.Contains("PIN_17"))?.Contains("ON") == true ? Brushes.LimeGreen : Brushes.Red;
+                    Set2Color = last10.LastOrDefault(l => l.Contains("PIN_22"))?.Contains("ON") == true ? Brushes.LimeGreen : Brushes.Red;
+                    Set3Color = last10.LastOrDefault(l => l.Contains("PIN_27"))?.Contains("ON") == true ? Brushes.LimeGreen : Brushes.Red;
+
+
+
 
                 });
             }
@@ -244,13 +313,104 @@ namespace BackyardBoss.ViewModels
 
         }
 
+        private Brush _set1Color = Brushes.LightGray;
+        public Brush Set1Color
+        {
+            get => _set1Color;
+            set
+            {
+                _set1Color = value;
+                OnPropertyChanged();
+            }
+        }
+
+        private Brush _set2Color = Brushes.LightGray;
+        public Brush Set2Color
+        {
+            get => _set2Color;
+            set
+            {
+                _set2Color = value;
+                OnPropertyChanged();
+            }
+        }
+
+        private Brush _set3Color = Brushes.LightGray;
+        public Brush Set3Color
+        {
+            get => _set3Color;
+            set
+            {
+                _set3Color = value;
+                OnPropertyChanged();
+            }
+        }
+
+        private DateTime _lastManualTestModeChange = DateTime.MinValue;
+        private bool _isTestMode;
+
+        public bool IsTestMode
+        {
+            get => _isTestMode;
+            set
+            {
+                if (_isTestMode != value)
+                {
+                    _isTestMode = value;
+                    _lastManualTestModeChange = DateTime.Now;
+                    OnPropertyChanged();
+                    SetEnvironmentVariable("TEST_MODE", value ? "1" : "0");
+                }
+            }
+        }
+
+        private bool _suppressExport = false;
 
 
-        // DTO to match Flask response
+        private void SetEnvironmentVariable(string variableName, string value)
+        {
+            if (variableName == "TEST_MODE")
+            {
+                try
+                {
+                    using var ssh = new SshClient("100.116.147.6", "lds00", "Celica1!");
+                    ssh.Connect();
+                    ssh.RunCommand($"echo {value} > /home/lds00/sprinkler/test_mode.txt");
+                    ssh.Disconnect();
+                    DebugLog($"TEST_MODE updated to {value}");
+                }
+                catch (Exception ex)
+                {
+                    DebugLog($"Failed to update TEST_MODE: {ex.Message}");
+                }
+            }
+        }
+
+
+
         private class PiStatusResponse
         {
             public List<string> Log { get; set; } = new();
             public CurrentRunInfo Current_Run { get; set; } = new();
+            public bool TestMode
+            {
+                get; set;
+            }  // ✅ Add this
+        }
+
+
+        private bool _piReportedTestMode;
+        public bool PiReportedTestMode
+        {
+            get => _piReportedTestMode;
+            set
+            {
+                if (_piReportedTestMode != value)
+                {
+                    _piReportedTestMode = value;
+                    OnPropertyChanged();
+                }
+            }
         }
 
 
@@ -419,6 +579,7 @@ namespace BackyardBoss.ViewModels
             RefreshPiStatusCommand = new RelayCommand(async _ => await LoadPiStatusAsync());
             ShowPiLogCommand = new RelayCommand(_ => ShowPiLog());
             ShowPlotsCommand = new RelayCommand(_ => OpenPlotWindow());
+            ToggleTestModeCommand = new RelayCommand(_ => ToggleTestMode());
 
 
             QuickMistCommand = new RelayCommand(_ =>
@@ -455,6 +616,14 @@ namespace BackyardBoss.ViewModels
                 }
             });
         }
+
+        private void ToggleTestMode()
+        {
+            bool newValue = !PiReportedTestMode;
+            SetEnvironmentVariable("TEST_MODE", newValue ? "1" : "0");
+            PiReportedTestMode = newValue;
+        }
+
 
         private void OpenPlotWindow()
         {
