@@ -30,6 +30,18 @@ os.environ["DEBUG_VERBOSE"] = "0"
 
 
 ================================================================================
+📄 config.py
+================================================================================
+
+# config.py
+RELAYS = {
+    "Hanging Pots": 17,
+    "Garden": 27,
+    "Misters": 22
+}
+
+
+================================================================================
 📄 flask_api.py
 ================================================================================
 
@@ -37,17 +49,31 @@ os.environ["DEBUG_VERBOSE"] = "0"
 
 from flask import Flask, jsonify
 from status import CURRENT_RUN
-from gpio_controller import is_test_mode  # ✅ read from file-based check
+
+TEST_MODE_FILE = "/home/lds00/sprinkler/test_mode.txt"
+
+def read_test_mode():
+    try:
+        with open(TEST_MODE_FILE) as f:
+            return f.read().strip() == "1"
+    except Exception:
+        return False
 
 app = Flask(__name__)
-declare_log = []
+from logger import declare_log
+
+from run_manager import force_stop_all
+@app.route("/stop-all", methods=["POST"])
+def stop_all():
+    force_stop_all()  # this will stop GPIO activity and clear CURRENT_RUN
+    return jsonify({"status": "stopped"})
 
 @app.route("/status")
 def status():
     return jsonify({
         "Log": declare_log[-100:],
         "Current_Run": CURRENT_RUN,
-        "TestMode": is_test_mode()  # ✅ dynamic read
+        "TestMode": read_test_mode()
     })
 
 @app.route("/history-log")
@@ -88,6 +114,8 @@ def initialize_gpio(RELAYS):
 
     if is_test_mode():
         log("[TEST MODE ENABLED] GPIO commands will be logged, not executed.")
+        for name, pin in RELAYS.items():
+            turn_off(pin, name)
     else:
         GPIO.setmode(GPIO.BCM)
         for name, pin in RELAYS.items():
@@ -188,11 +216,8 @@ import logging
 if os.getenv("DEBUG_VERBOSE", "0") != "1":
     logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
-RELAYS = {
-    "Hanging Pots": 17,
-    "Garden": 27,
-    "Misters": 22
-}
+from config import RELAYS
+
 
 SCHEDULE_FILE = "/home/lds00/sprinkler_schedule.json"
 MANUAL_COMMAND_FILE = "/home/lds00/manual_command.json"
@@ -323,11 +348,27 @@ from datetime import datetime
 from gpio_controller import turn_on, turn_off
 from status import CURRENT_RUN
 from logger import log
+from config import RELAYS  # ✅ Correct source for RELAYS
+
+
+def force_stop_all():
+    for name, pin in RELAYS.items():
+        turn_off(pin, name)
+    CURRENT_RUN.update({
+        "Running": False,
+        "Set": "",
+        "Time_Remaining_Sec": 0,
+        "Soak_Remaining_Sec": 0,
+        "Phase": ""
+    })
+    log("[SYSTEM] All zones stopped manually.")
+
 
 def log_watering_history(log_file, set_name, start_dt, end_dt, source="SCHEDULED"):
     entry = f"{start_dt.date()} {set_name} {source.upper()} START: {start_dt.strftime('%H:%M:%S')} STOP: {end_dt.strftime('%H:%M:%S')}\n"
     with open(log_file, "a") as f:
         f.write(entry)
+
 
 def run_set(set_name, duration_minutes, RELAYS, log_file, source="SCHEDULED", pulse=None, soak=None):
     pin = RELAYS.get(set_name)

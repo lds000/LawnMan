@@ -261,7 +261,7 @@ Foreground="White" FontSize="16"></TextBlock>
             <StackPanel Orientation="Vertical" Margin="0">
 
                 <!-- Week 1 (indices 0–6) -->
-                <UniformGrid Height="80" Rows="2" Columns="7" Margin="0">
+                <UniformGrid Height="60" Rows="1" Columns="7" Margin="0">
                     <ToggleButton Content="Sun" IsChecked="{Binding Week1Sunday}" Tag="0" Style="{StaticResource ScheduleDayToggleStyle}" />
                     <ToggleButton Content="Mon" IsChecked="{Binding Week1Monday}" Tag="1" Style="{StaticResource ScheduleDayToggleStyle}" />
                     <ToggleButton Content="Tue" IsChecked="{Binding Week1Tuesday}" Tag="2" Style="{StaticResource ScheduleDayToggleStyle}" />
@@ -272,7 +272,7 @@ Foreground="White" FontSize="16"></TextBlock>
                 </UniformGrid>
 
                 <!-- Week 2 (indices 7–13) -->
-                <UniformGrid Height="80" Rows="2" Columns="7">
+                <UniformGrid Height="60" Rows="1" Columns="7">
                     <ToggleButton Content="Sun" IsChecked="{Binding Week2Sunday}" Tag="7" Style="{StaticResource ScheduleDayToggleStyle}" />
                     <ToggleButton Content="Mon" IsChecked="{Binding Week2Monday}" Tag="8" Style="{StaticResource ScheduleDayToggleStyle}" />
                     <ToggleButton Content="Tue" IsChecked="{Binding Week2Tuesday}" Tag="9" Style="{StaticResource ScheduleDayToggleStyle}" />
@@ -350,23 +350,34 @@ Foreground="White" FontSize="16"></TextBlock>
                 <Border BorderBrush="White" BorderThickness="2" CornerRadius="8" Margin="10" VerticalAlignment="Bottom" HorizontalAlignment="Center" Padding="10" Grid.Column="1">
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,0">
-                            <Button Content="Run Once" FontSize="20"
-            Width="100" Height="40" Margin="5,0"
+                            <Button Content="Manual" FontSize="20"
+            Width="80" Height="40" Margin="5,0"
             Command="{Binding RunOnceCommand}" />
-                            <Button Content="Save/Send" FontSize="20"
-            Width="100" Height="40" Margin="5,0"
+                            <Button Content="Send" FontSize="20"
+            Width="55" Height="40" Margin="5,0"
             Command="{Binding SaveAndSendCommand}" />
-                            <Button Content="Copy" FontSize="20"
-            Width="100" Height="40" Margin="5,0"
-            Command="{Binding CopyProject}" />
                             <Button Content="Log"
                                     FontSize="20"
-        Width="100" Height="40" Margin="5,0"
+        Width="50" Height="40" Margin="5,0"
         Command="{Binding ShowPiLogCommand}" />
                             <Button Content="Plots"
                             FontSize="20"
-Width="100" Height="40" Margin="5,0"
+Width="60" Height="40" Margin="5,0"
 Command="{Binding ShowPlotsCommand}" />
+                            <Button Content="Stop!" 
+        Command="{Binding StopAllCommand}" 
+        Background="Red" 
+        Foreground="White" 
+        FontWeight="Bold" 
+        Width="100" 
+                                    FontSize="20"
+        Margin="5,0"/>
+                            <Button Content="Copy" FontSize="20"
+            Width="60" Height="40" Margin="5,0"
+            Command="{Binding CopyProject}" />
+                            <Button Content="Exit" FontSize="20"
+            Width="60" Height="40" Margin="5,0"
+             Command="{Binding ExitCommand}"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>

@@ -100,6 +100,14 @@ namespace BackyardBoss.ViewModels
             get;
         }
 
+        public ICommand StopAllCommand
+        {
+            get;
+        }
+        public ICommand ExitCommand
+        {
+            get;
+        }
 
 
         public WeatherViewModel WeatherVM { get; } = new WeatherViewModel();
@@ -312,6 +320,24 @@ namespace BackyardBoss.ViewModels
             }
 
         }
+
+        private async Task StopAllAsync()
+        {
+            try
+            {
+                using var client = new HttpClient();
+                var result = await client.PostAsync("http://100.116.147.6:5000/stop-all", null);
+                if (result.IsSuccessStatusCode)
+                    MessageBox.Show("All zones stopped.", "Stopped", MessageBoxButton.OK, MessageBoxImage.Information);
+                else
+                    MessageBox.Show("Failed to stop. Check connection.", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error: {ex.Message}", "Stop Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
 
         private Brush _set1Color = Brushes.LightGray;
         public Brush Set1Color
@@ -580,6 +606,9 @@ namespace BackyardBoss.ViewModels
             ShowPiLogCommand = new RelayCommand(_ => ShowPiLog());
             ShowPlotsCommand = new RelayCommand(_ => OpenPlotWindow());
             ToggleTestModeCommand = new RelayCommand(_ => ToggleTestMode());
+            StopAllCommand = new RelayCommand(async _ => await StopAllAsync());
+            ExitCommand = new RelayCommand(_ => Application.Current.Shutdown());
+
 
 
             QuickMistCommand = new RelayCommand(_ =>
