@@ -51,6 +51,34 @@
                 </Setter>
                 <Setter Property="Cursor" Value="Hand"/>
             </Style>
+            <!-- Reusable Dark ComboBox Style -->
+            <Style x:Key="DarkComboBoxStyle" TargetType="ComboBox">
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="Background" Value="Black"/>
+                <Setter Property="BorderBrush" Value="Gray"/>
+                <Setter Property="Padding" Value="4"/>
+                <Setter Property="FontSize" Value="16"/>
+                <Setter Property="Margin" Value="5"/>
+                <Setter Property="ItemContainerStyle">
+                    <Setter.Value>
+                        <Style TargetType="ComboBoxItem">
+                            <Setter Property="Foreground" Value="White"/>
+                            <Setter Property="Background" Value="Black"/>
+                            <Setter Property="Padding" Value="4"/>
+                            <Setter Property="FontSize" Value="16"/>
+                            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#444"/>
+                                </Trigger>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Background" Value="#666"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Setter.Value>
+                </Setter>
+            </Style>
         </ResourceDictionary>
     </UserControl.Resources>
 
@@ -84,6 +112,22 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
 
+                        <StackPanel Grid.Column="1"
+            Grid.RowSpan="2"
+            DataContext="{Binding WeatherVM}"
+            HorizontalAlignment="Left"
+            Orientation="Horizontal"
+            VerticalAlignment="Center"
+            MouseLeftButtonUp="WeatherPanel_Click"
+            Background="Transparent" 
+                            Cursor="Hand">
+                            <Image VerticalAlignment="Center" Source="{Binding WeatherIcon}" Width="80" Height="80" Margin="0,0,10,0"/>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Temperature}" FontSize="18" Foreground="White" FontWeight="Bold"/>
+                                <TextBlock Text="{Binding Condition}" FontSize="12" Foreground="LightGray"/>
+                            </StackPanel>
+                        </StackPanel>
+
 
                         <!-- Header with Clock and Season Slider -->
                         <DockPanel Grid.Column="0" Grid.RowSpan="2"  Margin="0,0,0,10">
@@ -103,107 +147,88 @@
                Style="{StaticResource TitleTextBlockStyle}" VerticalAlignment="Center"/>
 
                         </DockPanel>
-                        <StackPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                            <StackPanel VerticalAlignment="Center">
-                                <Image Source="{Binding StatusIconPath}" Width="50" Height="50" Margin="0,0,5,0"/>
-                                <TextBlock Text="{Binding CurrentRunStatus}" Foreground="White" FontSize="16" />
-                                <!-- Optionally: separate label -->
-                                <TextBlock Text="{Binding SoakTimeRemaining}" Foreground="LightBlue" FontSize="14" Visibility="{Binding IsSoaking, Converter={StaticResource BoolToVisibilityConverter}}" />
-                            </StackPanel>
-
-                            <Border Grid.Column="1" Grid.Row="1" CornerRadius="10" Background="#20232A" Padding="5" Margin="5" Width="160">
-                                <StackPanel HorizontalAlignment="Center">
-                                    <CheckBox Content="Test Mode"
-          IsChecked="{Binding PiReportedTestMode}"
-          Foreground="White"
-          Margin="10,0,10,0"
-          VerticalAlignment="Center"
-          IsEnabled="False"/>
-                                    <Button Content="Toggle Test Mode"
-        Command="{Binding ToggleTestModeCommand}" />
-
-                                    <!-- prevent interaction here -->
-
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,5,0,0">
-                                        <Ellipse Fill="{Binding Set1Color}" Width="20" Height="20" Margin="5"/>
-                                        <Ellipse Fill="{Binding Set2Color}" Width="20" Height="20" Margin="5"/>
-                                        <Ellipse Fill="{Binding Set3Color}" Width="20" Height="20" Margin="5"/>
-
-                                    </StackPanel>
-
-                                    <StackPanel DataContext="{Binding WeatherVM}" HorizontalAlignment="Left" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Image VerticalAlignment="Center" Source="{Binding WeatherIcon}" Width="80" Height="80" Margin="0,0,10,0"/>
-                                        <StackPanel VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding Temperature}" FontSize="18" Foreground="White" FontWeight="Bold"/>
-                                            <TextBlock Text="{Binding Condition}" FontSize="12" Foreground="LightGray"/>
-                                        </StackPanel>
-                                    </StackPanel>
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
 
                     </Grid>
 
-                    <ItemsControl ItemsSource="{Binding VisibleSets}">
-                        <ItemsControl.ItemTemplate>
+                    <TabControl ItemsSource="{Binding VisibleSets}" Margin="10" Background="Transparent">
+                        <TabControl.ItemTemplate>
                             <DataTemplate>
-                                <StackPanel Orientation="Vertical" Margin="0,0,0,0">
-                                    <!-- Zone Label with current value -->
+                                <!-- Tab Header: Set Name -->
+                                <TextBlock Text="{Binding SetName}" FontSize="16" Foreground="Black"/>
+                            </DataTemplate>
+                        </TabControl.ItemTemplate>
+
+                        <TabControl.ContentTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Vertical" Margin="10">
                                     <StackPanel Orientation="Horizontal">
-                                        <ComboBox ItemsSource="{Binding DataContext.Modes, RelativeSource={RelativeSource AncestorType=UserControl}}"
-          SelectedItem="{Binding Mode}" />
-                                        <StackPanel Orientation="Horizontal" Margin="0,5">
-                                            <TextBlock Text="Pulse (min):" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                            <TextBox Width="50"
-             Text="{Binding PulseDurationMinutes, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    <!-- Mode Combo -->
+                                    <ComboBox FontSize="24" 
+                                              Style="{StaticResource DarkComboBoxStyle}"
+                                              Margin="5,0,5,0"
+                                              VerticalAlignment="Center" 
+                                              ItemsSource="{Binding DataContext.Modes, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                          SelectedItem="{Binding Mode}" />
 
-                                            <TextBlock Text="Soak (min):" VerticalAlignment="Center" Margin="10,0,5,0"/>
-                                            <TextBox Width="50"
-             Text="{Binding SoakDurationMinutes, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                        </StackPanel>
+                                    <!-- Pulse & Soak Inputs -->
+                                        <!-- Pulse -->
+                                        <Button Content="{Binding PulseDurationMinutes}"
+        Command="{Binding OpenPulseKeypadCommand}"
+        FontSize="24"
+                                                Foreground="White" Background="Black"
+        Width="100"
+        Height="40"
+        Margin="0"
+        HorizontalAlignment="Left" />
 
+                                        <!-- Soak -->
+                                        <Button Content="{Binding SoakDurationMinutes}"
+Command="{Binding OpenSoakKeypadCommand}"
+FontSize="24"
+                                                Foreground="White" Background="Black"
+Width="100"
+Height="40"
+Margin="0"
+HorizontalAlignment="Left" />
 
-                                        <TextBlock Margin="10,0,0,0" Text="{Binding SetName}" Foreground="White" FontSize="16" />
-                                        <TextBlock Text=" (" Foreground="White" FontSize="16"/>
-                                        <TextBlock Text="{Binding RunDurationMinutes}" Foreground="White" FontSize="16" />
-                                        <TextBlock Text="m" Foreground="White" FontSize="16"/>
-
-                                        <!-- Conditionally visible adjusted section -->
-                                        <TextBlock Text=" → " 
-               Foreground="White" FontSize="16"
-               Visibility="{Binding DataContext.SeasonalAdjustment, 
-                            RelativeSource={RelativeSource AncestorType=UserControl},
-                            Converter={StaticResource AdjustmentVisibilityConverter}}" />
-
-                                        <TextBlock Text="{Binding SeasonallyAdjustedMinutes}" 
-               Foreground="White" FontSize="16"
-               Visibility="{Binding DataContext.SeasonalAdjustment, 
-                            RelativeSource={RelativeSource AncestorType=UserControl},
-                            Converter={StaticResource AdjustmentVisibilityConverter}}" />
-                                        <TextBlock Text="m" 
-Foreground="White" FontSize="16"
-Visibility="{Binding DataContext.SeasonalAdjustment, 
-             RelativeSource={RelativeSource AncestorType=UserControl},
-             Converter={StaticResource AdjustmentVisibilityConverter}}" />
-                                        <TextBlock Text=")" 
-Foreground="White" FontSize="16"></TextBlock>
                                     </StackPanel>
 
+                                    <!-- Duration Display -->
+                                    <StackPanel Orientation="Horizontal" Margin="0,5">
+                                        <TextBlock Text="Run Duration: " Foreground="White" FontSize="16"/>
+                                        <TextBlock Text="{Binding RunDurationMinutes}" Foreground="White" FontSize="16"/>
+                                        <TextBlock Text="m" Foreground="White" FontSize="16"/>
 
-                                    <!-- Simple Slider (no labels) -->
+                                        <TextBlock Text=" → " 
+                               Foreground="White" FontSize="16"
+                               Visibility="{Binding DataContext.SeasonalAdjustment, 
+                                            RelativeSource={RelativeSource AncestorType=UserControl},
+                                            Converter={StaticResource AdjustmentVisibilityConverter}}" />
+
+                                        <TextBlock Text="{Binding SeasonallyAdjustedMinutes}" 
+                               Foreground="White" FontSize="16"
+                               Visibility="{Binding DataContext.SeasonalAdjustment, 
+                                            RelativeSource={RelativeSource AncestorType=UserControl},
+                                            Converter={StaticResource AdjustmentVisibilityConverter}}" />
+                                        <TextBlock Text="m" 
+                               Foreground="White" FontSize="16"
+                               Visibility="{Binding DataContext.SeasonalAdjustment, 
+                                            RelativeSource={RelativeSource AncestorType=UserControl},
+                                            Converter={StaticResource AdjustmentVisibilityConverter}}" />
+                                    </StackPanel>
+
+                                    <!-- Duration Slider -->
                                     <Slider Minimum="0" Maximum="30"
-                                        Style="{StaticResource TouchSliderStyle }"
+                        Style="{StaticResource TouchSliderStyle}"
                         TickFrequency="1"
                         IsSnapToTickEnabled="True"
                         TickPlacement="BottomRight"
                         Value="{Binding RunDurationMinutes, Mode=TwoWay}"
-                        HorizontalAlignment="Stretch"
-                        Margin="0"
                         Height="50"/>
                                 </StackPanel>
                             </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                        </TabControl.ContentTemplate>
+                    </TabControl>
 
                 </StackPanel>
                 <StackPanel Grid.Column="1">
@@ -214,6 +239,39 @@ Foreground="White" FontSize="16"></TextBlock>
                             HorizontalAlignment="Right" VerticalAlignment="Top"
         Width="250">
                         <StackPanel>
+                            <StackPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <StackPanel VerticalAlignment="Center">
+                                    <Image Source="{Binding StatusIconPath}" Width="50" Height="50" Margin="0,0,5,0"/>
+                                    <TextBlock Text="{Binding CurrentRunStatus}" Foreground="White" FontSize="16" />
+                                    <!-- Optionally: separate label -->
+                                    <TextBlock Text="{Binding SoakTimeRemaining}" Foreground="LightBlue" FontSize="14" Visibility="{Binding IsSoaking, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                </StackPanel>
+
+                                <Border Grid.Column="1" Grid.Row="1" CornerRadius="10" Background="#20232A" Padding="5" Margin="5" Width="160">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal">
+                                        <CheckBox Content="Test Mode"
+          IsChecked="{Binding PiReportedTestMode}"
+          Foreground="White"
+          Margin="10,0,10,0"
+          VerticalAlignment="Center"
+          IsEnabled="False"/>
+                                        <Button Content="Toggle" ToolTip="Toggle test mode."
+        Command="{Binding ToggleTestModeCommand}" />
+                                        </StackPanel>
+                                        <!-- prevent interaction here -->
+
+                                        <StackPanel HorizontalAlignment="Center" Orientation="Horizontal" Margin="0,5,0,0">
+                                            <Ellipse Fill="{Binding Set1Color}" Width="20" Height="20" Margin="5"/>
+                                            <Ellipse Fill="{Binding Set2Color}" Width="20" Height="20" Margin="5"/>
+                                            <Ellipse Fill="{Binding Set3Color}" Width="20" Height="20" Margin="5"/>
+
+                                        </StackPanel>
+
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
                             <TextBlock Text="Mist Settings" FontSize="16" FontWeight="Bold" Foreground="White" Margin="0,0,0,10" />
 
                             <!-- Duration Display -->
@@ -231,7 +289,7 @@ Foreground="White" FontSize="16"></TextBlock>
                 Height="40" Margin="0,0,0,10"/>
 
                             <!-- Time Checkboxes -->
-                            <StackPanel Orientation="Vertical">
+                            <StackPanel Orientation="Horizontal">
                                 <CheckBox Content="10:30 AM" IsChecked="{Binding MistTime1030}" Foreground="White" />
                                 <CheckBox Content="1:30 PM" IsChecked="{Binding MistTime1330}" Foreground="White" />
                                 <CheckBox Content="4:00 PM" IsChecked="{Binding MistTime1600}" Foreground="White" />

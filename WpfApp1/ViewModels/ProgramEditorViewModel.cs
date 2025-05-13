@@ -177,6 +177,7 @@ namespace BackyardBoss.ViewModels
 
 
 
+
         private string _currentRunStatus = "Unknown"; // Default status
         public string CurrentRunStatus
         {
@@ -570,6 +571,8 @@ namespace BackyardBoss.ViewModels
                 MessageBox.Show($"Failed to send manual run: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
+
 
 
         public static ProgramEditorViewModel Current

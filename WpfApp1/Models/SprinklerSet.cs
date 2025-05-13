@@ -1,8 +1,11 @@
-﻿using BackyardBoss.ViewModels;
+﻿using BackyardBoss.Commands;
+using BackyardBoss.ViewModels;
+using BackyardBoss.Views;
 using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
+using System.Windows.Input;
 
 public class SprinklerSet : INotifyPropertyChanged
 {
@@ -40,6 +43,7 @@ public class SprinklerSet : INotifyPropertyChanged
             {
                 _pulseDurationMinutes = value;
                 OnPropertyChanged();
+                ProgramEditorViewModel.Current?.AutoSave();
             }
         }
     }
@@ -55,9 +59,33 @@ public class SprinklerSet : INotifyPropertyChanged
             {
                 _soakDurationMinutes = value;
                 OnPropertyChanged();
+                ProgramEditorViewModel.Current?.AutoSave();
             }
         }
     }
+
+    public ICommand OpenPulseKeypadCommand => new RelayCommand(_ =>
+    {
+        var keypad = new NumericKeypadWindow(PulseDurationMinutes.ToString());
+        keypad.ValueSubmitted += result =>
+        {
+            if (int.TryParse(result, out int value))
+                PulseDurationMinutes = value;
+        };
+        keypad.Show(); // non-modal
+    });
+
+    public ICommand OpenSoakKeypadCommand => new RelayCommand(_ =>
+    {
+        var keypad = new NumericKeypadWindow(SoakDurationMinutes.ToString());
+        keypad.ValueSubmitted += result =>
+        {
+            if (int.TryParse(result, out int value))
+                SoakDurationMinutes = value;
+        };
+        keypad.Show(); // non-modal
+    });
+
 
 
     private string _mode = "scheduled"; // default to scheduled
