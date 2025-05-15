@@ -23,15 +23,13 @@ using Renci.SshNet;
 using WpfApp1;
 using BackyardBoss.ViewModels;
 using System.Windows.Media;
-using System.Text.Json.Serialization; // or wherever your WeatherViewModel class is
-
-
+using System.Text.Json.Serialization;
 
 namespace BackyardBoss.ViewModels
 {
     public class ProgramEditorViewModel : INotifyPropertyChanged
     {
-        // Fields
+        #region Fields
         private SprinklerSet _selectedSet;
         private string _selectedStartTime;
         private bool _isDirty;
@@ -49,9 +47,12 @@ namespace BackyardBoss.ViewModels
         private string _currentStation;
         private string _countdown;
         private static readonly object _saveLock = new();
+        private int? _piScheduleIndex;
+        private string _piLocalTime;
+        private string _piTimezone;
+        #endregion
 
-
-        // Properties
+        #region Properties
         public ObservableCollection<StartTimeViewModel> StartTimes => Schedule.StartTimes;
         public ObservableCollection<SprinklerSet> VisibleSets => new ObservableCollection<SprinklerSet>(Sets.Where(s => !s.SetName.Equals("Misters", StringComparison.OrdinalIgnoreCase)));
         public ObservableCollection<ScheduledRunPreview> UpcomingRuns { get; private set; } = new();
@@ -59,172 +60,11 @@ namespace BackyardBoss.ViewModels
         public WeatherViewModel WeatherVM { get; } = new WeatherViewModel();
         public SprinklerSchedule Schedule { get; private set; } = new SprinklerSchedule();
         public ObservableCollection<SprinklerSet> Sets => Schedule.Sets;
-        public static ProgramEditorViewModel Current
-        {
-            get; private set;
-        }
+        public static ProgramEditorViewModel Current { get; private set; }
         public bool HasUnsavedChanges => _isDirty;
         public bool IsSetSelected => SelectedSet != null;
         public bool IsStartTimeSelected => !string.IsNullOrEmpty(SelectedStartTime);
-
-        // Commands
-        public ICommand OpenTimePickerCommand
-        {
-            get;
-        }
-        public ICommand SaveScheduleCommand
-        {
-            get;
-        }
-        public ICommand AddSetCommand
-        {
-            get;
-        }
-        public ICommand RemoveSetCommand
-        {
-            get;
-        }
-        public ICommand AddStartTimeCommand
-        {
-            get;
-        }
-        public ICommand RemoveStartTimeCommand
-        {
-            get;
-        }
-        public ICommand RunOnceCommand
-        {
-            get;
-        }
-        public ICommand SaveAndSendCommand
-        {
-            get;
-        }
-        public ICommand CopyProject
-        {
-            get;
-        }
-        public ICommand QuickMistCommand
-        {
-            get;
-        }
-        public ICommand RefreshPiStatusCommand
-        {
-            get;
-        }
-        public ICommand ShowPiLogCommand
-        {
-            get;
-        }
-        public ICommand ShowPlotsCommand
-        {
-            get;
-        }
-        public ICommand ToggleTestModeCommand
-        {
-            get;
-        }
-        public ICommand StopAllCommand
-        {
-            get;
-        }
-        public ICommand ExitCommand
-        {
-            get;
-        }
-
-
-        // Constructor
-        public ProgramEditorViewModel()
-        {
-            DebugLog("Constructor initialized.");
-            Current = this;
-
-            WeatherVM = new WeatherViewModel();
-            _ = WeatherVM.LoadWeatherAsync(); // ✅ Start weather loading
-
-            CurrentRunStatus = "Loading"; // Default status
-
-            CalculateTodayScheduleIndex();
-
-            LoadSchedule();
-
-            var piScheduleTimer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromSeconds(10)
-            };
-            piScheduleTimer.Tick += async (s, e) => await UpdatePiScheduleInfoAsync();
-            piScheduleTimer.Start();
-            Application.Current.Dispatcher.InvokeAsync(async () =>
-            {
-                await UpdatePiScheduleInfoAsync();
-            });
-
-
-
-            AddSetCommand = new RelayCommand(_ => AddSet());
-            RemoveSetCommand = new RelayCommand(_ => RemoveSet());
-            AddStartTimeCommand = new RelayCommand(_ => AddStartTime());
-            RemoveStartTimeCommand = new RelayCommand(_ => RemoveStartTime());
-
-            SaveScheduleCommand = new RelayCommand(_ => Save(SaveTarget.LocalOnly));
-            SaveAndSendCommand = new RelayCommand(_ => Save(SaveTarget.LocalAndSendToPi));
-
-
-            RunOnceCommand = new RelayCommand(_ => RunOnce());
-            CopyProject = new RelayCommand(_ => CopyProject2Clip());
-            RefreshPiStatusCommand = new RelayCommand(async _ => await LoadPiStatusAsync());
-            ShowPiLogCommand = new RelayCommand(_ => ShowPiLog());
-            ShowPlotsCommand = new RelayCommand(_ => OpenPlotWindow());
-            ToggleTestModeCommand = new RelayCommand(_ => ToggleTestMode());
-            StopAllCommand = new RelayCommand(async _ => await StopAllAsync());
-            ExitCommand = new RelayCommand(_ => Application.Current.Shutdown());
-
-
-
-            QuickMistCommand = new RelayCommand(_ =>
-            {
-                MistDuration = 2;
-                AutoSave();
-
-                var mistSet = Sets.FirstOrDefault(s => s.SetName.Equals("Misters", StringComparison.OrdinalIgnoreCase));
-                if (mistSet != null)
-                {
-                    SendManualRun(mistSet.SetName, MistDuration);
-                }
-                else
-                {
-                    MessageBox.Show("Mist set not found in program.", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-                }
-            });
-
-            var timer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromSeconds(5)
-            };
-            timer.Tick += async (s, e) => await LoadPiStatusAsync();
-            timer.Start();
-
-
-            OpenTimePickerCommand = new RelayCommand<StartTimeViewModel>(entry =>
-                    {
-                        if (entry == null)
-                        {
-                            DebugLog("Entry is null. Cannot open time picker.");
-                            return;
-                        }
-
-                        var dialog = new RadialTimePickerDialog { Owner = Application.Current.MainWindow };
-                        dialog.SetTime(entry.ParsedTime);
-                        if (dialog.ShowDialog() == true)
-                        {
-                            entry.ParsedTime = dialog.SelectedTime;
-                            AutoSave();
-                        }
-                    });
-        }
-
-public int TodayScheduleIndex
+        public int TodayScheduleIndex
         {
             get => _todayScheduleIndex;
             set
@@ -236,33 +76,7 @@ public int TodayScheduleIndex
                 }
             }
         }
-
-
-        private void CalculateTodayScheduleIndex()
-        {
-            var baseDate = new DateTime(2024, 1, 1); // Match Pi exactly
-            var today = DateTime.Today;
-                var deltaDays = (today - baseDate).Days;
-                TodayScheduleIndex = deltaDays % 14;
-        }
-
-        /// <summary>
-        /// Checks if the given index corresponds to today's schedule index.
-        /// </summary>
-        /// <param name="index"></param>
-        /// <returns></returns>
-        public bool IsTodayIndex(int index) => index == TodayScheduleIndex;
-
-        //property for a togglebutton sender with tag of TodayIndex, return red for today, white for other days
-        public Brush TodayIndexColor
-        {
-            get
-            {
-                return IsTodayIndex(TodayScheduleIndex) ? Brushes.Red : Brushes.White;
-            }
-        }
-
-
+        public Brush TodayIndexColor => IsTodayIndex(TodayScheduleIndex) ? Brushes.Red : Brushes.White;
         public string StatusIconPath
         {
             get => _statusIconPath;
@@ -275,35 +89,6 @@ public int TodayScheduleIndex
                 }
             }
         }
-
-        public class CurrentRunInfo
-        {
-            public bool Running
-            {
-                get; set;
-            }
-            public string Set
-            {
-                get; set;
-            }
-            public int Time_Remaining_Sec
-            {
-                get; set;
-            }
-            public int Soak_Remaining_Sec
-            {
-                get; set;
-            }  // ✅ new
-            public string Phase
-            {
-                get; set;
-            }
-        }
-
-
-
-
-
         public string CurrentRunStatus
         {
             get => _currentRunStatus;
@@ -311,195 +96,15 @@ public int TodayScheduleIndex
             {
                 _currentRunStatus = value;
                 OnPropertyChanged();
-                UpdateStatusIcon(value); // 👈 new method
+                UpdateStatusIcon(value);
             }
         }
-
-
-        public bool IsSet1On
-        {
-            get => _isSet1On; set
-            {
-                _isSet1On = value;
-                OnPropertyChanged();
-            }
-        }
-        public bool IsSet2On
-        {
-            get => _isSet2On; set
-            {
-                _isSet2On = value;
-                OnPropertyChanged();
-            }
-        }
-        public bool IsSet3On
-        {
-            get => _isSet3On; set
-            {
-                _isSet3On = value;
-                OnPropertyChanged();
-            }
-        }
-
-
-        private void UpdateStatusIcon(string status)
-        {
-            if (status.Contains("Idle"))
-                StatusIconPath = "pack://application:,,,/Assets/Icons/idle.png";
-            else if (status.Contains("("))
-                StatusIconPath = "pack://application:,,,/Assets/Icons/running.png";
-            else if (status.Contains("Offline"))
-                StatusIconPath = "pack://application:,,,/Assets/Icons/offline.png";
-            else if (status.Contains("Loading"))
-                StatusIconPath = "pack://application:,,,/Assets/Icons/loading.png";
-            else
-                StatusIconPath = "pack://application:,,,/Assets/Icons/unknown.png";
-        }
-
-
-
-
-
-
-        private async Task LoadPiStatusAsync()
-        {
-            try
-            {
-                using var client = new HttpClient();
-                var response = await client.GetAsync("http://100.116.147.6:5000/status");
-                response.EnsureSuccessStatusCode();
-
-                var json = await response.Content.ReadAsStringAsync();
-                Debug.WriteLine("RAW JSON:");
-                Debug.WriteLine(json);
-
-                var parsed = JsonSerializer.Deserialize<PiStatusResponse>(
-                    json,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
-                );
-
-                if (parsed != null) // Ensure parsed is not null
-                {
-                    PiReportedTestMode = parsed.TestMode;
-
-                    if (parsed.Log == null)
-                    {
-                        Debug.WriteLine("Deserialization failed or log is null.");
-                        return;
-                    }
-
-                    if ((DateTime.Now - _lastManualTestModeChange).TotalSeconds > 3)
-                    {
-                        IsTestMode = parsed.TestMode;
-                    }
-
-                    OnPropertyChanged(nameof(IsTestMode));
-
-                    App.Current.Dispatcher.Invoke(() =>
-                    {
-                        PiStatusLog.Clear();
-                        foreach (var line in parsed.Log)
-                            PiStatusLog.Add(line);
-
-                        // Update CurrentRunStatus with countdown
-                        if (parsed.Current_Run?.Running == true)
-                        {
-                            var minutes = parsed.Current_Run.Time_Remaining_Sec / 60;
-                            var seconds = parsed.Current_Run.Time_Remaining_Sec % 60;
-                            var soak = parsed.Current_Run.Soak_Remaining_Sec;
-                            var phase = parsed.Current_Run.Phase ?? "Watering";
-
-                            if (phase == "Soaking")
-                            {
-                                var soakMin = soak / 60;
-                                var soakSec = soak % 60;
-                                CurrentRunStatus = $"{parsed.Current_Run.Set}\nWatering ({minutes:D2}:{seconds:D2}\nSoaking ({soakMin:D2}:{soakSec:D2})";
-                            }
-                            else
-                            {
-                                CurrentRunStatus = $"{parsed.Current_Run.Set}\nWatering ({minutes:D2}:{seconds:D2})";
-                            }
-                        }
-                        else
-                        {
-                            CurrentRunStatus = "Idle";
-                        }
-
-                        var last10 = parsed.Log.TakeLast(10).ToList();
-
-                        Set1Color = last10.LastOrDefault(l => l.Contains("PIN_17"))?.Contains("ON") == true ? Brushes.LimeGreen : Brushes.Red;
-                        Set2Color = last10.LastOrDefault(l => l.Contains("PIN_22"))?.Contains("ON") == true ? Brushes.LimeGreen : Brushes.Red;
-                        Set3Color = last10.LastOrDefault(l => l.Contains("PIN_27"))?.Contains("ON") == true ? Brushes.LimeGreen : Brushes.Red;
-                    });
-                }
-                else
-                {
-                    Debug.WriteLine("Parsed response is null.");
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Failed to load Pi status: {ex.Message}");
-                App.Current.Dispatcher.Invoke(() =>
-                {
-                    CurrentRunStatus = "Offline";
-                });
-            }
-        }
-
-        private async Task StopAllAsync()
-        {
-            try
-            {
-                using var client = new HttpClient();
-                var result = await client.PostAsync("http://100.116.147.6:5000/stop-all", null);
-                if (result.IsSuccessStatusCode)
-                    MessageBox.Show("All zones stopped.", "Stopped", MessageBoxButton.OK, MessageBoxImage.Information);
-                else
-                    MessageBox.Show("Failed to stop. Check connection.", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error: {ex.Message}", "Stop Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-
-
-        public Brush Set1Color
-        {
-            get => _set1Color;
-            set
-            {
-                _set1Color = value;
-                OnPropertyChanged();
-            }
-        }
-
-
-        public Brush Set2Color
-        {
-            get => _set2Color;
-            set
-            {
-                _set2Color = value;
-                OnPropertyChanged();
-            }
-        }
-
-
-        public Brush Set3Color
-        {
-            get => _set3Color;
-            set
-            {
-                _set3Color = value;
-                OnPropertyChanged();
-            }
-        }
-
-
-
+        public bool IsSet1On { get => _isSet1On; set { _isSet1On = value; OnPropertyChanged(); } }
+        public bool IsSet2On { get => _isSet2On; set { _isSet2On = value; OnPropertyChanged(); } }
+        public bool IsSet3On { get => _isSet3On; set { _isSet3On = value; OnPropertyChanged(); } }
+        public Brush Set1Color { get => _set1Color; set { _set1Color = value; OnPropertyChanged(); } }
+        public Brush Set2Color { get => _set2Color; set { _set2Color = value; OnPropertyChanged(); } }
+        public Brush Set3Color { get => _set3Color; set { _set3Color = value; OnPropertyChanged(); } }
         public bool IsTestMode
         {
             get => _isTestMode;
@@ -514,43 +119,6 @@ public int TodayScheduleIndex
                 }
             }
         }
-
-
-
-
-        private void SetEnvironmentVariable(string variableName, string value)
-        {
-            if (variableName == "TEST_MODE")
-            {
-                try
-                {
-                    using var ssh = new SshClient("100.116.147.6", "lds00", "Celica1!");
-                    ssh.Connect();
-                    ssh.RunCommand($"echo {value} > /home/lds00/sprinkler/test_mode.txt");
-                    ssh.Disconnect();
-                    DebugLog($"TEST_MODE updated to {value}");
-                }
-                catch (Exception ex)
-                {
-                    DebugLog($"Failed to update TEST_MODE: {ex.Message}");
-                }
-            }
-        }
-
-
-
-        private class PiStatusResponse
-        {
-            public List<string> Log { get; set; } = new();
-            public CurrentRunInfo Current_Run { get; set; } = new();
-            public bool TestMode
-            {
-                get; set;
-            }  // ✅ Add this
-        }
-
-
-
         public bool PiReportedTestMode
         {
             get => _piReportedTestMode;
@@ -563,220 +131,7 @@ public int TodayScheduleIndex
                 }
             }
         }
-
-
-
-
-        public enum SaveTarget
-        {
-            LocalOnly,
-            LocalAndSendToPi
-        }
-
-
-        private void Save(SaveTarget target)
-        {
-            lock (_saveLock)
-            {
-                DebugLog("Save triggered.");
-
-                Schedule.StartTimes = new ObservableCollection<StartTimeViewModel>(StartTimes);
-
-                foreach (var set in Schedule.Sets)
-                {
-                    if (set.SetName == "Misters")
-                        set.Mode = true;
-                }
-
-                var options = new JsonSerializerOptions
-                {
-                    WriteIndented = true,
-                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault
-                };
-
-                string localPath = "sprinkler_schedule.json";
-                string remotePath = "/home/lds00/sprinkler_schedule.json";
-                string piHost = "100.116.147.6";
-                string username = "lds00";
-                string password = "Celica1!";
-
-                try
-                {
-                    var json = JsonSerializer.Serialize(Schedule, options);
-                    using (var fs = new FileStream(localPath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite))
-                    using (var writer = new StreamWriter(fs))
-                    {
-                        writer.Write(json);
-                    }
-
-                    if (target == SaveTarget.LocalAndSendToPi)
-                    {
-                        using var sftp = new SftpClient(piHost, username, password);
-                        sftp.Connect();
-                        using var stream = File.OpenRead(localPath);
-                        sftp.UploadFile(stream, remotePath, true);
-                        sftp.Disconnect();
-
-                        MessageBox.Show("Schedule saved and sent to Raspberry Pi.");
-                    }
-                    else
-                    {
-                        DebugLog("Schedule saved locally only.");
-                    }
-
-                    _isDirty = false;
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Failed to save: {ex.Message}");
-                }
-            }
-        }
-
-
-
-        private void RunOnce()
-        {
-            var dialog = new RunOnceDialog(Sets);
-            dialog.Owner = Application.Current.MainWindow;
-
-            if (dialog.ShowDialog() == true)
-            {
-                var selected = dialog.GetOverrides().Where(s => s.Duration > 0).ToList();
-
-                if (selected.Count == 0)
-                {
-                    MessageBox.Show("No durations selected.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
-                    return;
-                }
-
-                DebugLog("RunOnce: Executing the following sets:");
-                foreach (var run in selected)
-                {
-                    DebugLog($" - {run.SetName}: {run.Duration} min");
-                }
-
-                // 👇 Prepare manual_command.json
-                var command = new
-                {
-                    manual_run = new
-                    {
-                        sets = selected.Select(s => s.SetName).ToArray(),
-                        duration_minutes = selected.Max(s => s.Duration) // You may want a smarter handling here
-                    }
-                };
-
-                string localPath = "manual_command.json";
-                string remotePath = "/home/lds00/manual_command.json";
-                string piHost = "100.116.147.6";  // ← Replace with actual IP
-                string username = "lds00";
-                string password = "Celica1!";
-
-                try
-                {
-                    File.WriteAllText(localPath, JsonSerializer.Serialize(command, new JsonSerializerOptions { WriteIndented = true }));
-
-                    using var sftp = new SftpClient(piHost, username, password);
-                    sftp.Connect();
-                    using var stream = File.OpenRead(localPath);
-                    sftp.UploadFile(stream, remotePath, true);
-                    sftp.Disconnect();
-
-                    MessageBox.Show("RunOnce command sent to Raspberry Pi.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Failed to send RunOnce command: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-            }
-        }
-
-        private void SendManualRun(string setName, int durationMinutes)
-        {
-            var command = new
-            {
-                manual_run = new
-                {
-                    sets = new[] { setName },
-                    duration_minutes = durationMinutes
-                }
-            };
-
-            string localPath = "manual_command.json";
-            string remotePath = "/home/lds00/manual_command.json";
-            string piHost = "100.116.147.6";  // ← Replace with actual IP
-            string username = "lds00";
-            string password = "Celica1!";
-
-            try
-            {
-                File.WriteAllText(localPath, JsonSerializer.Serialize(command, new JsonSerializerOptions { WriteIndented = true }));
-
-                using var sftp = new SftpClient(piHost, username, password);
-                sftp.Connect();
-                using var stream = File.OpenRead(localPath);
-                sftp.UploadFile(stream, remotePath, true);
-                sftp.Disconnect();
-
-                MessageBox.Show($"Manual run sent: {setName} for {durationMinutes} min.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Failed to send manual run: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-
-
-
-
-        private void ToggleTestMode()
-        {
-            bool newValue = !PiReportedTestMode;
-            SetEnvironmentVariable("TEST_MODE", newValue ? "1" : "0");
-            PiReportedTestMode = newValue;
-        }
-
-
-        private void OpenPlotWindow()
-        {
-            var window = new WateringHistoryView();
-            window.Show();
-        }
-
-
-
-        private async void ShowPiLog()
-        {
-            await LoadPiStatusAsync(); // ensure data is fetched
-
-            if (PiStatusLog.Count == 0)
-            {
-                MessageBox.Show("Log is empty.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            var window = new PiLogWindow(PiStatusLog);
-            window.Owner = Application.Current.MainWindow;
-            window.ShowDialog();
-        }
-
-
-
-        private void CopyProject2Clip()
-        {
-            //string rootDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-
-            //string pointing to directory of my solution
-            string rootDirectory = @"C:\Users\lds00\source\repos\WpfApp1\WpfApp1\";
-
-
-            BackyardBoss.Tools.ProjectStructureToClipboard.ExportStructureWithContents(rootDirectory);
-        }
-
-
-        public SprinklerSet? SelectedSet // Change the type to nullable
+        public SprinklerSet? SelectedSet
         {
             get => _selectedSet;
             set
@@ -786,7 +141,6 @@ public int TodayScheduleIndex
                 OnPropertyChanged(nameof(IsSetSelected));
             }
         }
-
         public int MistDuration
         {
             get => Schedule.Mist.DurationMinutes;
@@ -800,7 +154,6 @@ public int TodayScheduleIndex
                 }
             }
         }
-
         public bool MistTime1030
         {
             get => Schedule.Mist.Time1030;
@@ -814,7 +167,6 @@ public int TodayScheduleIndex
                 }
             }
         }
-
         public bool MistTime1330
         {
             get => Schedule.Mist.Time1330;
@@ -828,7 +180,6 @@ public int TodayScheduleIndex
                 }
             }
         }
-
         public bool MistTime1600
         {
             get => Schedule.Mist.Time1600;
@@ -842,7 +193,6 @@ public int TodayScheduleIndex
                 }
             }
         }
-
         public int? MistPulseDuration
         {
             get => Schedule.Mist.PulseDurationMinutes;
@@ -856,7 +206,6 @@ public int TodayScheduleIndex
                 }
             }
         }
-
         public int? MistSoakDuration
         {
             get => Schedule.Mist.SoakDurationMinutes;
@@ -870,11 +219,6 @@ public int TodayScheduleIndex
                 }
             }
         }
-
-
-
-
-
         public string SelectedStartTime
         {
             get => _selectedStartTime;
@@ -885,7 +229,6 @@ public int TodayScheduleIndex
                 OnPropertyChanged(nameof(IsStartTimeSelected));
             }
         }
-
         public double SeasonalAdjustment
         {
             get => Schedule.SeasonalAdjustment;
@@ -897,20 +240,15 @@ public int TodayScheduleIndex
                     OnPropertyChanged();
                     OnPropertyChanged(nameof(SeasonalAdjustment));
                     OnPropertyChanged(nameof(SeasonalAdjustmentPercent));
-
-                    // Notify all sets their adjusted minutes may have changed
                     foreach (var set in Sets)
                     {
                         set.OnPropertyChanged(nameof(set.SeasonallyAdjustedMinutes));
                     }
-
                     UpdateUpcomingRunsPreview();
                     AutoSave();
                 }
             }
         }
-
-
         public int SeasonalAdjustmentPercent
         {
             get => (int)(SeasonalAdjustment * 100);
@@ -920,206 +258,150 @@ public int TodayScheduleIndex
                 OnPropertyChanged();
             }
         }
-
-        // Weekday properties omitted for brevity but should call AutoSave in setters
         // Week 1
-        public bool Week1Sunday
-        {
-            get => Schedule.ScheduleDays[0]; set
-            {
-                Schedule.ScheduleDays[0] = value;
-                OnPropertyChanged();
-                AutoSave();
-            }
-        }
-        public bool Week1Monday
-        {
-            get => Schedule.ScheduleDays[1]; set
-            {
-                Schedule.ScheduleDays[1] = value;
-                OnPropertyChanged();
-                AutoSave();
-            }
-        }
-        public bool Week1Tuesday
-        {
-            get => Schedule.ScheduleDays[2]; set
-            {
-                Schedule.ScheduleDays[2] = value;
-                OnPropertyChanged();
-                AutoSave();
-            }
-        }
-        public bool Week1Wednesday
-        {
-            get => Schedule.ScheduleDays[3]; set
-            {
-                Schedule.ScheduleDays[3] = value;
-                OnPropertyChanged();
-                AutoSave();
-            }
-        }
-        public bool Week1Thursday
-        {
-            get => Schedule.ScheduleDays[4]; set
-            {
-                Schedule.ScheduleDays[4] = value;
-                OnPropertyChanged();
-                AutoSave();
-            }
-        }
-        public bool Week1Friday
-        {
-            get => Schedule.ScheduleDays[5]; set
-            {
-                Schedule.ScheduleDays[5] = value;
-                OnPropertyChanged();
-                AutoSave();
-            }
-        }
-        public bool Week1Saturday
-        {
-            get => Schedule.ScheduleDays[6]; set
-            {
-                Schedule.ScheduleDays[6] = value;
-                OnPropertyChanged();
-                AutoSave();
-            }
-        }
-
+        public bool Week1Sunday { get => Schedule.ScheduleDays[0]; set { Schedule.ScheduleDays[0] = value; OnPropertyChanged(); AutoSave(); } }
+        public bool Week1Monday { get => Schedule.ScheduleDays[1]; set { Schedule.ScheduleDays[1] = value; OnPropertyChanged(); AutoSave(); } }
+        public bool Week1Tuesday { get => Schedule.ScheduleDays[2]; set { Schedule.ScheduleDays[2] = value; OnPropertyChanged(); AutoSave(); } }
+        public bool Week1Wednesday { get => Schedule.ScheduleDays[3]; set { Schedule.ScheduleDays[3] = value; OnPropertyChanged(); AutoSave(); } }
+        public bool Week1Thursday { get => Schedule.ScheduleDays[4]; set { Schedule.ScheduleDays[4] = value; OnPropertyChanged(); AutoSave(); } }
+        public bool Week1Friday { get => Schedule.ScheduleDays[5]; set { Schedule.ScheduleDays[5] = value; OnPropertyChanged(); AutoSave(); } }
+        public bool Week1Saturday { get => Schedule.ScheduleDays[6]; set { Schedule.ScheduleDays[6] = value; OnPropertyChanged(); AutoSave(); } }
         // Week 2
-        public bool Week2Sunday
-        {
-            get => Schedule.ScheduleDays[7]; set
-            {
-                Schedule.ScheduleDays[7] = value;
-                OnPropertyChanged();
-                AutoSave();
-            }
-        }
-        public bool Week2Monday
-        {
-            get => Schedule.ScheduleDays[8]; set
-            {
-                Schedule.ScheduleDays[8] = value;
-                OnPropertyChanged();
-                AutoSave();
-            }
-        }
-        public bool Week2Tuesday
-        {
-            get => Schedule.ScheduleDays[9]; set
-            {
-                Schedule.ScheduleDays[9] = value;
-                OnPropertyChanged();
-                AutoSave();
-            }
-        }
-        public bool Week2Wednesday
-        {
-            get => Schedule.ScheduleDays[10]; set
-            {
-                Schedule.ScheduleDays[10] = value;
-                OnPropertyChanged();
-                AutoSave();
-            }
-        }
-        public bool Week2Thursday
-        {
-            get => Schedule.ScheduleDays[11]; set
-            {
-                Schedule.ScheduleDays[11] = value;
-                OnPropertyChanged();
-                AutoSave();
-            }
-        }
-        public bool Week2Friday
-        {
-            get => Schedule.ScheduleDays[12]; set
-            {
-                Schedule.ScheduleDays[12] = value;
-                OnPropertyChanged();
-                AutoSave();
-            }
-        }
-        public bool Week2Saturday
-        {
-            get => Schedule.ScheduleDays[13]; set
-            {
-                Schedule.ScheduleDays[13] = value;
-                OnPropertyChanged();
-                AutoSave();
-            }
-        }
+        public bool Week2Sunday { get => Schedule.ScheduleDays[7]; set { Schedule.ScheduleDays[7] = value; OnPropertyChanged(); AutoSave(); } }
+        public bool Week2Monday { get => Schedule.ScheduleDays[8]; set { Schedule.ScheduleDays[8] = value; OnPropertyChanged(); AutoSave(); } }
+        public bool Week2Tuesday { get => Schedule.ScheduleDays[9]; set { Schedule.ScheduleDays[9] = value; OnPropertyChanged(); AutoSave(); } }
+        public bool Week2Wednesday { get => Schedule.ScheduleDays[10]; set { Schedule.ScheduleDays[10] = value; OnPropertyChanged(); AutoSave(); } }
+        public bool Week2Thursday { get => Schedule.ScheduleDays[11]; set { Schedule.ScheduleDays[11] = value; OnPropertyChanged(); AutoSave(); } }
+        public bool Week2Friday { get => Schedule.ScheduleDays[12]; set { Schedule.ScheduleDays[12] = value; OnPropertyChanged(); AutoSave(); } }
+        public bool Week2Saturday { get => Schedule.ScheduleDays[13]; set { Schedule.ScheduleDays[13] = value; OnPropertyChanged(); AutoSave(); } }
+        public string CurrentStation { get => _currentStation; set { if (_currentStation != value) { _currentStation = value; OnPropertyChanged(); } } }
+        public string Countdown { get => _countdown; set { if (_countdown != value) { _countdown = value; OnPropertyChanged(); } } }
+        public int? PiScheduleIndex { get => _piScheduleIndex; set { _piScheduleIndex = value; OnPropertyChanged(); OnPropertyChanged(nameof(ScheduleIndexMismatch)); } }
+        public string PiLocalTime { get => _piLocalTime; set { _piLocalTime = value; OnPropertyChanged(); } }
+        public string PiTimezone { get => _piTimezone; set { _piTimezone = value; OnPropertyChanged(); } }
+        public bool ScheduleIndexMismatch => PiScheduleIndex != TodayScheduleIndex;
+        #endregion
 
+        #region Commands
+        public ICommand OpenTimePickerCommand { get; }
+        public ICommand SaveScheduleCommand { get; }
+        public ICommand AddSetCommand { get; }
+        public ICommand RemoveSetCommand { get; }
+        public ICommand AddStartTimeCommand { get; }
+        public ICommand RemoveStartTimeCommand { get; }
+        public ICommand RunOnceCommand { get; }
+        public ICommand SaveAndSendCommand { get; }
+        public ICommand CopyProject { get; }
+        public ICommand QuickMistCommand { get; }
+        public ICommand RefreshPiStatusCommand { get; }
+        public ICommand ShowPiLogCommand { get; }
+        public ICommand ShowPlotsCommand { get; }
+        public ICommand ToggleTestModeCommand { get; }
+        public ICommand StopAllCommand { get; }
+        public ICommand ExitCommand { get; }
+        #endregion
 
-        public string CurrentStation
+        #region Constructor
+        public ProgramEditorViewModel()
         {
-            get => _currentStation;
-            set
+            DebugLog("Constructor initialized.");
+            Current = this;
+            WeatherVM = new WeatherViewModel();
+            _ = WeatherVM.LoadWeatherAsync();
+            CurrentRunStatus = "Loading";
+            CalculateTodayScheduleIndex();
+            LoadSchedule();
+            var piScheduleTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
+            piScheduleTimer.Tick += async (s, e) => await UpdatePiScheduleInfoAsync();
+            piScheduleTimer.Start();
+            Application.Current.Dispatcher.InvokeAsync(async () => { await UpdatePiScheduleInfoAsync(); });
+            AddSetCommand = new RelayCommand(_ => AddSet());
+            RemoveSetCommand = new RelayCommand(_ => RemoveSet());
+            AddStartTimeCommand = new RelayCommand(_ => AddStartTime());
+            RemoveStartTimeCommand = new RelayCommand(_ => RemoveStartTime());
+            SaveScheduleCommand = new RelayCommand(_ => Save(SaveTarget.LocalOnly));
+            SaveAndSendCommand = new RelayCommand(_ => Save(SaveTarget.LocalAndSendToPi));
+            RunOnceCommand = new RelayCommand(_ => RunOnce());
+            CopyProject = new RelayCommand(_ => CopyProject2Clip());
+            RefreshPiStatusCommand = new RelayCommand(async _ => await LoadPiStatusAsync());
+            ShowPiLogCommand = new RelayCommand(_ => ShowPiLog());
+            ShowPlotsCommand = new RelayCommand(_ => OpenPlotWindow());
+            ToggleTestModeCommand = new RelayCommand(_ => ToggleTestMode());
+            StopAllCommand = new RelayCommand(async _ => await StopAllAsync());
+            ExitCommand = new RelayCommand(_ => Application.Current.Shutdown());
+            QuickMistCommand = new RelayCommand(_ =>
             {
-                if (_currentStation != value)
+                MistDuration = 2;
+                AutoSave();
+                var mistSet = Sets.FirstOrDefault(s => s.SetName.Equals("Misters", StringComparison.OrdinalIgnoreCase));
+                if (mistSet != null)
                 {
-                    _currentStation = value;
-                    OnPropertyChanged();
+                    SendManualRun(mistSet.SetName, MistDuration);
                 }
-            }
-        }
-
-
-        public string Countdown
-        {
-            get => _countdown;
-            set
-            {
-                if (_countdown != value)
+                else
                 {
-                    _countdown = value;
-                    OnPropertyChanged();
+                    MessageBox.Show("Mist set not found in program.", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
-            }
+            });
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+            timer.Tick += async (s, e) => await LoadPiStatusAsync();
+            timer.Start();
+            OpenTimePickerCommand = new RelayCommand<StartTimeViewModel>(entry =>
+            {
+                if (entry == null)
+                {
+                    DebugLog("Entry is null. Cannot open time picker.");
+                    return;
+                }
+                var dialog = new RadialTimePickerDialog { Owner = Application.Current.MainWindow };
+                dialog.SetTime(entry.ParsedTime);
+                if (dialog.ShowDialog() == true)
+                {
+                    entry.ParsedTime = dialog.SelectedTime;
+                    AutoSave();
+                }
+            });
         }
+        #endregion
 
-
-
-
+        #region Schedule Management
+        private void CalculateTodayScheduleIndex()
+        {
+            var baseDate = new DateTime(2024, 1, 1);
+            var today = DateTime.Today;
+            var deltaDays = (today - baseDate).Days;
+            TodayScheduleIndex = deltaDays % 14;
+        }
+        public bool IsTodayIndex(int index) => index == TodayScheduleIndex;
         private async void LoadSchedule()
         {
-
             Debug.WriteLine($"Today (Local): {DateTime.Today:yyyy-MM-dd}");
             Debug.WriteLine($"Today (UTC):   {DateTime.UtcNow.Date:yyyy-MM-dd}");
-
             DebugLog("Loading schedule...");
             _suppressExport = true;
-
             var loaded = await ProgramDataService.LoadScheduleAsync();
             if (loaded != null)
             {
                 Schedule = loaded;
-
                 if (loaded.ScheduleDays == null || loaded.ScheduleDays.Count != 14)
                 {
                     DebugLog("Initializing blank ScheduleDays array.");
                     loaded.ScheduleDays = new ObservableCollection<bool>(Enumerable.Repeat(false, 14));
                 }
-
                 if (loaded.Mist == null)
                 {
                     DebugLog("Mist section missing — initializing defaults.");
                     loaded.Mist = new MistSettings();
                 }
-
                 if (loaded.StartTimes == null || loaded.StartTimes.Count == 0)
                 {
                     DebugLog("No start times found — inserting default 06:00 and 17:00.");
                     loaded.StartTimes = new ObservableCollection<StartTimeViewModel>
-            {
-                new StartTimeViewModel { Time = "06:00", IsEnabled = true },
-                new StartTimeViewModel { Time = "17:00", IsEnabled = true }
-            };
+                    {
+                        new StartTimeViewModel { Time = "06:00", IsEnabled = true },
+                        new StartTimeViewModel { Time = "17:00", IsEnabled = true }
+                    };
                 }
-
-                // Set Schedule and trigger UI updates
                 OnPropertyChanged(nameof(Sets));
                 OnPropertyChanged(nameof(StartTimes));
                 OnPropertyChanged(nameof(SeasonalAdjustment));
@@ -1143,7 +425,6 @@ public int TodayScheduleIndex
                 OnPropertyChanged(nameof(Week2Thursday));
                 OnPropertyChanged(nameof(Week2Friday));
                 OnPropertyChanged(nameof(Week2Saturday));
-
                 _isDirty = false;
                 DebugLog("Schedule loaded successfully.");
                 UpdateUpcomingRunsPreview();
@@ -1152,13 +433,8 @@ public int TodayScheduleIndex
             {
                 DebugLog("Failed to load schedule.");
             }
-
             _suppressExport = false;
         }
-
-
-
-
         public void AutoSave()
         {
             if (_suppressExport)
@@ -1166,13 +442,10 @@ public int TodayScheduleIndex
                 DebugLog("AutoSave skipped (suppressed during load).");
                 return;
             }
-
             DebugLog("AutoSave called.");
             MarkDirty();
             Save(SaveTarget.LocalOnly);
         }
-
-
         private void AddSet()
         {
             var newSet = new SprinklerSet { SetName = "New Set", RunDurationMinutes = 10 };
@@ -1181,7 +454,6 @@ public int TodayScheduleIndex
             AutoSave();
             UpdateUpcomingRunsPreview();
         }
-
         private void RemoveSet()
         {
             if (SelectedSet != null)
@@ -1197,7 +469,6 @@ public int TodayScheduleIndex
                 DebugLog("RemoveSet called, but no set was selected.");
             }
         }
-
         private void AddStartTime()
         {
             var time = new StartTimeViewModel { Time = "06:00" };
@@ -1206,7 +477,6 @@ public int TodayScheduleIndex
             AutoSave();
             UpdateUpcomingRunsPreview();
         }
-
         private void RemoveStartTime()
         {
             if (StartTimes.Count > 0)
@@ -1222,7 +492,6 @@ public int TodayScheduleIndex
                 DebugLog("RemoveStartTime called but list was empty.");
             }
         }
-
         public void SortStartTimes()
         {
             DebugLog("Sorting start times.");
@@ -1236,12 +505,10 @@ public int TodayScheduleIndex
             AutoSave();
             UpdateUpcomingRunsPreview();
         }
-
         public void UpdateUpcomingRunsPreview()
         {
             UpcomingRuns.Clear();
             var now = DateTime.Now.TimeOfDay;
-
             foreach (var start in StartTimes)
             {
                 var programStartTime = start.ParsedTime;
@@ -1251,7 +518,6 @@ public int TodayScheduleIndex
                     foreach (var set in Sets)
                     {
                         int adjusted = (int)Math.Round(set.RunDurationMinutes * SeasonalAdjustment);
-
                         UpcomingRuns.Add(new ScheduledRunPreview
                         {
                             SetName = set.SetName,
@@ -1259,96 +525,138 @@ public int TodayScheduleIndex
                             RunDurationMinutes = set.RunDurationMinutes,
                             SeasonallyAdjustedMinutes = adjusted
                         });
-
                         cumulative = cumulative.Add(TimeSpan.FromMinutes(adjusted));
                     }
                 }
             }
-
             var sorted = UpcomingRuns.OrderBy(r => TimeSpan.Parse(r.StartTime)).ToList();
             UpcomingRuns.Clear();
             foreach (var r in sorted)
                 UpcomingRuns.Add(r);
         }
-
         private void MarkDirty()
         {
             DebugLog("MarkDirty called.");
             _isDirty = true;
         }
+        #endregion
 
-        public event PropertyChangedEventHandler? PropertyChanged;
-
-        public void OnPropertyChanged([CallerMemberName] string propertyName = "")
+        #region Pi Management
+        private async Task LoadPiStatusAsync()
         {
-            DebugLog($"PropertyChanged: {propertyName}");
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
-
-        private void DebugLog(string message, [CallerMemberName] string caller = "")
-        {
-            if (Properties.Settings.Default.DEBUG_VERBOSE)
+            try
             {
-                Debug.WriteLine($"[DEBUG {DateTime.Now:HH:mm:ss.fff}] {caller}: {message}");
+                using var client = new HttpClient();
+                var response = await client.GetAsync("http://100.116.147.6:5000/status");
+                response.EnsureSuccessStatusCode();
+                var json = await response.Content.ReadAsStringAsync();
+                Debug.WriteLine("RAW JSON:");
+                Debug.WriteLine(json);
+                var parsed = JsonSerializer.Deserialize<PiStatusResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (parsed != null)
+                {
+                    PiReportedTestMode = parsed.TestMode;
+                    if (parsed.Log == null)
+                    {
+                        Debug.WriteLine("Deserialization failed or log is null.");
+                        return;
+                    }
+                    if ((DateTime.Now - _lastManualTestModeChange).TotalSeconds > 3)
+                    {
+                        IsTestMode = parsed.TestMode;
+                    }
+                    OnPropertyChanged(nameof(IsTestMode));
+                    App.Current.Dispatcher.Invoke(() =>
+                    {
+                        PiStatusLog.Clear();
+                        foreach (var line in parsed.Log)
+                            PiStatusLog.Add(line);
+                        if (parsed.Current_Run?.Running == true)
+                        {
+                            var minutes = parsed.Current_Run.Time_Remaining_Sec / 60;
+                            var seconds = parsed.Current_Run.Time_Remaining_Sec % 60;
+                            var soak = parsed.Current_Run.Soak_Remaining_Sec;
+                            var phase = parsed.Current_Run.Phase ?? "Watering";
+                            if (phase == "Soaking")
+                            {
+                                var soakMin = soak / 60;
+                                var soakSec = soak % 60;
+                                CurrentRunStatus = $"{parsed.Current_Run.Set}\nWatering ({minutes:D2}:{seconds:D2}\nSoaking ({soakMin:D2}:{soakSec:D2})";
+                            }
+                            else
+                            {
+                                CurrentRunStatus = $"{parsed.Current_Run.Set}\nWatering ({minutes:D2}:{seconds:D2})";
+                            }
+                        }
+                        else
+                        {
+                            CurrentRunStatus = "Idle";
+                        }
+                        var last10 = parsed.Log.TakeLast(10).ToList();
+                        Set1Color = last10.LastOrDefault(l => l.Contains("PIN_17"))?.Contains("ON") == true ? Brushes.LimeGreen : Brushes.Red;
+                        Set2Color = last10.LastOrDefault(l => l.Contains("PIN_22"))?.Contains("ON") == true ? Brushes.LimeGreen : Brushes.Red;
+                        Set3Color = last10.LastOrDefault(l => l.Contains("PIN_27"))?.Contains("ON") == true ? Brushes.LimeGreen : Brushes.Red;
+                    });
+                }
+                else
+                {
+                    Debug.WriteLine("Parsed response is null.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to load Pi status: {ex.Message}");
+                App.Current.Dispatcher.Invoke(() =>
+                {
+                    CurrentRunStatus = "Offline";
+                });
             }
         }
-
-        ///new code to be added later to the correct location in this file
-        private int? _piScheduleIndex;
-        public int? PiScheduleIndex
+        private async Task StopAllAsync()
         {
-            get => _piScheduleIndex;
-            set
+            try
             {
-                _piScheduleIndex = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(ScheduleIndexMismatch));
+                using var client = new HttpClient();
+                var result = await client.PostAsync("http://100.116.147.6:5000/stop-all", null);
+                if (result.IsSuccessStatusCode)
+                    MessageBox.Show("All zones stopped.", "Stopped", MessageBoxButton.OK, MessageBoxImage.Information);
+                else
+                    MessageBox.Show("Failed to stop. Check connection.", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error: {ex.Message}", "Stop Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-
-        private string _piLocalTime;
-        public string PiLocalTime
+        private void SetEnvironmentVariable(string variableName, string value)
         {
-            get => _piLocalTime;
-            set
+            if (variableName == "TEST_MODE")
             {
-                _piLocalTime = value;
-                OnPropertyChanged();
+                try
+                {
+                    using var ssh = new SshClient("100.116.147.6", "lds00", "Celica1!");
+                    ssh.Connect();
+                    ssh.RunCommand($"echo {value} > /home/lds00/sprinkler/test_mode.txt");
+                    ssh.Disconnect();
+                    DebugLog($"TEST_MODE updated to {value}");
+                }
+                catch (Exception ex)
+                {
+                    DebugLog($"Failed to update TEST_MODE: {ex.Message}");
+                }
             }
         }
-
-        private string _piTimezone;
-        public string PiTimezone
-        {
-            get => _piTimezone;
-            set
-            {
-                _piTimezone = value;
-                OnPropertyChanged();
-            }
-        }
-
-        public bool ScheduleIndexMismatch => PiScheduleIndex != TodayScheduleIndex;
-
         private async Task UpdatePiScheduleInfoAsync()
         {
             try
             {
                 using var client = new HttpClient();
                 var json = await client.GetStringAsync("http://100.116.147.6:5000/schedule-index");
-
                 var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement;
-
                 PiScheduleIndex = root.GetProperty("schedule_index").GetInt32();
-                PiLocalTime = root.TryGetProperty("local_time", out var timeProp)
-                    ? timeProp.GetString()
-                    : "Unavailable";
-
-                PiTimezone = root.TryGetProperty("timezone", out var zoneProp)
-                    ? zoneProp.GetString()
-                    : "Unavailable";
-
+                PiLocalTime = root.TryGetProperty("local_time", out var timeProp) ? timeProp.GetString() : "Unavailable";
+                PiTimezone = root.TryGetProperty("timezone", out var zoneProp) ? zoneProp.GetString() : "Unavailable";
             }
             catch (Exception ex)
             {
@@ -1358,6 +666,220 @@ public int TodayScheduleIndex
                 PiTimezone = "Unavailable";
             }
         }
+        #endregion
 
+        #region Run Management
+        private void RunOnce()
+        {
+            var dialog = new RunOnceDialog(Sets);
+            dialog.Owner = Application.Current.MainWindow;
+            if (dialog.ShowDialog() == true)
+            {
+                var selected = dialog.GetOverrides().Where(s => s.Duration > 0).ToList();
+                if (selected.Count == 0)
+                {
+                    MessageBox.Show("No durations selected.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+                DebugLog("RunOnce: Executing the following sets:");
+                foreach (var run in selected)
+                {
+                    DebugLog($" - {run.SetName}: {run.Duration} min");
+                }
+                var command = new
+                {
+                    manual_run = new
+                    {
+                        sets = selected.Select(s => s.SetName).ToArray(),
+                        duration_minutes = selected.Max(s => s.Duration)
+                    }
+                };
+                string localPath = "manual_command.json";
+                string remotePath = "/home/lds00/manual_command.json";
+                string piHost = "100.116.147.6";
+                string username = "lds00";
+                string password = "Celica1!";
+                try
+                {
+                    File.WriteAllText(localPath, JsonSerializer.Serialize(command, new JsonSerializerOptions { WriteIndented = true }));
+                    using var sftp = new SftpClient(piHost, username, password);
+                    sftp.Connect();
+                    using var stream = File.OpenRead(localPath);
+                    sftp.UploadFile(stream, remotePath, true);
+                    sftp.Disconnect();
+                    MessageBox.Show("RunOnce command sent to Raspberry Pi.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Failed to send RunOnce command: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+        private void SendManualRun(string setName, int durationMinutes)
+        {
+            var command = new
+            {
+                manual_run = new
+                {
+                    sets = new[] { setName },
+                    duration_minutes = durationMinutes
+                }
+            };
+            string localPath = "manual_command.json";
+            string remotePath = "/home/lds00/manual_command.json";
+            string piHost = "100.116.147.6";
+            string username = "lds00";
+            string password = "Celica1!";
+            try
+            {
+                File.WriteAllText(localPath, JsonSerializer.Serialize(command, new JsonSerializerOptions { WriteIndented = true }));
+                using var sftp = new SftpClient(piHost, username, password);
+                sftp.Connect();
+                using var stream = File.OpenRead(localPath);
+                sftp.UploadFile(stream, remotePath, true);
+                sftp.Disconnect();
+                MessageBox.Show($"Manual run sent: {setName} for {durationMinutes} min.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to send manual run: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        #endregion
+
+        #region UI Helpers
+        private void UpdateStatusIcon(string status)
+        {
+            if (status.Contains("Idle"))
+                StatusIconPath = "pack://application:,,,/Assets/Icons/idle.png";
+            else if (status.Contains("("))
+                StatusIconPath = "pack://application:,,,/Assets/Icons/running.png";
+            else if (status.Contains("Offline"))
+                StatusIconPath = "pack://application:,,,/Assets/Icons/offline.png";
+            else if (status.Contains("Loading"))
+                StatusIconPath = "pack://application:,,,/Assets/Icons/loading.png";
+            else
+                StatusIconPath = "pack://application:,,,/Assets/Icons/unknown.png";
+        }
+        private void ToggleTestMode()
+        {
+            bool newValue = !PiReportedTestMode;
+            SetEnvironmentVariable("TEST_MODE", newValue ? "1" : "0");
+            PiReportedTestMode = newValue;
+        }
+        private void OpenPlotWindow()
+        {
+            var window = new WateringHistoryView();
+            window.Show();
+        }
+        private async void ShowPiLog()
+        {
+            await LoadPiStatusAsync();
+            if (PiStatusLog.Count == 0)
+            {
+                MessageBox.Show("Log is empty.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            var window = new PiLogWindow(PiStatusLog);
+            window.Owner = Application.Current.MainWindow;
+            window.ShowDialog();
+        }
+        private void CopyProject2Clip()
+        {
+            string rootDirectory = @"C:\Users\lds00\source\repos\WpfApp1\WpfApp1\";
+            BackyardBoss.Tools.ProjectStructureToClipboard.ExportStructureWithContents(rootDirectory);
+        }
+        #endregion
+
+        #region Save Management
+        public enum SaveTarget { LocalOnly, LocalAndSendToPi }
+        private void Save(SaveTarget target)
+        {
+            lock (_saveLock)
+            {
+                DebugLog("Save triggered.");
+                Schedule.StartTimes = new ObservableCollection<StartTimeViewModel>(StartTimes);
+                foreach (var set in Schedule.Sets)
+                {
+                    if (set.SetName == "Misters")
+                        set.Mode = true;
+                }
+                var options = new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault
+                };
+                string localPath = "sprinkler_schedule.json";
+                string remotePath = "/home/lds00/sprinkler_schedule.json";
+                string piHost = "100.116.147.6";
+                string username = "lds00";
+                string password = "Celica1!";
+                try
+                {
+                    var json = JsonSerializer.Serialize(Schedule, options);
+                    using (var fs = new FileStream(localPath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite))
+                    using (var writer = new StreamWriter(fs))
+                    {
+                        writer.Write(json);
+                    }
+                    if (target == SaveTarget.LocalAndSendToPi)
+                    {
+                        using var sftp = new SftpClient(piHost, username, password);
+                        sftp.Connect();
+                        using var stream = File.OpenRead(localPath);
+                        sftp.UploadFile(stream, remotePath, true);
+                        sftp.Disconnect();
+                        MessageBox.Show("Schedule saved and sent to Raspberry Pi.");
+                    }
+                    else
+                    {
+                        DebugLog("Schedule saved locally only.");
+                    }
+                    _isDirty = false;
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Failed to save: {ex.Message}");
+                }
+            }
+        }
+        #endregion
+
+        #region INotifyPropertyChanged
+        public event PropertyChangedEventHandler? PropertyChanged;
+        public void OnPropertyChanged([CallerMemberName] string propertyName = "")
+        {
+            DebugLog($"PropertyChanged: {propertyName}");
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+        #endregion
+
+        #region Debug
+        private void DebugLog(string message, [CallerMemberName] string caller = "")
+        {
+            if (Properties.Settings.Default.DEBUG_VERBOSE)
+            {
+                Debug.WriteLine($"[DEBUG {DateTime.Now:HH:mm:ss.fff}] {caller}: {message}");
+            }
+        }
+        #endregion
+
+        #region Nested Types
+        public class CurrentRunInfo
+        {
+            public bool Running { get; set; }
+            public string Set { get; set; }
+            public int Time_Remaining_Sec { get; set; }
+            public int Soak_Remaining_Sec { get; set; }
+            public string Phase { get; set; }
+        }
+        private class PiStatusResponse
+        {
+            public List<string> Log { get; set; } = new();
+            public CurrentRunInfo Current_Run { get; set; } = new();
+            public bool TestMode { get; set; }
+        }
+        #endregion
     }
 }
