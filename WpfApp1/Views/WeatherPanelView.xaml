@@ -2,7 +2,8 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:BackyardBoss.ViewModels"
-        Title="Weather Details" Height="480" Width="720"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        Title="Weather Details" Height="600" Width="1024"
         Background="#232526"
         WindowStartupLocation="CenterScreen">
     <Window.Resources>
@@ -11,55 +12,73 @@
         <Geometry x:Key="WindIcon">M2,12H17A2,2 0 0,1 19,14A2,2 0 0,1 17,16H6A2,2 0 0,1 4,14A2,2 0 0,1 6,12H20</Geometry>
         <Geometry x:Key="PressureIcon">M12,2A10,10 0 1,1 2,12A10,10 0 0,1 12,2M12,7A5,5 0 1,0 17,12A5,5 0 0,0 12,7Z</Geometry>
     </Window.Resources>
-    <Border CornerRadius="20" Background="#232526" Padding="0" Margin="0">
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-            <!-- Weather Icon and Main Info -->
-            <StackPanel Grid.Column="0" Margin="30,30,20,30" VerticalAlignment="Center" HorizontalAlignment="Center">
-                <Border Width="120" Height="120" CornerRadius="60" Background="#33FFFFFF" VerticalAlignment="Center" Margin="0,0,0,18">
-                    <Image Source="{Binding WeatherIcon}" Width="80" Height="80" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                </Border>
-                <TextBlock Text="{Binding Temperature}" FontSize="44" FontWeight="Bold" Foreground="#FFF" HorizontalAlignment="Center"/>
-                <TextBlock Text="{Binding Condition}" FontSize="20" Foreground="#FFB0B0B0" HorizontalAlignment="Center"/>
-                <TextBlock Text="Boise, ID" FontSize="14" Foreground="#FFB0B0B0" HorizontalAlignment="Center"/>
-            </StackPanel>
-            <!-- Weather Details -->
-            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,30,30,30">
-                <TextBlock Text="Current Weather Details" FontSize="26" FontWeight="Bold" Foreground="#FFF" Margin="0,0,0,18"/>
-                <Separator/>
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                    <Path Data="{StaticResource HumidityIcon}" Fill="#4FC3F7" Width="28" Height="28" Margin="0,0,8,0"/>
-                    <TextBlock Text="{Binding HumidityDisplay}" FontSize="18" Foreground="#FFF" VerticalAlignment="Center"/>
+    <DockPanel>
+        <Border CornerRadius="20" Background="#232526" Padding="0" Margin="0,0,0,8" DockPanel.Dock="Top">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="320"/>
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <!-- Weather Icon and Main Info -->
+                <StackPanel Grid.Column="0" Margin="18,18,10,18" VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <Border Width="90" Height="90" CornerRadius="45" Background="#33FFFFFF" VerticalAlignment="Center" Margin="0,0,0,12">
+                        <Image Source="{Binding WeatherIcon}" Width="60" Height="60" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Text="{Binding Temperature}" FontSize="32" FontWeight="Bold" Foreground="#FFF" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding Condition}" FontSize="16" Foreground="#FFB0B0B0" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Boise, ID" FontSize="12" Foreground="#FFB0B0B0" HorizontalAlignment="Center"/>
                 </StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                    <Path Data="{StaticResource WindIcon}" Fill="#90CAF9" Width="28" Height="28" Margin="0,0,8,0"/>
-                    <TextBlock Text="{Binding WindDisplay}" FontSize="18" Foreground="#FFF" VerticalAlignment="Center"/>
+                <!-- Weather Details -->
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,18,18,18">
+                    <TextBlock Text="Current Weather Details" FontSize="20" FontWeight="Bold" Foreground="#FFF" Margin="0,0,0,12"/>
+                    <Separator/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                        <Path Data="{StaticResource HumidityIcon}" Fill="#4FC3F7" Width="22" Height="22" Margin="0,0,6,0"/>
+                        <TextBlock Text="{Binding HumidityDisplay}" FontSize="15" Foreground="#FFF" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                        <Path Data="{StaticResource WindIcon}" Fill="#90CAF9" Width="22" Height="22" Margin="0,0,6,0"/>
+                        <TextBlock Text="{Binding WindDisplay}" FontSize="15" Foreground="#FFF" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                        <Path Data="{StaticResource PressureIcon}" Fill="#FFD54F" Width="22" Height="22" Margin="0,0,6,0"/>
+                        <TextBlock Text="{Binding PressureDisplay}" FontSize="15" Foreground="#FFF" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <Separator/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                        <TextBlock Text="Feels Like:" FontSize="13" Foreground="#FFB0B0B0" Width="80"/>
+                        <TextBlock Text="{Binding FeelsLike}" FontSize="13" Foreground="#FFF"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                        <TextBlock Text="Visibility:" FontSize="13" Foreground="#FFB0B0B0" Width="80"/>
+                        <TextBlock Text="{Binding Visibility}" FontSize="13" Foreground="#FFF"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                        <TextBlock Text="Sunrise:" FontSize="13" Foreground="#FFB0B0B0" Width="80"/>
+                        <TextBlock Text="{Binding Sunrise}" FontSize="13" Foreground="#FFF"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                        <TextBlock Text="Sunset:" FontSize="13" Foreground="#FFB0B0B0" Width="80"/>
+                        <TextBlock Text="{Binding Sunset}" FontSize="13" Foreground="#FFF"/>
+                    </StackPanel>
                 </StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                    <Path Data="{StaticResource PressureIcon}" Fill="#FFD54F" Width="28" Height="28" Margin="0,0,8,0"/>
-                    <TextBlock Text="{Binding PressureDisplay}" FontSize="18" Foreground="#FFF" VerticalAlignment="Center"/>
-                </StackPanel>
-                <Separator/>
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                    <TextBlock Text="Feels Like:" FontSize="16" Foreground="#FFB0B0B0" Width="100"/>
-                    <TextBlock Text="{Binding FeelsLike}" FontSize="16" Foreground="#FFF"/>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                    <TextBlock Text="Visibility:" FontSize="16" Foreground="#FFB0B0B0" Width="100"/>
-                    <TextBlock Text="{Binding Visibility}" FontSize="16" Foreground="#FFF"/>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                    <TextBlock Text="Sunrise:" FontSize="16" Foreground="#FFB0B0B0" Width="100"/>
-                    <TextBlock Text="{Binding Sunrise}" FontSize="16" Foreground="#FFF"/>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                    <TextBlock Text="Sunset:" FontSize="16" Foreground="#FFB0B0B0" Width="100"/>
-                    <TextBlock Text="{Binding Sunset}" FontSize="16" Foreground="#FFF"/>
-                </StackPanel>
-            </StackPanel>
-        </Grid>
-    </Border>
+            </Grid>
+        </Border>
+        <!-- Radar Map Link (fixed: Hyperlink inside TextBlock) -->
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,30,0" DockPanel.Dock="Top">
+            <TextBlock Foreground="#FFF" FontSize="14" VerticalAlignment="Center">
+                Need a bigger radar?
+                <Hyperlink NavigateUri="https://www.rainviewer.com/map.html?loc=43.6150,-116.2023,8&amp;oFa=0&amp;oC=0&amp;oU=0&amp;oCS=1&amp;oF=0&amp;oAP=0&amp;oAR=0&amp;oBR=1&amp;oCL=1&amp;oMM=1&amp;oM=1&amp;oO=0&amp;oS=0&amp;oSM=1"
+                           RequestNavigate="RadarLink_RequestNavigate">
+                    <Run Foreground="#4FC3F7">Open Fullscreen Radar</Run>
+                </Hyperlink>
+            </TextBlock>
+        </StackPanel>
+        <!-- Compact Interactive Radar Map with WebView2 -->
+        <GroupBox Header="Live Interactive Radar" Margin="30,0,30,12" DockPanel.Dock="Bottom" Height="200" Foreground="#FFF" FontWeight="Bold" FontSize="14">
+            <Border CornerRadius="12" BorderBrush="#444" BorderThickness="1" Background="#111" Padding="4">
+                <wv2:WebView2 x:Name="RadarWebView2" Margin="0"/>
+            </Border>
+        </GroupBox>
+    </DockPanel>
 </Window>
