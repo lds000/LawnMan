@@ -1,6 +1,7 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using BackyardBoss.Views;
 
 namespace BackyardBoss.UserControls
 {
@@ -13,8 +14,10 @@ namespace BackyardBoss.UserControls
 
         private void WeatherPanel_Click(object sender, MouseButtonEventArgs e)
         {
-            // TODO: Add your logic for when the weather card is clicked
-            MessageBox.Show("Weather card clicked — hook up detail view or refresh logic here.", "Weather", MessageBoxButton.OK, MessageBoxImage.Information);
+            // Open the WeatherPanelView window with the current WeatherViewModel as DataContext
+            var window = new WeatherPanelView();
+            window.Owner = Application.Current.MainWindow;
+            window.ShowDialog();
         }
     }
 }
