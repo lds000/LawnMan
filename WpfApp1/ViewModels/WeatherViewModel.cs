@@ -13,11 +13,19 @@ public class WeatherViewModel : INotifyPropertyChanged
     private string _pressure = "";
     private string _condition = "";
     private string _weatherIcon = "Assets/Weather/default.png";
+    private string _feelsLike = "";
+    private string _visibility = "";
+    private string _sunrise = "";
+    private string _sunset = "";
 
     public string TemperatureDisplay => $"Temp: {Temperature}";
     public string HumidityDisplay => $"Humidity: {Humidity}%";
     public string WindDisplay => $"Wind: {WindSpeed} mph";
     public string PressureDisplay => $"Pressure: {Pressure} hPa";
+    public string FeelsLike => _feelsLike;
+    public string Visibility => _visibility;
+    public string Sunrise => _sunrise;
+    public string Sunset => _sunset;
 
     public string Temperature
     {
@@ -139,6 +147,42 @@ public class WeatherViewModel : INotifyPropertyChanged
             Condition = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(condition);
             WeatherIcon = $"https://openweathermap.org/img/wn/{iconCode}@2x.png";
 
+            // New: Feels Like
+            if (root.GetProperty("main").TryGetProperty("feels_like", out var feelsLikeProp))
+                _feelsLike = $"{Math.Round(feelsLikeProp.GetDecimal())}°F";
+            else
+                _feelsLike = "-";
+            OnPropertyChanged(nameof(FeelsLike));
+
+            // New: Visibility (convert meters to miles)
+            if (root.TryGetProperty("visibility", out var visProp))
+            {
+                double meters = visProp.GetDouble();
+                double miles = meters / 1609.34;
+                _visibility = $"{miles:F1} mi";
+            }
+            else
+                _visibility = "-";
+            OnPropertyChanged(nameof(Visibility));
+
+            // New: Sunrise/Sunset
+            if (root.GetProperty("sys").TryGetProperty("sunrise", out var sunriseProp))
+            {
+                var sunrise = DateTimeOffset.FromUnixTimeSeconds(sunriseProp.GetInt64()).ToLocalTime();
+                _sunrise = sunrise.ToString("h:mm tt");
+            }
+            else
+                _sunrise = "-";
+            OnPropertyChanged(nameof(Sunrise));
+
+            if (root.GetProperty("sys").TryGetProperty("sunset", out var sunsetProp))
+            {
+                var sunset = DateTimeOffset.FromUnixTimeSeconds(sunsetProp.GetInt64()).ToLocalTime();
+                _sunset = sunset.ToString("h:mm tt");
+            }
+            else
+                _sunset = "-";
+            OnPropertyChanged(nameof(Sunset));
         }
         catch (Exception ex)
         {
@@ -146,6 +190,11 @@ public class WeatherViewModel : INotifyPropertyChanged
             Humidity = WindSpeed = Pressure = "";
             Condition = "Unavailable";
             WeatherIcon = "Assets/Weather/default.png";
+            _feelsLike = _visibility = _sunrise = _sunset = "-";
+            OnPropertyChanged(nameof(FeelsLike));
+            OnPropertyChanged(nameof(Visibility));
+            OnPropertyChanged(nameof(Sunrise));
+            OnPropertyChanged(nameof(Sunset));
             Console.WriteLine($"Weather fetch failed: {ex.Message}");
         }
     }

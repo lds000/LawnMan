@@ -14,7 +14,7 @@
       "set_name": "Hanging Pots",
       "run_duration_minutes": 7,
       "seasonallyAdjustedMinutes": 7,
-      "mode": "scheduled",
+      "mode": true,
       "pulse_duration_minutes": 1,
       "soak_duration_minutes": 1
     },
@@ -22,13 +22,13 @@
       "set_name": "Garden",
       "run_duration_minutes": 10,
       "seasonallyAdjustedMinutes": 10,
-      "mode": "scheduled",
+      "mode": true,
       "pulse_duration_minutes": 2,
       "soak_duration_minutes": 2
     },
     {
       "set_name": "Misters",
-      "mode": "manual"
+      "mode": false
     }
   ],
   "seasonal_adjustment": 1,
