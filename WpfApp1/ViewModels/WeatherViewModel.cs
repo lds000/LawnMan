@@ -151,6 +151,6 @@ public class WeatherViewModel : INotifyPropertyChanged
     }
 
     public event PropertyChangedEventHandler PropertyChanged;
-    protected void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string prop = null)
+    protected void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string prop = "")
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(prop));
 }

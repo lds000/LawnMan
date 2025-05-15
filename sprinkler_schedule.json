@@ -20,9 +20,6 @@
   ],
   "mist": {
     "duration_minutes": 2,
-    "time_1030": false,
-    "time_1330": false,
-    "time_1600": false,
     "pulse_duration_minutes": 1,
     "soak_duration_minutes": 1
   }

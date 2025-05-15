@@ -10,8 +10,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:usercontrols="clr-namespace:BackyardBoss.UserControls"
              mc:Ignorable="d"
-             
-             Background="#111111">
+             Background="{DynamicResource PrimaryBackground}"
+>
     <UserControl.DataContext>
         <vm:ProgramEditorViewModel />
     </UserControl.DataContext>
@@ -19,66 +19,14 @@
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="/BackyardBoss;component/Styles/ToggleButtonStyles.xaml" />
                 <ResourceDictionary Source="/BackyardBoss;component/Styles/Converters.xaml" />
             </ResourceDictionary.MergedDictionaries>
+            <conv:TagToColorConverter x:Key="TagToColorConverter" />
 
             <!--BoolToVisibilityConverter-->
             <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
             <!-- CircleCheckboxStyle must go inside the same ResourceDictionary block -->
-            <Style x:Key="CircleCheckboxStyle" TargetType="CheckBox">
-                <Setter Property="Template">
-                    <Setter.Value>
-                        <ControlTemplate TargetType="CheckBox">
-                            <Grid Width="24" Height="24">
-                                <Ellipse x:Name="Circle"
-                                     Stroke="White"
-                                     StrokeThickness="2"
-                                     Fill="Black"
-                                     Width="24"
-                                     Height="24" />
-                            </Grid>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsChecked" Value="True">
-                                    <Setter TargetName="Circle" Property="Fill" Value="White"/>
-                                </Trigger>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="Circle" Property="StrokeThickness" Value="3"/>
-                                </Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Setter.Value>
-                </Setter>
-                <Setter Property="Cursor" Value="Hand"/>
-            </Style>
             <!-- Reusable Dark ComboBox Style -->
-            <Style x:Key="DarkComboBoxStyle" TargetType="ComboBox">
-                <Setter Property="Foreground" Value="White"/>
-                <Setter Property="Background" Value="Black"/>
-                <Setter Property="BorderBrush" Value="Gray"/>
-                <Setter Property="Padding" Value="4"/>
-                <Setter Property="FontSize" Value="16"/>
-                <Setter Property="Margin" Value="5"/>
-                <Setter Property="ItemContainerStyle">
-                    <Setter.Value>
-                        <Style TargetType="ComboBoxItem">
-                            <Setter Property="Foreground" Value="White"/>
-                            <Setter Property="Background" Value="Black"/>
-                            <Setter Property="Padding" Value="4"/>
-                            <Setter Property="FontSize" Value="16"/>
-                            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-                            <Style.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="#444"/>
-                                </Trigger>
-                                <Trigger Property="IsSelected" Value="True">
-                                    <Setter Property="Background" Value="#666"/>
-                                </Trigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Setter.Value>
-                </Setter>
-            </Style>
         </ResourceDictionary>
     </UserControl.Resources>
 
@@ -92,193 +40,75 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
+        <StackPanel Grid.Row="0"
+            Orientation="Horizontal"
+            HorizontalAlignment="Center"
+            Margin="0">
+
+            <!-- Logo/Icon -->
+            <Image Source="/Assets/Icons/watering-can.png" 
+           Width="40" Height="40" 
+           Margin="0,0,10,0" 
+           VerticalAlignment="Center"/>
+
+            <!-- Emphasized Title Text -->
+            <Grid HorizontalAlignment="Center">
+                <!-- Shadow layer (white, offset) -->
+                <TextBlock FontSize="30" FontWeight="Bold"
+               TextAlignment="Center"
+               Foreground="White"
+               Margin="4,2,0,0"  
+               IsHitTestVisible="False">
+        <Run Text="Backyard " Foreground="{DynamicResource AccentBrush}"/>
+        <Run Text="Boss" Foreground="{DynamicResource AccentBrush}"/>
+                </TextBlock>
+
+                <!-- Foreground layer (Boise colors) -->
+                <TextBlock FontSize="30" FontWeight="Bold"
+               TextAlignment="Center">
+        <Run Text="Backyard " Foreground="{DynamicResource PrimaryText}" />
+        <Run Text="Boss" Foreground="{DynamicResource PrimaryText}" />
+                </TextBlock>
+            </Grid>
+
+        </StackPanel>
+
 
         <!-- Main Panel -->
-        <StackPanel Grid.Row="0" Orientation="Vertical">
+        <StackPanel Grid.Row="1" Orientation="Vertical">
             <!-- Zone Controls -->
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-
-                        <StackPanel Grid.Column="1"
-            Grid.RowSpan="2"
-            DataContext="{Binding WeatherVM}"
-            HorizontalAlignment="Left"
-            Orientation="Horizontal"
-            VerticalAlignment="Center"
-            MouseLeftButtonUp="WeatherPanel_Click"
-            Background="Transparent" 
-                            Cursor="Hand">
-                            <Image VerticalAlignment="Center" Source="{Binding WeatherIcon}" Width="80" Height="80" Margin="0,0,10,0"/>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="{Binding Temperature}" FontSize="18" Foreground="White" FontWeight="Bold"/>
-                                <TextBlock Text="{Binding Condition}" FontSize="12" Foreground="LightGray"/>
-                            </StackPanel>
-                        </StackPanel>
-
-
-                        <!-- Header with Clock and Season Slider -->
-                        <DockPanel Grid.Column="0" Grid.RowSpan="2"  Margin="0,0,0,10">
-                            <TextBlock Style="{StaticResource TitleTextBlockStyle}"
-                       Text="Seasonal Adj (%):"
-                        VerticalAlignment="Center" />
-
-                            <Slider Width="200"
-                    Style="{StaticResource TouchSliderStyle}"
-                    
-            Minimum="50" Maximum="200"
-            TickFrequency="10"
-            IsSnapToTickEnabled="True"
-            Value="{Binding SeasonalAdjustmentPercent, Mode=TwoWay}" />
-                            <TextBlock Text="{Binding SeasonalAdjustmentPercent, StringFormat={}{0}%}"
-                                       
-               Style="{StaticResource TitleTextBlockStyle}" VerticalAlignment="Center"/>
-
-                        </DockPanel>
-
-                    </Grid>
-
-                    <TabControl ItemsSource="{Binding VisibleSets}" Margin="10" Background="Transparent">
-                        <TabControl.ItemTemplate>
-                            <DataTemplate>
-                                <!-- Tab Header: Set Name -->
-                                <TextBlock Text="{Binding SetName}" FontSize="16" Foreground="Black"/>
-                            </DataTemplate>
-                        </TabControl.ItemTemplate>
-
-                        <TabControl.ContentTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Vertical" Margin="10">
-                                    <StackPanel Orientation="Horizontal">
-                                    <!-- Mode Combo -->
-                                    <ComboBox FontSize="24" 
-                                              Style="{StaticResource DarkComboBoxStyle}"
-                                              Margin="5,0,5,0"
-                                              VerticalAlignment="Center" 
-                                              ItemsSource="{Binding DataContext.Modes, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                          SelectedItem="{Binding Mode}" />
-
-                                    <!-- Pulse & Soak Inputs -->
-                                        <!-- Pulse -->
-                                        <Button Content="{Binding PulseDurationMinutes}"
-        Command="{Binding OpenPulseKeypadCommand}"
-        FontSize="24"
-                                                Foreground="White" Background="Black"
-        Width="100"
-        Height="40"
-        Margin="0"
-        HorizontalAlignment="Left" />
-
-                                        <!-- Soak -->
-                                        <Button Content="{Binding SoakDurationMinutes}"
-Command="{Binding OpenSoakKeypadCommand}"
-FontSize="24"
-                                                Foreground="White" Background="Black"
-Width="100"
-Height="40"
-Margin="0"
-HorizontalAlignment="Left" />
-
-                                    </StackPanel>
-
-                                    <!-- Duration Display -->
-                                    <StackPanel Orientation="Horizontal" Margin="0,5">
-                                        <TextBlock Text="Run Duration: " Foreground="White" FontSize="16"/>
-                                        <TextBlock Text="{Binding RunDurationMinutes}" Foreground="White" FontSize="16"/>
-                                        <TextBlock Text="m" Foreground="White" FontSize="16"/>
-
-                                        <TextBlock Text=" → " 
-                               Foreground="White" FontSize="16"
-                               Visibility="{Binding DataContext.SeasonalAdjustment, 
-                                            RelativeSource={RelativeSource AncestorType=UserControl},
-                                            Converter={StaticResource AdjustmentVisibilityConverter}}" />
-
-                                        <TextBlock Text="{Binding SeasonallyAdjustedMinutes}" 
-                               Foreground="White" FontSize="16"
-                               Visibility="{Binding DataContext.SeasonalAdjustment, 
-                                            RelativeSource={RelativeSource AncestorType=UserControl},
-                                            Converter={StaticResource AdjustmentVisibilityConverter}}" />
-                                        <TextBlock Text="m" 
-                               Foreground="White" FontSize="16"
-                               Visibility="{Binding DataContext.SeasonalAdjustment, 
-                                            RelativeSource={RelativeSource AncestorType=UserControl},
-                                            Converter={StaticResource AdjustmentVisibilityConverter}}" />
-                                    </StackPanel>
-
-                                    <!-- Duration Slider -->
-                                    <Slider Minimum="0" Maximum="30"
-                        Style="{StaticResource TouchSliderStyle}"
-                        TickFrequency="1"
-                        IsSnapToTickEnabled="True"
-                        TickPlacement="BottomRight"
-                        Value="{Binding RunDurationMinutes, Mode=TwoWay}"
-                        Height="50"/>
-                                </StackPanel>
-                            </DataTemplate>
-                        </TabControl.ContentTemplate>
-                    </TabControl>
-
-                </StackPanel>
-                <StackPanel Grid.Column="1">
-                    <Border Grid.Column="1" Background="#333" 
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <usercontrols:SeasonalAdjustControl Grid.Column="0"/>
+                <usercontrols:WeatherCard Grid.Column="1"/>
+                <usercontrols:SetEditor Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2"/>
+                <usercontrols:StatusPanel Grid.Column="2" />
+                <StackPanel Grid.Column="2" Grid.Row="1">
+                    <Border Grid.Column="1" 
                             CornerRadius="10" 
                             Padding="10" 
                             Margin="10,0,10,0"
                             HorizontalAlignment="Right" VerticalAlignment="Top"
         Width="250">
                         <StackPanel>
-                            <StackPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                <StackPanel VerticalAlignment="Center">
-                                    <Image Source="{Binding StatusIconPath}" Width="50" Height="50" Margin="0,0,5,0"/>
-                                    <TextBlock Text="{Binding CurrentRunStatus}" Foreground="White" FontSize="16" />
-                                    <!-- Optionally: separate label -->
-                                    <TextBlock Text="{Binding SoakTimeRemaining}" Foreground="LightBlue" FontSize="14" Visibility="{Binding IsSoaking, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                </StackPanel>
 
-                                <Border Grid.Column="1" Grid.Row="1" CornerRadius="10" Background="#20232A" Padding="5" Margin="5" Width="160">
-                                    <StackPanel HorizontalAlignment="Center">
-                                        <StackPanel Orientation="Horizontal">
-                                        <CheckBox Content="Test Mode"
-          IsChecked="{Binding PiReportedTestMode}"
-          Foreground="White"
-          Margin="10,0,10,0"
-          VerticalAlignment="Center"
-          IsEnabled="False"/>
-                                        <Button Content="Toggle" ToolTip="Toggle test mode."
-        Command="{Binding ToggleTestModeCommand}" />
-                                        </StackPanel>
-                                        <!-- prevent interaction here -->
 
-                                        <StackPanel HorizontalAlignment="Center" Orientation="Horizontal" Margin="0,5,0,0">
-                                            <Ellipse Fill="{Binding Set1Color}" Width="20" Height="20" Margin="5"/>
-                                            <Ellipse Fill="{Binding Set2Color}" Width="20" Height="20" Margin="5"/>
-                                            <Ellipse Fill="{Binding Set3Color}" Width="20" Height="20" Margin="5"/>
-
-                                        </StackPanel>
-
-                                    </StackPanel>
-                                </Border>
-                            </StackPanel>
-
-                            <TextBlock Text="Mist Settings" FontSize="16" FontWeight="Bold" Foreground="White" Margin="0,0,0,10" />
+                            <TextBlock Text="Mist Settings" FontSize="16" FontWeight="Bold"  Margin="0,0,0,10" />
 
                             <!-- Duration Display -->
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                                <TextBlock Text="Duration (" Foreground="White" />
-                                <TextBlock Text="{Binding MistDuration}" Foreground="White" />
-                                <TextBlock Text=" minutes)" Foreground="White" Margin="2,0,0,0" />
+                                <TextBlock Text="Duration ("  />
+                                <TextBlock Text="{Binding MistDuration}"  />
+                                <TextBlock Text=" minutes)"  Margin="2,0,0,0" />
                             </StackPanel>
                             <Slider Minimum="1" Maximum="10"
                 Value="{Binding MistDuration, Mode=TwoWay}"
@@ -290,15 +120,15 @@ HorizontalAlignment="Left" />
 
                             <!-- Time Checkboxes -->
                             <StackPanel Orientation="Horizontal">
-                                <CheckBox Content="10:30 AM" IsChecked="{Binding MistTime1030}" Foreground="White" />
-                                <CheckBox Content="1:30 PM" IsChecked="{Binding MistTime1330}" Foreground="White" />
-                                <CheckBox Content="4:00 PM" IsChecked="{Binding MistTime1600}" Foreground="White" />
+                                <CheckBox Content="10:30 AM" IsChecked="{Binding MistTime1030}"  />
+                                <CheckBox Content="1:30 PM" IsChecked="{Binding MistTime1330}"  />
+                                <CheckBox Content="4:00 PM" IsChecked="{Binding MistTime1600}"  />
                             </StackPanel>
                             <TextBlock Text="Pulse (min):" VerticalAlignment="Center" Margin="0,0,5,0"/>
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Pulse:" ToolTip="Duration of being on prior to soak." Foreground="White" />
+                                <TextBlock Text="Pulse:" ToolTip="Duration of being on prior to soak."  />
                                 <TextBox Width="20" Text="{Binding MistPulseDuration, Mode=TwoWay}" />
-                                <TextBlock Text="Soak:" ToolTip="Duration of being on prior to soak." Foreground="White" />
+                                <TextBlock Text="Soak:" ToolTip="Duration of being on prior to soak."  />
                                 <TextBox Text="{Binding MistSoakDuration, Mode=TwoWay}" />
                             </StackPanel>
 
@@ -319,25 +149,25 @@ HorizontalAlignment="Left" />
             <StackPanel Orientation="Vertical" Margin="0">
 
                 <!-- Week 1 (indices 0–6) -->
-                <UniformGrid Height="60" Rows="1" Columns="7" Margin="0">
-                    <ToggleButton Content="Sun" IsChecked="{Binding Week1Sunday}" Tag="0" Style="{StaticResource ScheduleDayToggleStyle}" />
-                    <ToggleButton Content="Mon" IsChecked="{Binding Week1Monday}" Tag="1" Style="{StaticResource ScheduleDayToggleStyle}" />
-                    <ToggleButton Content="Tue" IsChecked="{Binding Week1Tuesday}" Tag="2" Style="{StaticResource ScheduleDayToggleStyle}" />
-                    <ToggleButton Content="Wed" IsChecked="{Binding Week1Wednesday}" Tag="3" Style="{StaticResource ScheduleDayToggleStyle}" />
-                    <ToggleButton Content="Thu" IsChecked="{Binding Week1Thursday}" Tag="4" Style="{StaticResource ScheduleDayToggleStyle}" />
-                    <ToggleButton Content="Fri" IsChecked="{Binding Week1Friday}" Tag="5" Style="{StaticResource ScheduleDayToggleStyle}" />
-                    <ToggleButton Content="Sat" IsChecked="{Binding Week1Saturday}" Tag="6" Style="{StaticResource ScheduleDayToggleStyle}" />
+                <UniformGrid Height="40" Rows="1" Columns="7" Margin="0">
+                    <ToggleButton Foreground="{Binding RelativeSource={RelativeSource Self}, Path=Tag, Converter={StaticResource TagToColorConverter}}" Content="Sun" IsChecked="{Binding Week1Sunday}" Tag="0"  />
+                    <ToggleButton Foreground="{Binding RelativeSource={RelativeSource Self}, Path=Tag, Converter={StaticResource TagToColorConverter}}" Content="Mon" IsChecked="{Binding Week1Monday}" Tag="1"  />
+                    <ToggleButton Foreground="{Binding RelativeSource={RelativeSource Self}, Path=Tag, Converter={StaticResource TagToColorConverter}}" Content="Tue" IsChecked="{Binding Week1Tuesday}" Tag="2"  />
+                    <ToggleButton Foreground="{Binding RelativeSource={RelativeSource Self}, Path=Tag, Converter={StaticResource TagToColorConverter}}" Content="Wed" IsChecked="{Binding Week1Wednesday}" Tag="3"  />
+                    <ToggleButton Foreground="{Binding RelativeSource={RelativeSource Self}, Path=Tag, Converter={StaticResource TagToColorConverter}}" Content="Thu" IsChecked="{Binding Week1Thursday}" Tag="4"  />
+                    <ToggleButton Foreground="{Binding RelativeSource={RelativeSource Self}, Path=Tag, Converter={StaticResource TagToColorConverter}}" Content="Fri" IsChecked="{Binding Week1Friday}" Tag="5"  />
+                    <ToggleButton Foreground="{Binding RelativeSource={RelativeSource Self}, Path=Tag, Converter={StaticResource TagToColorConverter}}"  Content="Sat" IsChecked="{Binding Week1Saturday}" Tag="6"  />
                 </UniformGrid>
 
                 <!-- Week 2 (indices 7–13) -->
-                <UniformGrid Height="60" Rows="1" Columns="7">
-                    <ToggleButton Content="Sun" IsChecked="{Binding Week2Sunday}" Tag="7" Style="{StaticResource ScheduleDayToggleStyle}" />
-                    <ToggleButton Content="Mon" IsChecked="{Binding Week2Monday}" Tag="8" Style="{StaticResource ScheduleDayToggleStyle}" />
-                    <ToggleButton Content="Tue" IsChecked="{Binding Week2Tuesday}" Tag="9" Style="{StaticResource ScheduleDayToggleStyle}" />
-                    <ToggleButton Content="Wed" IsChecked="{Binding Week2Wednesday}" Tag="10" Style="{StaticResource ScheduleDayToggleStyle}" />
-                    <ToggleButton Content="Thu" IsChecked="{Binding Week2Thursday}" Tag="11" Style="{StaticResource ScheduleDayToggleStyle}" />
-                    <ToggleButton Content="Fri" IsChecked="{Binding Week2Friday}" Tag="12" Style="{StaticResource ScheduleDayToggleStyle}" />
-                    <ToggleButton Content="Sat" IsChecked="{Binding Week2Saturday}" Tag="13" Style="{StaticResource ScheduleDayToggleStyle}" />
+                <UniformGrid Height="40" Rows="1" Columns="7">
+                    <ToggleButton Foreground="{Binding RelativeSource={RelativeSource Self}, Path=Tag, Converter={StaticResource TagToColorConverter}}" Content="Sun" IsChecked="{Binding Week2Sunday}" Tag="7"  />
+                    <ToggleButton Foreground="{Binding RelativeSource={RelativeSource Self}, Path=Tag, Converter={StaticResource TagToColorConverter}}" Content="Mon" IsChecked="{Binding Week2Monday}" Tag="8"  />
+                    <ToggleButton Foreground="{Binding RelativeSource={RelativeSource Self}, Path=Tag, Converter={StaticResource TagToColorConverter}}" Content="Tue" IsChecked="{Binding Week2Tuesday}" Tag="9"  />
+                    <ToggleButton Foreground="{Binding RelativeSource={RelativeSource Self}, Path=Tag, Converter={StaticResource TagToColorConverter}}" Content="Wed" IsChecked="{Binding Week2Wednesday}" Tag="10" />
+                    <ToggleButton Foreground="{Binding RelativeSource={RelativeSource Self}, Path=Tag, Converter={StaticResource TagToColorConverter}}" Content="Thu" IsChecked="{Binding Week2Thursday}" Tag="11"  />
+                    <ToggleButton Foreground="{Binding RelativeSource={RelativeSource Self}, Path=Tag, Converter={StaticResource TagToColorConverter}}" Content="Fri" IsChecked="{Binding Week2Friday}" Tag="12"  />
+                    <ToggleButton Foreground="{Binding RelativeSource={RelativeSource Self}, Path=Tag, Converter={StaticResource TagToColorConverter}}" Content="Sat" IsChecked="{Binding Week2Saturday}" Tag="13"  />
                 </UniformGrid>
             </StackPanel>
 
@@ -368,17 +198,15 @@ HorizontalAlignment="Left" />
                                                 <!-- Checkbox to enable/disable -->
                                                 <CheckBox Style="{StaticResource CircleCheckboxStyle}" IsChecked="{Binding IsEnabled}" VerticalAlignment="Center" Margin="0,0,10,0"/>
 
-                                                <Border Background="#333" CornerRadius="6" Padding="8">
+                                                <Border  CornerRadius="6" Padding="8">
                                                     <StackPanel Orientation="Vertical">
-                                                        <TextBlock Text="Start Time" Foreground="White" FontWeight="SemiBold" FontSize="12" Margin="0,0,0,4" HorizontalAlignment="Center"/>
+                                                        <TextBlock Text="Start Time"  FontWeight="SemiBold" FontSize="12" Margin="0,0,0,4" HorizontalAlignment="Center"/>
                                                         <StackPanel Orientation="Horizontal">
                                                             <TextBox Width="80"
                                  Text="{Binding Time, Mode=TwoWay}"
                                  IsEnabled="{Binding IsEnabled}"
                                  HorizontalContentAlignment="Center"
-                                 Foreground="White"
-                                 Background="#444"
-                                 BorderBrush="#555"
+
                                  BorderThickness="1"
                                  Padding="4"
                                  Margin="0,0,0,6"/>
@@ -387,7 +215,7 @@ HorizontalAlignment="Left" />
                                 Command="{Binding DataContext.OpenTimePickerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                 CommandParameter="{Binding}"
                                 IsEnabled="{Binding IsEnabled}">
-                                                                <fa:ImageAwesome Icon="ClockOutline" Width="20" Height="12" Foreground="White"/>
+                                                                <fa:ImageAwesome Icon="ClockOutline" Width="20" Height="12" />
                                                             </Button>
                                                         </StackPanel>
                                                     </StackPanel>
@@ -405,7 +233,7 @@ HorizontalAlignment="Left" />
                     </Grid>
                 </StackPanel>
                 <!-- Footer Buttons -->
-                <Border BorderBrush="White" BorderThickness="2" CornerRadius="8" Margin="10" VerticalAlignment="Bottom" HorizontalAlignment="Center" Padding="10" Grid.Column="1">
+                <Border  BorderThickness="2" CornerRadius="8" Margin="10" VerticalAlignment="Bottom" HorizontalAlignment="Center" Padding="10" Grid.Column="1">
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,0">
                             <Button Content="Manual" FontSize="20"
@@ -424,8 +252,6 @@ Width="60" Height="40" Margin="5,0"
 Command="{Binding ShowPlotsCommand}" />
                             <Button Content="Stop!" 
         Command="{Binding StopAllCommand}" 
-        Background="Red" 
-        Foreground="White" 
         FontWeight="Bold" 
         Width="100" 
                                     FontSize="20"

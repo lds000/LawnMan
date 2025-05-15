@@ -63,17 +63,29 @@ namespace BackyardBoss.ViewModels
                 var response = await client.GetStringAsync(url);
                 var data = JsonSerializer.Deserialize<OpenWeatherResponse>(response);
 
-                Temperature = $"{data.main.temp:F0} °F";
-                Condition = data.weather[0].main;
-                WeatherIcon = LoadIcon(data.weather[0].icon);
+                if (data?.main != null && data.weather?.Length > 0)
+                {
+                    Temperature = $"{data.main.temp:F0} °F";
+                    Condition = data.weather[0].main;
+                    WeatherIcon = LoadIcon(data.weather[0].icon);
+                }
+                else
+                {
+                    SetWeatherUnavailable();
+                }
             }
             catch (Exception ex)
             {
-                Temperature = "--";
-                Condition = "Unavailable";
-                WeatherIcon = null;
-                Console.WriteLine("Weather error: " + ex.Message);
+                SetWeatherUnavailable();
+                Console.WriteLine($"Weather error: {ex.Message}");
             }
+        }
+
+        private void SetWeatherUnavailable()
+        {
+            Temperature = "--";
+            Condition = "Unavailable";
+            WeatherIcon = new BitmapImage(); // Return an empty BitmapImage to avoid null issues
         }
 
         private BitmapImage LoadIcon(string code)
@@ -90,7 +102,7 @@ namespace BackyardBoss.ViewModels
             }
             catch
             {
-                return null;
+                return new BitmapImage(); // Return an empty BitmapImage instead of null to avoid CS8603
             }
         }
 

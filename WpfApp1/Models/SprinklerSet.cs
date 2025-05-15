@@ -88,10 +88,10 @@ public class SprinklerSet : INotifyPropertyChanged
 
 
 
-    private string _mode = "scheduled"; // default to scheduled
+    private bool _mode = true; // default to scheduled
 
     [JsonPropertyName("mode")]
-    public string Mode
+    public bool Mode
     {
         get => _mode;
         set
@@ -100,6 +100,7 @@ public class SprinklerSet : INotifyPropertyChanged
             {
                 _mode = value;
                 OnPropertyChanged();
+                ProgramEditorViewModel.Current?.AutoSave();
             }
         }
     }

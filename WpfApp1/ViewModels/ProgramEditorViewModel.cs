@@ -22,7 +22,8 @@ using BackyardBoss.Views;
 using Renci.SshNet;
 using WpfApp1;
 using BackyardBoss.ViewModels;
-using System.Windows.Media; // or wherever your WeatherViewModel class is
+using System.Windows.Media;
+using System.Text.Json.Serialization; // or wherever your WeatherViewModel class is
 
 
 
@@ -30,11 +31,43 @@ namespace BackyardBoss.ViewModels
 {
     public class ProgramEditorViewModel : INotifyPropertyChanged
     {
+        // Fields
         private SprinklerSet _selectedSet;
         private string _selectedStartTime;
         private bool _isDirty;
-        public ObservableCollection<StartTimeViewModel> StartTimes => Schedule.StartTimes;
+        private int _todayScheduleIndex = -1;
+        private string _statusIconPath;
+        private string _currentRunStatus = "Unknown";
+        private bool _isSet1On, _isSet2On, _isSet3On;
+        private Brush _set1Color = Brushes.LightGray;
+        private Brush _set2Color = Brushes.LightGray;
+        private Brush _set3Color = Brushes.LightGray;
+        private DateTime _lastManualTestModeChange = DateTime.MinValue;
+        private bool _isTestMode;
+        private bool _piReportedTestMode;
+        private bool _suppressExport = false;
+        private string _currentStation;
+        private string _countdown;
+        private static readonly object _saveLock = new();
 
+
+        // Properties
+        public ObservableCollection<StartTimeViewModel> StartTimes => Schedule.StartTimes;
+        public ObservableCollection<SprinklerSet> VisibleSets => new ObservableCollection<SprinklerSet>(Sets.Where(s => !s.SetName.Equals("Misters", StringComparison.OrdinalIgnoreCase)));
+        public ObservableCollection<ScheduledRunPreview> UpcomingRuns { get; private set; } = new();
+        public ObservableCollection<string> PiStatusLog { get; private set; } = new();
+        public WeatherViewModel WeatherVM { get; } = new WeatherViewModel();
+        public SprinklerSchedule Schedule { get; private set; } = new SprinklerSchedule();
+        public ObservableCollection<SprinklerSet> Sets => Schedule.Sets;
+        public static ProgramEditorViewModel Current
+        {
+            get; private set;
+        }
+        public bool HasUnsavedChanges => _isDirty;
+        public bool IsSetSelected => SelectedSet != null;
+        public bool IsStartTimeSelected => !string.IsNullOrEmpty(SelectedStartTime);
+
+        // Commands
         public ICommand OpenTimePickerCommand
         {
             get;
@@ -59,38 +92,30 @@ namespace BackyardBoss.ViewModels
         {
             get;
         }
-
         public ICommand RunOnceCommand
         {
             get;
         }
-
- 
         public ICommand SaveAndSendCommand
         {
             get;
         }
-
         public ICommand CopyProject
         {
             get;
         }
-
         public ICommand QuickMistCommand
         {
             get;
         }
-
         public ICommand RefreshPiStatusCommand
         {
             get;
         }
-
         public ICommand ShowPiLogCommand
         {
             get;
         }
-
         public ICommand ShowPlotsCommand
         {
             get;
@@ -99,7 +124,6 @@ namespace BackyardBoss.ViewModels
         {
             get;
         }
-
         public ICommand StopAllCommand
         {
             get;
@@ -110,10 +134,97 @@ namespace BackyardBoss.ViewModels
         }
 
 
-        public WeatherViewModel WeatherVM { get; } = new WeatherViewModel();
+        // Constructor
+        public ProgramEditorViewModel()
+        {
+            DebugLog("Constructor initialized.");
+            Current = this;
 
-        private int _todayScheduleIndex = -1;
-        public int TodayScheduleIndex
+            WeatherVM = new WeatherViewModel();
+            _ = WeatherVM.LoadWeatherAsync(); // ✅ Start weather loading
+
+            CurrentRunStatus = "Loading"; // Default status
+
+            CalculateTodayScheduleIndex();
+
+            LoadSchedule();
+
+            var piScheduleTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(10)
+            };
+            piScheduleTimer.Tick += async (s, e) => await UpdatePiScheduleInfoAsync();
+            piScheduleTimer.Start();
+            Application.Current.Dispatcher.InvokeAsync(async () =>
+            {
+                await UpdatePiScheduleInfoAsync();
+            });
+
+
+
+            AddSetCommand = new RelayCommand(_ => AddSet());
+            RemoveSetCommand = new RelayCommand(_ => RemoveSet());
+            AddStartTimeCommand = new RelayCommand(_ => AddStartTime());
+            RemoveStartTimeCommand = new RelayCommand(_ => RemoveStartTime());
+
+            SaveScheduleCommand = new RelayCommand(_ => Save(SaveTarget.LocalOnly));
+            SaveAndSendCommand = new RelayCommand(_ => Save(SaveTarget.LocalAndSendToPi));
+
+
+            RunOnceCommand = new RelayCommand(_ => RunOnce());
+            CopyProject = new RelayCommand(_ => CopyProject2Clip());
+            RefreshPiStatusCommand = new RelayCommand(async _ => await LoadPiStatusAsync());
+            ShowPiLogCommand = new RelayCommand(_ => ShowPiLog());
+            ShowPlotsCommand = new RelayCommand(_ => OpenPlotWindow());
+            ToggleTestModeCommand = new RelayCommand(_ => ToggleTestMode());
+            StopAllCommand = new RelayCommand(async _ => await StopAllAsync());
+            ExitCommand = new RelayCommand(_ => Application.Current.Shutdown());
+
+
+
+            QuickMistCommand = new RelayCommand(_ =>
+            {
+                MistDuration = 2;
+                AutoSave();
+
+                var mistSet = Sets.FirstOrDefault(s => s.SetName.Equals("Misters", StringComparison.OrdinalIgnoreCase));
+                if (mistSet != null)
+                {
+                    SendManualRun(mistSet.SetName, MistDuration);
+                }
+                else
+                {
+                    MessageBox.Show("Mist set not found in program.", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            });
+
+            var timer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(5)
+            };
+            timer.Tick += async (s, e) => await LoadPiStatusAsync();
+            timer.Start();
+
+
+            OpenTimePickerCommand = new RelayCommand<StartTimeViewModel>(entry =>
+                    {
+                        if (entry == null)
+                        {
+                            DebugLog("Entry is null. Cannot open time picker.");
+                            return;
+                        }
+
+                        var dialog = new RadialTimePickerDialog { Owner = Application.Current.MainWindow };
+                        dialog.SetTime(entry.ParsedTime);
+                        if (dialog.ShowDialog() == true)
+                        {
+                            entry.ParsedTime = dialog.SelectedTime;
+                            AutoSave();
+                        }
+                    });
+        }
+
+public int TodayScheduleIndex
         {
             get => _todayScheduleIndex;
             set
@@ -126,18 +237,32 @@ namespace BackyardBoss.ViewModels
             }
         }
 
-    
+
         private void CalculateTodayScheduleIndex()
         {
-            var baseDate = new DateTime(2024, 1, 1); // Must match Pi logic
+            var baseDate = new DateTime(2024, 1, 1); // Match Pi exactly
             var today = DateTime.Today;
-            var deltaDays = (today - baseDate).Days;
-            TodayScheduleIndex = deltaDays % 14;
+                var deltaDays = (today - baseDate).Days;
+                TodayScheduleIndex = deltaDays % 14;
         }
 
+        /// <summary>
+        /// Checks if the given index corresponds to today's schedule index.
+        /// </summary>
+        /// <param name="index"></param>
+        /// <returns></returns>
         public bool IsTodayIndex(int index) => index == TodayScheduleIndex;
 
-        private string _statusIconPath;
+        //property for a togglebutton sender with tag of TodayIndex, return red for today, white for other days
+        public Brush TodayIndexColor
+        {
+            get
+            {
+                return IsTodayIndex(TodayScheduleIndex) ? Brushes.Red : Brushes.White;
+            }
+        }
+
+
         public string StatusIconPath
         {
             get => _statusIconPath;
@@ -178,7 +303,7 @@ namespace BackyardBoss.ViewModels
 
 
 
-        private string _currentRunStatus = "Unknown"; // Default status
+
         public string CurrentRunStatus
         {
             get => _currentRunStatus;
@@ -190,7 +315,7 @@ namespace BackyardBoss.ViewModels
             }
         }
 
-        private bool _isSet1On, _isSet2On, _isSet3On;
+
         public bool IsSet1On
         {
             get => _isSet1On; set
@@ -236,7 +361,6 @@ namespace BackyardBoss.ViewModels
 
 
 
-        public ObservableCollection<string> PiStatusLog { get; private set; } = new();
         private async Task LoadPiStatusAsync()
         {
             try
@@ -254,62 +378,64 @@ namespace BackyardBoss.ViewModels
                     new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
                 );
 
-                PiReportedTestMode = parsed.TestMode;
-
-
-                if (parsed?.Log == null)
+                if (parsed != null) // Ensure parsed is not null
                 {
-                    Debug.WriteLine("Deserialization failed or log is null.");
-                    return;
-                }
+                    PiReportedTestMode = parsed.TestMode;
 
-                if ((DateTime.Now - _lastManualTestModeChange).TotalSeconds > 3)
-                {
-                    IsTestMode = parsed.TestMode;
-                }
-    
-                OnPropertyChanged(nameof(IsTestMode));
-
-                App.Current.Dispatcher.Invoke(() =>
-                {
-                    PiStatusLog.Clear();
-                    foreach (var line in parsed.Log)
-                        PiStatusLog.Add(line);
-
-                    // Update CurrentRunStatus with countdown
-                    if (parsed.Current_Run?.Running == true)
+                    if (parsed.Log == null)
                     {
-                        var minutes = parsed.Current_Run.Time_Remaining_Sec / 60;
-                        var seconds = parsed.Current_Run.Time_Remaining_Sec % 60;
-                        var soak = parsed.Current_Run.Soak_Remaining_Sec;
-                        var phase = parsed.Current_Run.Phase ?? "Watering";
+                        Debug.WriteLine("Deserialization failed or log is null.");
+                        return;
+                    }
 
-                        if (phase == "Soaking")
+                    if ((DateTime.Now - _lastManualTestModeChange).TotalSeconds > 3)
+                    {
+                        IsTestMode = parsed.TestMode;
+                    }
+
+                    OnPropertyChanged(nameof(IsTestMode));
+
+                    App.Current.Dispatcher.Invoke(() =>
+                    {
+                        PiStatusLog.Clear();
+                        foreach (var line in parsed.Log)
+                            PiStatusLog.Add(line);
+
+                        // Update CurrentRunStatus with countdown
+                        if (parsed.Current_Run?.Running == true)
                         {
-                            var soakMin = soak / 60;
-                            var soakSec = soak % 60;
-                            CurrentRunStatus = $"{parsed.Current_Run.Set}\nWatering ({minutes:D2}:{seconds:D2}\nSoaking ({soakMin:D2}:{soakSec:D2})";
+                            var minutes = parsed.Current_Run.Time_Remaining_Sec / 60;
+                            var seconds = parsed.Current_Run.Time_Remaining_Sec % 60;
+                            var soak = parsed.Current_Run.Soak_Remaining_Sec;
+                            var phase = parsed.Current_Run.Phase ?? "Watering";
+
+                            if (phase == "Soaking")
+                            {
+                                var soakMin = soak / 60;
+                                var soakSec = soak % 60;
+                                CurrentRunStatus = $"{parsed.Current_Run.Set}\nWatering ({minutes:D2}:{seconds:D2}\nSoaking ({soakMin:D2}:{soakSec:D2})";
+                            }
+                            else
+                            {
+                                CurrentRunStatus = $"{parsed.Current_Run.Set}\nWatering ({minutes:D2}:{seconds:D2})";
+                            }
                         }
                         else
                         {
-                            CurrentRunStatus = $"{parsed.Current_Run.Set}\nWatering ({minutes:D2}:{seconds:D2})";
+                            CurrentRunStatus = "Idle";
                         }
-                    }
-                    else
-                    {
-                        CurrentRunStatus = "Idle";
-                    }
 
-                    var last10 = parsed.Log.TakeLast(10).ToList();
+                        var last10 = parsed.Log.TakeLast(10).ToList();
 
-                    Set1Color = last10.LastOrDefault(l => l.Contains("PIN_17"))?.Contains("ON") == true ? Brushes.LimeGreen : Brushes.Red;
-                    Set2Color = last10.LastOrDefault(l => l.Contains("PIN_22"))?.Contains("ON") == true ? Brushes.LimeGreen : Brushes.Red;
-                    Set3Color = last10.LastOrDefault(l => l.Contains("PIN_27"))?.Contains("ON") == true ? Brushes.LimeGreen : Brushes.Red;
-
-
-
-
-                });
+                        Set1Color = last10.LastOrDefault(l => l.Contains("PIN_17"))?.Contains("ON") == true ? Brushes.LimeGreen : Brushes.Red;
+                        Set2Color = last10.LastOrDefault(l => l.Contains("PIN_22"))?.Contains("ON") == true ? Brushes.LimeGreen : Brushes.Red;
+                        Set3Color = last10.LastOrDefault(l => l.Contains("PIN_27"))?.Contains("ON") == true ? Brushes.LimeGreen : Brushes.Red;
+                    });
+                }
+                else
+                {
+                    Debug.WriteLine("Parsed response is null.");
+                }
             }
             catch (Exception ex)
             {
@@ -319,7 +445,6 @@ namespace BackyardBoss.ViewModels
                     CurrentRunStatus = "Offline";
                 });
             }
-
         }
 
         private async Task StopAllAsync()
@@ -340,7 +465,7 @@ namespace BackyardBoss.ViewModels
         }
 
 
-        private Brush _set1Color = Brushes.LightGray;
+
         public Brush Set1Color
         {
             get => _set1Color;
@@ -351,7 +476,7 @@ namespace BackyardBoss.ViewModels
             }
         }
 
-        private Brush _set2Color = Brushes.LightGray;
+
         public Brush Set2Color
         {
             get => _set2Color;
@@ -362,7 +487,7 @@ namespace BackyardBoss.ViewModels
             }
         }
 
-        private Brush _set3Color = Brushes.LightGray;
+
         public Brush Set3Color
         {
             get => _set3Color;
@@ -373,8 +498,7 @@ namespace BackyardBoss.ViewModels
             }
         }
 
-        private DateTime _lastManualTestModeChange = DateTime.MinValue;
-        private bool _isTestMode;
+
 
         public bool IsTestMode
         {
@@ -391,7 +515,7 @@ namespace BackyardBoss.ViewModels
             }
         }
 
-        private bool _suppressExport = false;
+
 
 
         private void SetEnvironmentVariable(string variableName, string value)
@@ -426,7 +550,7 @@ namespace BackyardBoss.ViewModels
         }
 
 
-        private bool _piReportedTestMode;
+
         public bool PiReportedTestMode
         {
             get => _piReportedTestMode;
@@ -442,43 +566,74 @@ namespace BackyardBoss.ViewModels
 
 
 
-        private void SaveAndSendSchedule()
-        {
-            string localPath = "sprinkler_schedule.json";
-            string remotePath = "/home/lds00/sprinkler_schedule.json";
-            string piHost = "100.116.147.6";         // Replace with actual IP
-            string username = "lds00";
-            string password = "Celica1!";
 
-            try
+        public enum SaveTarget
+        {
+            LocalOnly,
+            LocalAndSendToPi
+        }
+
+
+        private void Save(SaveTarget target)
+        {
+            lock (_saveLock)
             {
+                DebugLog("Save triggered.");
+
                 Schedule.StartTimes = new ObservableCollection<StartTimeViewModel>(StartTimes);
 
+                foreach (var set in Schedule.Sets)
+                {
+                    if (set.SetName == "Misters")
+                        set.Mode = true;
+                }
 
-                var json = JsonSerializer.Serialize(Schedule, new JsonSerializerOptions
+                var options = new JsonSerializerOptions
                 {
                     WriteIndented = true,
-                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-                });
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault
+                };
 
+                string localPath = "sprinkler_schedule.json";
+                string remotePath = "/home/lds00/sprinkler_schedule.json";
+                string piHost = "100.116.147.6";
+                string username = "lds00";
+                string password = "Celica1!";
 
-                File.WriteAllText(localPath, json);
+                try
+                {
+                    var json = JsonSerializer.Serialize(Schedule, options);
+                    using (var fs = new FileStream(localPath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite))
+                    using (var writer = new StreamWriter(fs))
+                    {
+                        writer.Write(json);
+                    }
 
-                using var sftp = new SftpClient(piHost, username, password);
-                sftp.Connect();
-                using var stream = File.OpenRead(localPath);
-                sftp.UploadFile(stream, remotePath, true);
-                sftp.Disconnect();
+                    if (target == SaveTarget.LocalAndSendToPi)
+                    {
+                        using var sftp = new SftpClient(piHost, username, password);
+                        sftp.Connect();
+                        using var stream = File.OpenRead(localPath);
+                        sftp.UploadFile(stream, remotePath, true);
+                        sftp.Disconnect();
 
-                MessageBox.Show("Schedule saved and sent to Raspberry Pi.");
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Failed to save and send: {ex.Message}");
+                        MessageBox.Show("Schedule saved and sent to Raspberry Pi.");
+                    }
+                    else
+                    {
+                        DebugLog("Schedule saved locally only.");
+                    }
+
+                    _isDirty = false;
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Failed to save: {ex.Message}");
+                }
             }
         }
 
-        public static List<string> Modes => new() { "scheduled", "manual", "disabled" };
 
 
         private void RunOnce()
@@ -575,79 +730,6 @@ namespace BackyardBoss.ViewModels
 
 
 
-        public static ProgramEditorViewModel Current
-        {
-            get; private set;
-        }
-        
-        public ObservableCollection<SprinklerSet> VisibleSets =>
-    new ObservableCollection<SprinklerSet>(
-        Sets.Where(s => !s.SetName.Equals("Misters", StringComparison.OrdinalIgnoreCase)));
-        public ProgramEditorViewModel()
-        {
-            DebugLog("Constructor initialized.");
-            Current = this;
-
-            WeatherVM = new WeatherViewModel();
-            _ = WeatherVM.LoadWeatherAsync(); // ✅ Start weather loading
-
-            CurrentRunStatus = "Loading"; // Default status
-
-            CalculateTodayScheduleIndex();
-
-            LoadSchedule();
-
-            AddSetCommand = new RelayCommand(_ => AddSet());
-            RemoveSetCommand = new RelayCommand(_ => RemoveSet());
-            AddStartTimeCommand = new RelayCommand(_ => AddStartTime());
-            RemoveStartTimeCommand = new RelayCommand(_ => RemoveStartTime());
-            SaveScheduleCommand = new RelayCommand(_ => SaveSchedule());
-            RunOnceCommand = new RelayCommand(_ => RunOnce());
-            SaveAndSendCommand = new RelayCommand(_ => SaveAndSendSchedule());
-            CopyProject = new RelayCommand(_ => CopyProject2Clip());
-            RefreshPiStatusCommand = new RelayCommand(async _ => await LoadPiStatusAsync());
-            ShowPiLogCommand = new RelayCommand(_ => ShowPiLog());
-            ShowPlotsCommand = new RelayCommand(_ => OpenPlotWindow());
-            ToggleTestModeCommand = new RelayCommand(_ => ToggleTestMode());
-            StopAllCommand = new RelayCommand(async _ => await StopAllAsync());
-            ExitCommand = new RelayCommand(_ => Application.Current.Shutdown());
-
-
-
-            QuickMistCommand = new RelayCommand(_ =>
-            {
-                MistDuration = 2;
-                AutoSave();
-
-                var mistSet = Sets.FirstOrDefault(s => s.SetName.Equals("Misters", StringComparison.OrdinalIgnoreCase));
-                if (mistSet != null)
-                {
-                    SendManualRun(mistSet.SetName, MistDuration);
-                }
-                else
-                {
-                    MessageBox.Show("Mist set not found in program.", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-                }
-            });
-
-            var timer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromSeconds(5)
-            };
-            timer.Tick += async (s, e) => await LoadPiStatusAsync();
-            timer.Start();
-
-            OpenTimePickerCommand = new RelayCommand<StartTimeViewModel>(entry =>
-            {
-                var dialog = new RadialTimePickerDialog { Owner = Application.Current.MainWindow };
-                dialog.SetTime(entry.ParsedTime);
-                if (dialog.ShowDialog() == true)
-                {
-                    entry.ParsedTime = dialog.SelectedTime;
-                    AutoSave();
-                }
-            });
-        }
 
         private void ToggleTestMode()
         {
@@ -693,12 +775,8 @@ namespace BackyardBoss.ViewModels
             BackyardBoss.Tools.ProjectStructureToClipboard.ExportStructureWithContents(rootDirectory);
         }
 
-        public SprinklerSchedule Schedule { get; private set; } = new SprinklerSchedule();
-        public ObservableCollection<SprinklerSet> Sets => Schedule.Sets;
-        public ObservableCollection<ScheduledRunPreview> UpcomingRuns { get; private set; } = new();
-        public bool HasUnsavedChanges => _isDirty;
 
-        public SprinklerSet SelectedSet
+        public SprinklerSet? SelectedSet // Change the type to nullable
         {
             get => _selectedSet;
             set
@@ -974,7 +1052,7 @@ namespace BackyardBoss.ViewModels
             }
         }
 
-        private string _currentStation;
+
         public string CurrentStation
         {
             get => _currentStation;
@@ -988,7 +1066,7 @@ namespace BackyardBoss.ViewModels
             }
         }
 
-        private string _countdown;
+
         public string Countdown
         {
             get => _countdown;
@@ -1004,12 +1082,16 @@ namespace BackyardBoss.ViewModels
 
 
 
-        public bool IsSetSelected => SelectedSet != null;
-        public bool IsStartTimeSelected => !string.IsNullOrEmpty(SelectedStartTime);
 
         private async void LoadSchedule()
         {
+
+            Debug.WriteLine($"Today (Local): {DateTime.Today:yyyy-MM-dd}");
+            Debug.WriteLine($"Today (UTC):   {DateTime.UtcNow.Date:yyyy-MM-dd}");
+
             DebugLog("Loading schedule...");
+            _suppressExport = true;
+
             var loaded = await ProgramDataService.LoadScheduleAsync();
             if (loaded != null)
             {
@@ -1031,27 +1113,22 @@ namespace BackyardBoss.ViewModels
                 {
                     DebugLog("No start times found — inserting default 06:00 and 17:00.");
                     loaded.StartTimes = new ObservableCollection<StartTimeViewModel>
-    {
-        new StartTimeViewModel { Time = "06:00", IsEnabled = true },
-        new StartTimeViewModel { Time = "17:00", IsEnabled = true }
-    };
+            {
+                new StartTimeViewModel { Time = "06:00", IsEnabled = true },
+                new StartTimeViewModel { Time = "17:00", IsEnabled = true }
+            };
                 }
 
-                OnPropertyChanged(nameof(MistPulseDuration));
-                OnPropertyChanged(nameof(MistSoakDuration));
-
-
-                OnPropertyChanged(nameof(StartTimes));
-                OnPropertyChanged(nameof(VisibleSets));
-
-
-
+                // Set Schedule and trigger UI updates
                 OnPropertyChanged(nameof(Sets));
                 OnPropertyChanged(nameof(StartTimes));
                 OnPropertyChanged(nameof(SeasonalAdjustment));
                 OnPropertyChanged(nameof(SeasonalAdjustmentPercent));
-
-                // Notify WPF of each schedule day toggle
+                OnPropertyChanged(nameof(MistDuration));
+                OnPropertyChanged(nameof(MistTime1030));
+                OnPropertyChanged(nameof(MistTime1330));
+                OnPropertyChanged(nameof(MistTime1600));
+                OnPropertyChanged(nameof(VisibleSets));
                 OnPropertyChanged(nameof(Week1Sunday));
                 OnPropertyChanged(nameof(Week1Monday));
                 OnPropertyChanged(nameof(Week1Tuesday));
@@ -1067,14 +1144,6 @@ namespace BackyardBoss.ViewModels
                 OnPropertyChanged(nameof(Week2Friday));
                 OnPropertyChanged(nameof(Week2Saturday));
 
-                OnPropertyChanged(nameof(SeasonalAdjustment));
-                OnPropertyChanged(nameof(SeasonalAdjustmentPercent));
-
-                OnPropertyChanged(nameof(MistDuration));
-                OnPropertyChanged(nameof(MistTime1030));
-                OnPropertyChanged(nameof(MistTime1330));
-                OnPropertyChanged(nameof(MistTime1600));
-
                 _isDirty = false;
                 DebugLog("Schedule loaded successfully.");
                 UpdateUpcomingRunsPreview();
@@ -1083,37 +1152,26 @@ namespace BackyardBoss.ViewModels
             {
                 DebugLog("Failed to load schedule.");
             }
+
+            _suppressExport = false;
         }
 
 
-        private async void SaveSchedule()
-        {
-            DebugLog("SaveSchedule triggered.");
-
-            // No conversion needed; StartTimes is already ObservableCollection<StartTimeViewModel>
-            Schedule.StartTimes = new ObservableCollection<StartTimeViewModel>(StartTimes);
-
-            DebugLog($"Preparing to save {Schedule.Sets.Count} sets and {Schedule.StartTimes.Count} start times.");
-
-            try
-            {
-                await ProgramDataService.SaveScheduleAsync(Schedule);
-                _isDirty = false;
-                DebugLog("Save successful.");
-            }
-            catch (Exception ex)
-            {
-                DebugLog($"Save failed: {ex.Message}");
-            }
-        }
 
 
         public void AutoSave()
         {
+            if (_suppressExport)
+            {
+                DebugLog("AutoSave skipped (suppressed during load).");
+                return;
+            }
+
             DebugLog("AutoSave called.");
             MarkDirty();
-            SaveSchedule();
+            Save(SaveTarget.LocalOnly);
         }
+
 
         private void AddSet()
         {
@@ -1221,7 +1279,7 @@ namespace BackyardBoss.ViewModels
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
-        public void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        public void OnPropertyChanged([CallerMemberName] string propertyName = "")
         {
             DebugLog($"PropertyChanged: {propertyName}");
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
@@ -1234,5 +1292,72 @@ namespace BackyardBoss.ViewModels
                 Debug.WriteLine($"[DEBUG {DateTime.Now:HH:mm:ss.fff}] {caller}: {message}");
             }
         }
+
+        ///new code to be added later to the correct location in this file
+        private int? _piScheduleIndex;
+        public int? PiScheduleIndex
+        {
+            get => _piScheduleIndex;
+            set
+            {
+                _piScheduleIndex = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(ScheduleIndexMismatch));
+            }
+        }
+
+        private string _piLocalTime;
+        public string PiLocalTime
+        {
+            get => _piLocalTime;
+            set
+            {
+                _piLocalTime = value;
+                OnPropertyChanged();
+            }
+        }
+
+        private string _piTimezone;
+        public string PiTimezone
+        {
+            get => _piTimezone;
+            set
+            {
+                _piTimezone = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public bool ScheduleIndexMismatch => PiScheduleIndex != TodayScheduleIndex;
+
+        private async Task UpdatePiScheduleInfoAsync()
+        {
+            try
+            {
+                using var client = new HttpClient();
+                var json = await client.GetStringAsync("http://100.116.147.6:5000/schedule-index");
+
+                var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                PiScheduleIndex = root.GetProperty("schedule_index").GetInt32();
+                PiLocalTime = root.TryGetProperty("local_time", out var timeProp)
+                    ? timeProp.GetString()
+                    : "Unavailable";
+
+                PiTimezone = root.TryGetProperty("timezone", out var zoneProp)
+                    ? zoneProp.GetString()
+                    : "Unavailable";
+
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[ERROR] Failed to fetch Pi schedule index: {ex.Message}");
+                PiScheduleIndex = null;
+                PiLocalTime = "Unavailable";
+                PiTimezone = "Unavailable";
+            }
+        }
+
     }
 }

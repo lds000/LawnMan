@@ -14,6 +14,7 @@
 	  <None Remove="Assets\Icons\offline.PNG" />
 	  <None Remove="Assets\Icons\running.PNG" />
 	  <None Remove="Assets\Icons\unknown.PNG" />
+	  <None Remove="Assets\Icons\watering-can.png" />
 	  <None Remove="sprinkler_schedule.json" />
 	</ItemGroup>
 
@@ -33,6 +34,7 @@
 	  <Resource Include="Assets\Icons\unknown.PNG">
 	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 	  </Resource>
+	  <Resource Include="Assets\Icons\watering-can.png" />
 	  <Content Include="sprinkler_schedule.json">
 	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 	  </Content>

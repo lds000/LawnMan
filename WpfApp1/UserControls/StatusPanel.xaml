@@ -1,0 +1,57 @@
+﻿<UserControl x:Class="BackyardBoss.UserControls.StatusPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                          xmlns:conv="clr-namespace:BackyardBoss.Converters"
+             mc:Ignorable="d"
+             d:DesignHeight="100" d:DesignWidth="300">
+    <UserControl.Resources>
+        <!-- Converters -->
+        <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+    </UserControl.Resources>
+    <StackPanel Orientation="Horizontal" VerticalAlignment="Top" Margin="10">
+        <!-- Status Icon + Label -->
+        <StackPanel Width="100" HorizontalAlignment="Center" VerticalAlignment="Top">
+            <Image Source="{Binding StatusIconPath}" Width="50" Height="50" HorizontalAlignment="Center" />
+            <TextBlock Text="{Binding CurrentRunStatus}"
+                       FontSize="14"
+                       HorizontalAlignment="Center"
+                       Foreground="{DynamicResource PrimaryText}" />
+            <TextBlock Text="{Binding SoakTimeRemaining}"
+                       FontSize="12"
+                       HorizontalAlignment="Center"
+                       Foreground="{DynamicResource SecondaryTextBrush}"
+                       Visibility="{Binding IsSoaking, Converter={StaticResource BoolToVisibilityConverter}}" />
+        </StackPanel>
+
+        <!-- Test Mode + Status Lights -->
+        <Border Background="{DynamicResource CardBackground}"
+                Padding="10"
+                CornerRadius="10"
+                Width="180">
+            <StackPanel>
+                <!-- Test Mode Row -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,10">
+                    <CheckBox Content="Test Mode"
+                              IsChecked="{Binding PiReportedTestMode}"
+                              IsEnabled="False"
+                              Margin="0,0,10,0"
+                              Foreground="{DynamicResource PrimaryText}" />
+                    <Button Content="Toggle"
+                            Command="{Binding ToggleTestModeCommand}"
+                            Width="60"
+                            Height="30"
+                            Style="{StaticResource PrimaryButtonStyle}" />
+                </StackPanel>
+
+                <!-- Zone Status Lights -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" >
+                    <Ellipse Fill="{Binding Set1Color}" Width="18" Height="18" Margin="4" />
+                    <Ellipse Fill="{Binding Set2Color}" Width="18" Height="18" Margin="4" />
+                    <Ellipse Fill="{Binding Set3Color}" Width="18" Height="18" Margin="4" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

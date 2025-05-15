@@ -49,7 +49,13 @@ namespace SprinklerStatusViewer.ViewModels
                         {
                             LogLines.Clear();
                             foreach (var line in logArray.EnumerateArray())
-                                LogLines.Add(line.GetString());
+                            {
+                                var logEntry = line.GetString();
+                                if (!string.IsNullOrEmpty(logEntry)) // Ensure the string is not null or empty
+                                {
+                                    LogLines.Add(logEntry);
+                                }
+                            }
                         });
                     }
                 }
@@ -65,7 +71,7 @@ namespace SprinklerStatusViewer.ViewModels
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged([CallerMemberName] string name = null) =>
+        protected void OnPropertyChanged([CallerMemberName] string name = null!) =>
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 }

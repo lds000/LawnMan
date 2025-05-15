@@ -1,0 +1,37 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Boise State Primary Colors -->
+    <Color x:Key="BSUBlue">#FF0033A0</Color>
+    <Color x:Key="BSUOrange">#FFFF6600</Color>
+    <Color x:Key="DarkBackground">#FF121212</Color>
+    <Color x:Key="LightText">#FFF0F0F0</Color>
+    <Color x:Key="SecondaryText">#FFAAAAAA</Color>
+    <Color x:Key="InputDark">#FF222222</Color>
+    <Color x:Key="BorderGray">#FF555555</Color>
+    
+    
+
+    <!-- Themed Brushes -->
+    <SolidColorBrush x:Key="PrimaryBackground" Color="{StaticResource DarkBackground}" />
+    <SolidColorBrush x:Key="PrimaryText" Color="{StaticResource LightText}" />
+    <SolidColorBrush x:Key="SecondaryTextBrush" Color="{StaticResource SecondaryText}" />
+    <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource BSUBlue}" />
+    <SolidColorBrush x:Key="HighlightBrush" Color="{StaticResource BSUOrange}" />
+    <SolidColorBrush x:Key="CardBackground" Color="#FF1E1E1E" />
+    <SolidColorBrush x:Key="InputBackground" Color="{StaticResource InputDark}" />
+    <SolidColorBrush x:Key="InputText" Color="{StaticResource LightText}" />
+    <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource BorderGray}" />
+
+    <SolidColorBrush x:Key="ButtonTodayIndex" Color="Green" />
+    <SolidColorBrush x:Key="ButtonBackground" Color="{StaticResource BSUOrange}" />
+    
+    <SolidColorBrush x:Key="ButtonUncheckedColor" Color="{StaticResource BSUBlue}" />
+    <SolidColorBrush x:Key="ButtonCheckedColor" Color="{StaticResource BSUOrange}" />
+
+
+    <SolidColorBrush x:Key="SliderTrackBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="SliderThumbFill" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="SliderThumbStroke" Color="#0033A0" />
+
+</ResourceDictionary>
