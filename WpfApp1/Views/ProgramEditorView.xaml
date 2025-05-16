@@ -108,7 +108,7 @@
                                 <Border Background="{DynamicResource CardBackground}" CornerRadius="10" Padding="12" Margin="0,0,0,12">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock VerticalAlignment="Center" Text="Next Run" FontWeight="Bold" FontSize="20" Foreground="{DynamicResource PrimaryText}"/>
-                                        <TextBlock VerticalAlignment="Center" Margin="10,0,0,0" x:Name="NextRunTextBlock" Text="{Binding NextRunDisplay}" FontSize="18" Foreground="{DynamicResource PrimaryText}"/>
+                                        <TextBlock FontSize="16" VerticalAlignment="Center" Margin="10,0,0,0" x:Name="NextRunTextBlock" Text="{Binding NextRunDisplay}" Foreground="{DynamicResource PrimaryText}"/>
                                     </StackPanel>
                                 </Border>
                                 <!--
@@ -118,7 +118,7 @@
                                 <Border Background="{DynamicResource CardBackground}" CornerRadius="10" Padding="12" Margin="0,0,0,12">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock VerticalAlignment="Center" Text="Last Run" FontWeight="Bold" FontSize="20" Foreground="{DynamicResource PrimaryText}"/>
-                                        <TextBlock VerticalAlignment="Center" Margin="10,0,0,0" Text="{Binding LastRunDisplay}" FontSize="18" Foreground="{DynamicResource PrimaryText}"/>
+                                        <TextBlock FontSize="16" VerticalAlignment="Center" Margin="10,0,0,0" Text="{Binding LastRunDisplay}"  Foreground="{DynamicResource PrimaryText}"/>
                                     </StackPanel>
                                 </Border>
                                 <!--
@@ -154,13 +154,13 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Text="{Binding Date, StringFormat=MM-dd}" Margin="0,0,8,0" Foreground="{DynamicResource PrimaryText}"/>
-                                                    <TextBlock Text="{Binding SetName}" Margin="0,0,8,0" Foreground="{DynamicResource PrimaryText}"/>
-                                                    <TextBlock Text="{Binding DurationMinutes}" Foreground="{DynamicResource PrimaryText}"/>
-                                                    <TextBlock Text=" min" Foreground="{DynamicResource PrimaryText}"/>
-                                                    <TextBlock Text=" (" Foreground="{DynamicResource PrimaryText}"/>
-                                                    <TextBlock Text="{Binding Status}" Foreground="{DynamicResource PrimaryText}"/>
-                                                    <TextBlock Text=")" Foreground="{DynamicResource PrimaryText}"/>
+                                                    <TextBlock FontSize="16" Text="{Binding Date, StringFormat=MM-dd}" Margin="0,0,8,0" Foreground="{DynamicResource PrimaryText}"/>
+                                                    <TextBlock FontSize="16" Text="{Binding SetName}" Margin="0,0,8,0" Foreground="{DynamicResource PrimaryText}"/>
+                                                    <TextBlock FontSize="16" Text="{Binding DurationMinutes}" Foreground="{DynamicResource PrimaryText}"/>
+                                                    <TextBlock FontSize="16" Text=" min" Foreground="{DynamicResource PrimaryText}"/>
+                                                    <TextBlock FontSize="16" Text=" (" Foreground="{DynamicResource PrimaryText}"/>
+                                                    <TextBlock FontSize="16" Text="{Binding Status}" Foreground="{DynamicResource PrimaryText}"/>
+                                                    <TextBlock FontSize="16" Text=")" Foreground="{DynamicResource PrimaryText}"/>
                                                 </StackPanel>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>

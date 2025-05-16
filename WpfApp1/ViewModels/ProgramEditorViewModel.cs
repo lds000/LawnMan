@@ -264,6 +264,46 @@ namespace BackyardBoss.ViewModels
                 OnPropertyChanged();
             }
         }
+
+        /// <summary>
+        /// Returns the remaining soak time as a string if the system is currently soaking, otherwise returns an empty string.
+        /// </summary>
+        public string SoakTimeRemaining
+        {
+            get
+            {
+                // CurrentRunStatus example: "• Zone 2\nWatering (12:34\nSoaking (05:00)"
+                if (!string.IsNullOrEmpty(CurrentRunStatus) && CurrentRunStatus.Contains("Soaking"))
+                {
+                    // Try to extract the soak time in the format Soaking (mm:ss)
+                    var soakIndex = CurrentRunStatus.IndexOf("Soaking (");
+                    if (soakIndex >= 0)
+                    {
+                        var start = soakIndex + "Soaking (".Length;
+                        var end = CurrentRunStatus.IndexOf(")", start);
+                        if (end > start)
+                        {
+                            var soakTime = CurrentRunStatus.Substring(start, end - start);
+                            return $"Soak: {soakTime}";
+                        }
+                    }
+                }
+                return string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// Returns true if the system is currently in a soaking phase, otherwise false.
+        /// </summary>
+        public bool IsSoaking
+        {
+            get
+            {
+                // CurrentRunStatus example: "• Zone 2\nWatering (12:34\nSoaking (05:00)"
+                return !string.IsNullOrEmpty(CurrentRunStatus) && CurrentRunStatus.Contains("Soaking");
+            }
+        }
+
         // Week 1
         public bool Week1Sunday { get => Schedule.ScheduleDays[0]; set { Schedule.ScheduleDays[0] = value; OnPropertyChanged(); AutoSave(); } }
         public bool Week1Monday { get => Schedule.ScheduleDays[1]; set { Schedule.ScheduleDays[1] = value; OnPropertyChanged(); AutoSave(); } }
