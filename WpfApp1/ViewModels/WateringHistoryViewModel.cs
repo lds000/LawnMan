@@ -6,28 +6,11 @@ using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
+using BackyardBoss.Models; // Use the model version
 
 namespace BackyardBoss.ViewModels
 {
-    public class WateringLogEntry
-    {
-        public DateTime Date
-        {
-            get; set;
-        }
-        public string SetName
-        {
-            get; set;
-        }
-        public string Source
-        {
-            get; set;
-        } // "SCHEDULED" or "MANUAL"
-        public TimeSpan Duration
-        {
-            get; set;
-        }
-    }
+    // Removed duplicate WateringLogEntry class. Use BackyardBoss.Models.WateringLogEntry instead.
 
     public class SetLog
     {

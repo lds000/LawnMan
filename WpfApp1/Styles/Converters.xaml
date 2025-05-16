@@ -4,5 +4,6 @@
 
     <conv:AdjustmentVisibilityConverter x:Key="AdjustmentVisibilityConverter"/>
     <conv:TodayHighlightConverter x:Key="TodayHighlightConverter"/>
+    <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
 
 </ResourceDictionary>

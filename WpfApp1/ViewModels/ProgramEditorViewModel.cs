@@ -50,6 +50,12 @@ namespace BackyardBoss.ViewModels
         private int? _piScheduleIndex;
         private string _piLocalTime;
         private string _piTimezone;
+        private string _selectedSection = "Overview";
+        private string _systemStatus = "Unknown";
+        private string _nextRunDisplay = "-";
+        private string _lastRunDisplay = "-";
+        private ObservableCollection<ZoneStatus> _zoneStatuses = new();
+        private ObservableCollection<WateringLogEntry> _lastWeekHistory = new();
         #endregion
 
         #region Properties
@@ -280,6 +286,36 @@ namespace BackyardBoss.ViewModels
         public string PiLocalTime { get => _piLocalTime; set { _piLocalTime = value; OnPropertyChanged(); } }
         public string PiTimezone { get => _piTimezone; set { _piTimezone = value; OnPropertyChanged(); } }
         public bool ScheduleIndexMismatch => PiScheduleIndex != TodayScheduleIndex;
+        public string SelectedSection
+        {
+            get => _selectedSection;
+            set { _selectedSection = value; OnPropertyChanged(); }
+        }
+        public string SystemStatus
+        {
+            get => _systemStatus;
+            set { _systemStatus = value; OnPropertyChanged(); }
+        }
+        public ObservableCollection<ZoneStatus> ZoneStatuses
+        {
+            get => _zoneStatuses;
+            set { _zoneStatuses = value; OnPropertyChanged(); }
+        }
+        public string NextRunDisplay
+        {
+            get => _nextRunDisplay;
+            set { _nextRunDisplay = value; OnPropertyChanged(); }
+        }
+        public string LastRunDisplay
+        {
+            get => _lastRunDisplay;
+            set { _lastRunDisplay = value; OnPropertyChanged(); }
+        }
+        public ObservableCollection<WateringLogEntry> LastWeekHistory
+        {
+            get => _lastWeekHistory;
+            set { _lastWeekHistory = value; OnPropertyChanged(); }
+        }
         #endregion
 
         #region Commands
@@ -299,6 +335,7 @@ namespace BackyardBoss.ViewModels
         public ICommand ToggleTestModeCommand { get; }
         public ICommand StopAllCommand { get; }
         public ICommand ExitCommand { get; }
+        public ICommand SelectSectionCommand { get; }
         #endregion
 
         #region Constructor
@@ -308,10 +345,33 @@ namespace BackyardBoss.ViewModels
             Current = this;
             WeatherVM = new WeatherViewModel();
             _ = WeatherVM.LoadWeatherAsync();
-            CurrentRunStatus = "Loading";
+            CurrentRunStatus = "• Checking Status...";
             CalculateTodayScheduleIndex();
-            LoadSchedule();
-            var piScheduleTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
+            LoadSchedule(); // <-- Enable real data loading
+            // Populate mock data for dashboard demo
+            SystemStatus = "All Systems Nominal";
+            ZoneStatuses = new ObservableCollection<ZoneStatus>
+            {
+                new ZoneStatus { Name = "Zone 1", Status = "Idle" },
+                new ZoneStatus { Name = "Zone 2", Status = "Watering" },
+                new ZoneStatus { Name = "Zone 3", Status = "Idle" }
+            };
+            NextRunDisplay = $"{DateTime.Now.AddHours(1):yyyy-MM-dd HH:mm} - Zone 2 (12 min)";
+            LastRunDisplay = $"{DateTime.Now.AddHours(-2):yyyy-MM-dd HH:mm} - Zone 1 (10 min)";
+            UpcomingRuns = new ObservableCollection<ScheduledRunPreview>
+            {
+                new ScheduledRunPreview { SetName = "Zone 2", StartTime = DateTime.Now.AddHours(1).ToString("HH:mm"), SeasonallyAdjustedMinutes = 12 },
+                new ScheduledRunPreview { SetName = "Zone 3", StartTime = DateTime.Now.AddHours(2).ToString("HH:mm"), SeasonallyAdjustedMinutes = 15 }
+            };
+            LastWeekHistory = new ObservableCollection<WateringLogEntry>
+            {
+                new WateringLogEntry { Date = DateTime.Today.AddDays(-1), SetName = "Zone 1", DurationMinutes = 10, Status = "Completed" },
+                new WateringLogEntry { Date = DateTime.Today.AddDays(-2), SetName = "Zone 2", DurationMinutes = 12, Status = "Completed" },
+                new WateringLogEntry { Date = DateTime.Today.AddDays(-3), SetName = "Zone 3", DurationMinutes = 15, Status = "Error" }
+            };
+            // Call UpdateNextRunFromJson to populate NextRunDisplay from JSON
+            UpdateNextRunFromJson();
+            var piScheduleTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             piScheduleTimer.Tick += async (s, e) => await UpdatePiScheduleInfoAsync();
             piScheduleTimer.Start();
             Application.Current.Dispatcher.InvokeAsync(async () => { await UpdatePiScheduleInfoAsync(); });
@@ -343,9 +403,13 @@ namespace BackyardBoss.ViewModels
                     MessageBox.Show("Mist set not found in program.", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
             });
-            var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             timer.Tick += async (s, e) => await LoadPiStatusAsync();
             timer.Start();
+
+            //update CurrentTime every second
+            var timeTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+
             OpenTimePickerCommand = new RelayCommand<StartTimeViewModel>(entry =>
             {
                 if (entry == null)
@@ -360,6 +424,11 @@ namespace BackyardBoss.ViewModels
                     entry.ParsedTime = dialog.SelectedTime;
                     AutoSave();
                 }
+            });
+            SelectSectionCommand = new RelayCommand(param =>
+            {
+                if (param is string section)
+                    SelectedSection = section;
             });
         }
         #endregion
@@ -581,16 +650,16 @@ namespace BackyardBoss.ViewModels
                             {
                                 var soakMin = soak / 60;
                                 var soakSec = soak % 60;
-                                CurrentRunStatus = $"{parsed.Current_Run.Set}\nWatering ({minutes:D2}:{seconds:D2}\nSoaking ({soakMin:D2}:{soakSec:D2})";
+                                CurrentRunStatus = $"• {parsed.Current_Run.Set}\nWatering ({minutes:D2}:{seconds:D2}\nSoaking ({soakMin:D2}:{soakSec:D2})";
                             }
                             else
                             {
-                                CurrentRunStatus = $"{parsed.Current_Run.Set}\nWatering ({minutes:D2}:{seconds:D2})";
+                                CurrentRunStatus = $"• {parsed.Current_Run.Set}\nWatering ({minutes:D2}:{seconds:D2})";
                             }
                         }
                         else
                         {
-                            CurrentRunStatus = "Idle";
+                            CurrentRunStatus = "• Idle";
                         }
                         var last10 = parsed.Log.TakeLast(10).ToList();
                         Set1Color = last10.LastOrDefault(l => l.Contains("PIN_17"))?.Contains("ON") == true ? Brushes.LimeGreen : Brushes.Red;
@@ -608,10 +677,35 @@ namespace BackyardBoss.ViewModels
                 Debug.WriteLine($"Failed to load Pi status: {ex.Message}");
                 App.Current.Dispatcher.Invoke(() =>
                 {
-                    CurrentRunStatus = "Offline";
+                    CurrentRunStatus = "• Offline";
                 });
             }
+            //update PiScheduleIndex
+            OnPropertyChanged(nameof(PiScheduleIndex));
+            OnPropertyChanged(nameof(PiLocalTime));
+            OnPropertyChanged(nameof(PiTimezone));
+            OnPropertyChanged(nameof(ScheduleIndexMismatch));
+
         }
+
+        /// <summary>
+        /// Current time string, binds to PiStatusViewModel.
+        /// </summary>
+        /// <returns></returns>
+        private string _currentTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+        public string CurrentTime
+        {
+            get => _currentTime;
+            set
+            {
+                if (_currentTime != value)
+                {
+                    _currentTime = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         private async Task StopAllAsync()
         {
             try
@@ -664,6 +758,27 @@ namespace BackyardBoss.ViewModels
                 PiScheduleIndex = null;
                 PiLocalTime = "Unavailable";
                 PiTimezone = "Unavailable";
+            }
+            //update properties
+            OnPropertyChanged(nameof(PiScheduleIndex));
+            OnPropertyChanged(nameof(PiLocalTime));
+            OnPropertyChanged(nameof(PiTimezone));
+            OnPropertyChanged(nameof(ScheduleIndexMismatch));
+        }
+        public async Task LoadLastWeekHistoryAsync()
+        {
+            // TODO: Implement logic to fetch and parse last week history from Pi (e.g., HTTP or SFTP)
+            // For now, add mock data:
+            LastWeekHistory.Clear();
+            for (int i = 0; i < 7; i++)
+            {
+                LastWeekHistory.Add(new WateringLogEntry
+                {
+                    Date = DateTime.Today.AddDays(-i),
+                    SetName = $"Zone {i + 1}",
+                    DurationMinutes = 10 + i,
+                    Status = "Completed"
+                });
             }
         }
         #endregion
@@ -879,6 +994,41 @@ namespace BackyardBoss.ViewModels
             public List<string> Log { get; set; } = new();
             public CurrentRunInfo Current_Run { get; set; } = new();
             public bool TestMode { get; set; }
+        }
+        #endregion
+
+        #region New Methods
+        public void UpdateNextRunFromJson()
+        {
+            try
+            {
+                var jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sprinkler_schedule.json");
+                if (!File.Exists(jsonPath)) return;
+                var json = File.ReadAllText(jsonPath);
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+                var startTimes = root.GetProperty("start_times").EnumerateArray()
+                    .Where(st => st.GetProperty("isEnabled").GetBoolean())
+                    .Select(st => TimeSpan.Parse(st.GetProperty("time").GetString()))
+                    .OrderBy(t => t)
+                    .ToList();
+                if (startTimes.Count == 0) return;
+                var now = DateTime.Now.TimeOfDay;
+                var nextTime = startTimes.FirstOrDefault(t => t > now);
+                if (nextTime == default) nextTime = startTimes.First(); // fallback to first if all have passed
+                var sets = root.GetProperty("sets").EnumerateArray()
+                    .Where(s => s.TryGetProperty("run_duration_minutes", out _))
+                    .Select(s => new
+                    {
+                        Name = s.GetProperty("set_name").GetString(),
+                        Duration = s.GetProperty("run_duration_minutes").GetInt32()
+                    })
+                    .ToList();
+                if (sets.Count == 0) return;
+                var nextSet = sets.First(); // Just pick the first set for demo
+                NextRunDisplay = $"{nextTime:hh\\:mm} - {nextSet.Name} ({nextSet.Duration} min)";
+            }
+            catch { /* ignore errors for now */ }
         }
         #endregion
     }

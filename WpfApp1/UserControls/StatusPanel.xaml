@@ -11,19 +11,7 @@
         <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
     </UserControl.Resources>
     <StackPanel Orientation="Horizontal" VerticalAlignment="Top" Margin="10">
-        <!-- Status Icon + Label -->
-        <StackPanel Width="100" HorizontalAlignment="Center" VerticalAlignment="Top">
-            <Image Source="{Binding StatusIconPath}" Width="50" Height="50" HorizontalAlignment="Center" />
-            <TextBlock Text="{Binding CurrentRunStatus}"
-                       FontSize="14"
-                       HorizontalAlignment="Center"
-                       Foreground="{DynamicResource PrimaryText}" />
-            <TextBlock Text="{Binding SoakTimeRemaining}"
-                       FontSize="12"
-                       HorizontalAlignment="Center"
-                       Foreground="{DynamicResource SecondaryTextBrush}"
-                       Visibility="{Binding IsSoaking, Converter={StaticResource BoolToVisibilityConverter}}" />
-        </StackPanel>
+
 
         <!-- Test Mode + Status Lights -->
         <Border Background="{DynamicResource CardBackground}"

@@ -12,6 +12,7 @@ namespace BackyardBoss.Views
         public ProgramEditorView()
         {
             InitializeComponent();
+            this.DataContext = new ProgramEditorViewModel(); // Set DataContext here for classic WPF pattern
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)

@@ -27,7 +27,7 @@
             <StackPanel Orientation="Horizontal"
                     VerticalAlignment="Center"
                     HorizontalAlignment="Left"
-                    DataContext="{Binding WeatherVM}">
+                    >
 
                 <!-- Badge-like icon -->
                 <Border Background="{DynamicResource AccentBrush}"
@@ -54,29 +54,6 @@
            Foreground="{DynamicResource SecondaryTextBrush}" />
 
                 </StackPanel>
-            </StackPanel>
-            <StackPanel Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center">
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Margin="0,0,5,0" Text="Pi/WPF Schedule Index:" FontWeight="Bold"/>
-                    <TextBlock Text="{Binding PiScheduleIndex}" />
-                    <TextBlock Text="/"/>
-                    <TextBlock Text="{Binding TodayScheduleIndex}" />
-                </StackPanel>
-
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Margin="0,0,5,0" Text="Time:" FontWeight="Bold"/>
-                    <TextBlock Text="{Binding PiLocalTime}" />
-                </StackPanel>
-
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Margin="0,0,5,0" Text="Timezone:" FontWeight="Bold"/>
-                    <TextBlock Text="{Binding PiTimezone}" />
-                </StackPanel>
-
-                <TextBlock Text="⚠ Index Mismatch!" 
-               Foreground="Red" 
-               FontWeight="Bold"
-               Visibility="{Binding ScheduleIndexMismatch, Converter={StaticResource BoolToVisibilityConverter}}"/>
             </StackPanel>
         </Grid>
     </Border>

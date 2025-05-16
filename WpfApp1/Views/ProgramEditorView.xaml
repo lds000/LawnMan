@@ -1,273 +1,268 @@
 ﻿<UserControl x:Class="BackyardBoss.Views.ProgramEditorView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:vm="clr-namespace:BackyardBoss.ViewModels"
-             xmlns:viewModels="clr-namespace:BackyardBoss.ViewModels"
-             xmlns:conv="clr-namespace:BackyardBoss.Converters"
-             xmlns:fa="http://schemas.fontawesome.io/icons/"
-
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:usercontrols="clr-namespace:BackyardBoss.UserControls"
+             xmlns:views="clr-namespace:BackyardBoss.Views"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
              Background="{DynamicResource PrimaryBackground}"
->
-    <UserControl.DataContext>
-        <vm:ProgramEditorViewModel />
-    </UserControl.DataContext>
+             FontSize="24">
 
+    <!--
+        UserControl.Resources:
+        Contains DataTemplates for each main section (Overview, Schedule, History, Settings)
+        and a SectionTemplateSelector for switching templates based on SelectedSection.
+    -->
     <UserControl.Resources>
-        <ResourceDictionary>
-            <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="/BackyardBoss;component/Styles/Converters.xaml" />
-            </ResourceDictionary.MergedDictionaries>
-            <conv:TagToColorConverter x:Key="TagToColorConverter" />
+        <!--
+            OverviewTemplate:
+            Main dashboard view. Uses ContentPresenter to ensure DataContext is the main ViewModel.
+            Shows system status, weather, current run status, next/last run, upcoming runs, and last week history.
+        -->
+        <DataTemplate x:Key="OverviewTemplate">
+            <ContentPresenter DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                <ContentPresenter.Content>
+                    <Grid Margin="24">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                            <!--
+                                System Status Card:
+                                Shows overall system status and per-zone status.
+                            -->
+                            <Border Background="{DynamicResource CardBackground}" CornerRadius="10" Padding="16" Margin="0,0,16,0">
+                                <StackPanel>
 
-            <!--BoolToVisibilityConverter-->
-            <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
-            <!-- CircleCheckboxStyle must go inside the same ResourceDictionary block -->
-            <!-- Reusable Dark ComboBox Style -->
-        </ResourceDictionary>
+                                    <TextBlock Text="System Status" FontWeight="Bold" FontSize="22" Foreground="{DynamicResource PrimaryText}"/>
+                                    <TextBlock Text="{Binding SystemStatus}" Foreground="Lime"/>
+                                    <ItemsControl ItemsSource="{Binding ZoneStatuses}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding Name}" FontWeight="Bold" Margin="0,0,8,0" Foreground="{DynamicResource PrimaryText}"/>
+                                                    <TextBlock Text="{Binding Status}" Foreground="{DynamicResource PrimaryText}"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                            <!--
+                                Status Icon and Labels:
+                                Shows current run status, icon, and soak time (conditionally visible).
+                            -->
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Top">
+                                <!--
+                                Weather Card:
+                                Displays weather info. DataContext is set to WeatherVM property of the main ViewModel.
+                            -->
+                                <usercontrols:WeatherCard Width="300" DataContext="{Binding WeatherVM}"/>
+                                <StackPanel Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center">
+
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Margin="0,0,5,0" Text="Time:" FontWeight="Bold"/>
+                                        <TextBlock Text="{Binding PiLocalTime}" />
+                                    </StackPanel>
+
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Margin="0,0,5,0" Text="Timezone:" FontWeight="Bold"/>
+                                        <TextBlock Text="{Binding PiTimezone}" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Foreground="#455a64" FontSize="12" Margin="0,0,5,0" Text="Pi:PC Day:" FontWeight="Bold"/>
+                                        <TextBlock  Foreground="#455a64" FontSize="12" Text="{Binding PiScheduleIndex}" />
+                                        <TextBlock  Foreground="#455a64" FontSize="12" Text="/"/>
+                                        <TextBlock  Foreground="#455a64" FontSize="12" Text="{Binding TodayScheduleIndex}" />
+                                    </StackPanel>
+
+                                    <TextBlock Text="⚠ Index Mismatch!" 
+               Foreground="Red" 
+               FontWeight="Bold"
+               Visibility="{Binding ScheduleIndexMismatch, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                </StackPanel>
+
+                                <!--
+                                    SoakTimeRemaining only visible if IsSoaking is true (uses BoolToVisibilityConverter)
+                                -->
+                                <TextBlock Text="{Binding SoakTimeRemaining}"
+                       FontSize="12"
+                       HorizontalAlignment="Center"
+                       Foreground="{DynamicResource SecondaryTextBrush}"
+                       Visibility="{Binding IsSoaking, Converter={StaticResource BoolToVisibilityConverter}}" />
+                            </StackPanel>
+                        </StackPanel>
+                        <Grid Grid.Row="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="8*"/>
+                                <ColumnDefinition Width="7*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <!--
+                                    Next Run Card:
+                                    Shows the next scheduled run.
+                                -->
+                                <Border Background="{DynamicResource CardBackground}" CornerRadius="10" Padding="12" Margin="0,0,0,12">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock VerticalAlignment="Center" Text="Next Run" FontWeight="Bold" FontSize="20" Foreground="{DynamicResource PrimaryText}"/>
+                                        <TextBlock VerticalAlignment="Center" Margin="10,0,0,0" x:Name="NextRunTextBlock" Text="{Binding NextRunDisplay}" FontSize="18" Foreground="{DynamicResource PrimaryText}"/>
+                                    </StackPanel>
+                                </Border>
+                                <!--
+                                    Last Run Card:
+                                    Shows the last completed run.
+                                -->
+                                <Border Background="{DynamicResource CardBackground}" CornerRadius="10" Padding="12" Margin="0,0,0,12">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock VerticalAlignment="Center" Text="Last Run" FontWeight="Bold" FontSize="20" Foreground="{DynamicResource PrimaryText}"/>
+                                        <TextBlock VerticalAlignment="Center" Margin="10,0,0,0" Text="{Binding LastRunDisplay}" FontSize="18" Foreground="{DynamicResource PrimaryText}"/>
+                                    </StackPanel>
+                                </Border>
+                                <!--
+                                    Upcoming Runs Card:
+                                    Shows a list of upcoming scheduled runs.
+                                -->
+                                <Border Background="{DynamicResource CardBackground}" CornerRadius="10" Padding="12">
+                                    <StackPanel>
+                                        <TextBlock Text="Upcoming Runs" FontWeight="Bold" FontSize="20" Foreground="{DynamicResource PrimaryText}"/>
+                                        <ItemsControl ItemsSource="{Binding UpcomingRuns}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock FontSize="14" Text="{Binding SetName}" FontWeight="Bold" Margin="0,0,8,0" Foreground="{DynamicResource PrimaryText}"/>
+                                                        <TextBlock FontSize="12" Text="{Binding StartTime}" Margin="0,0,8,0" Foreground="{DynamicResource PrimaryText}"/>
+                                                        <TextBlock FontSize="12" Text="{Binding SeasonallyAdjustedMinutes}" Foreground="{DynamicResource PrimaryText}"/>
+                                                        <TextBlock FontSize="12" Text=" min" Foreground="{DynamicResource PrimaryText}"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                            <!--
+                                Last Week History Card:
+                                Shows a list of watering events from the last week.
+                            -->
+                            <Border Grid.Column="1" Background="{DynamicResource CardBackground}" CornerRadius="10" Padding="12" Margin="12,0,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Last Week History" FontWeight="Bold" FontSize="20" Foreground="{DynamicResource PrimaryText}"/>
+                                    <ItemsControl ItemsSource="{Binding LastWeekHistory}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding Date, StringFormat=MM-dd}" Margin="0,0,8,0" Foreground="{DynamicResource PrimaryText}"/>
+                                                    <TextBlock Text="{Binding SetName}" Margin="0,0,8,0" Foreground="{DynamicResource PrimaryText}"/>
+                                                    <TextBlock Text="{Binding DurationMinutes}" Foreground="{DynamicResource PrimaryText}"/>
+                                                    <TextBlock Text=" min" Foreground="{DynamicResource PrimaryText}"/>
+                                                    <TextBlock Text=" (" Foreground="{DynamicResource PrimaryText}"/>
+                                                    <TextBlock Text="{Binding Status}" Foreground="{DynamicResource PrimaryText}"/>
+                                                    <TextBlock Text=")" Foreground="{DynamicResource PrimaryText}"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </Grid>
+                </ContentPresenter.Content>
+            </ContentPresenter>
+        </DataTemplate>
+        <!--
+            ScheduleTemplate:
+            Displays the schedule editor, including seasonal adjustment and set editors for each visible set.
+        -->
+        <DataTemplate x:Key="ScheduleTemplate">
+            <StackPanel DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                <!-- Seasonal adjustment slider/control -->
+                <usercontrols:SeasonalAdjustControl Margin="24"/>
+                <!-- List of sets (excluding "Misters") -->
+                <ItemsControl ItemsSource="{Binding VisibleSets}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <!-- Set editor for each set -->
+                            <usercontrols:SetEditor DataContext="{Binding}" Margin="0,12,0,12" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </DataTemplate>
+        <!--
+            HistoryTemplate:
+            Placeholder for future history/settings panel.
+        -->
+        <DataTemplate x:Key="HistoryTemplate">
+            <TextBlock Text="Settings Panel (Coming Soon)" FontSize="24" Foreground="White" Margin="24"/>
+        </DataTemplate>
+        <!--
+            SettingsTemplate:
+            Displays the status panel user control.
+        -->
+        <DataTemplate x:Key="SettingsTemplate">
+            <usercontrols:StatusPanel Margin="24"/>
+        </DataTemplate>
+        <!--
+            SectionTemplateSelector:
+            Custom template selector that chooses which DataTemplate to use based on SelectedSection.
+        -->
+        <views:SectionTemplateSelector x:Key="SectionTemplateSelector"
+            OverviewTemplate="{StaticResource OverviewTemplate}"
+            ScheduleTemplate="{StaticResource ScheduleTemplate}"
+            HistoryTemplate="{StaticResource HistoryTemplate}"
+            SettingsTemplate="{StaticResource SettingsTemplate}"/>
     </UserControl.Resources>
 
-
-
-
-
-    <Grid Margin="20">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
-
-        <StackPanel Grid.Row="0"
-            Orientation="Horizontal"
-            HorizontalAlignment="Center"
-            Margin="0">
-
-            <!-- Logo/Icon -->
-            <Image Source="/Assets/Icons/watering-can.png" 
-           Width="40" Height="40" 
-           Margin="0,0,10,0" 
-           VerticalAlignment="Center"/>
-
-            <!-- Emphasized Title Text -->
-            <Grid HorizontalAlignment="Center">
-                <!-- Shadow layer (white, offset) -->
-                <TextBlock FontSize="30" FontWeight="Bold"
-               TextAlignment="Center"
-               Foreground="White"
-               Margin="4,2,0,0"  
-               IsHitTestVisible="False">
-        <Run Text="Backyard " Foreground="{DynamicResource AccentBrush}"/>
-        <Run Text="Boss" Foreground="{DynamicResource AccentBrush}"/>
-                </TextBlock>
-
-                <!-- Foreground layer (Boise colors) -->
-                <TextBlock FontSize="30" FontWeight="Bold"
-               TextAlignment="Center">
-        <Run Text="Backyard " Foreground="{DynamicResource PrimaryText}" />
-        <Run Text="Boss" Foreground="{DynamicResource PrimaryText}" />
-                </TextBlock>
-            </Grid>
-
-        </StackPanel>
-
-
-        <!-- Main Panel -->
-        <StackPanel Grid.Row="1" Orientation="Vertical">
-            <!-- Zone Controls -->
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-                <usercontrols:SeasonalAdjustControl Grid.Column="0"/>
-                <usercontrols:WeatherCard Grid.Column="1"/>
-                <usercontrols:SetEditor Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2"/>
-                <usercontrols:StatusPanel Grid.Column="2" />
-                <StackPanel Grid.Column="2" Grid.Row="1">
-                    <Border Grid.Column="1" 
-                            CornerRadius="10" 
-                            Padding="10" 
-                            Margin="10,0,10,0"
-                            HorizontalAlignment="Right" VerticalAlignment="Top"
-        Width="250">
-                        <StackPanel>
-
-
-                            <TextBlock Text="Mist Settings" FontSize="16" FontWeight="Bold"  Margin="0,0,0,10" />
-
-                            <!-- Duration Display -->
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                                <TextBlock Text="Duration ("  />
-                                <TextBlock Text="{Binding MistDuration}"  />
-                                <TextBlock Text=" minutes)"  Margin="2,0,0,0" />
-                            </StackPanel>
-                            <Slider Minimum="1" Maximum="10"
-                Value="{Binding MistDuration, Mode=TwoWay}"
-                TickFrequency="1"
-                IsSnapToTickEnabled="True"
-                TickPlacement="BottomRight"
-                Style="{StaticResource TouchSliderStyle}" 
-                Height="40" Margin="0,0,0,10"/>
-
-                            <!-- Time Checkboxes -->
-                            <StackPanel Orientation="Horizontal">
-                                <CheckBox Content="10:30 AM" IsChecked="{Binding MistTime1030}"  />
-                                <CheckBox Content="1:30 PM" IsChecked="{Binding MistTime1330}"  />
-                                <CheckBox Content="4:00 PM" IsChecked="{Binding MistTime1600}"  />
-                            </StackPanel>
-                            <TextBlock Text="Pulse (min):" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Pulse:" ToolTip="Duration of being on prior to soak."  />
-                                <TextBox Width="20" Text="{Binding MistPulseDuration, Mode=TwoWay}" />
-                                <TextBlock Text="Soak:" ToolTip="Duration of being on prior to soak."  />
-                                <TextBox Text="{Binding MistSoakDuration, Mode=TwoWay}" />
-                            </StackPanel>
-
-
-
-                            <!-- Quick Mist Button -->
-                            <Button Content="Quick Mist" Margin="0,10,0,0" Height="40"
-                Command="{Binding QuickMistCommand}" />
-                        </StackPanel>
-                    </Border>
-
-                </StackPanel>
-
-
-            </Grid>
-            <!-- Two Week Scheduler (14 Toggle Grids) -->
-            <!-- Two Week Scheduler (14 Toggle Grids) -->
-            <StackPanel Orientation="Vertical" Margin="0">
-
-                <!-- Week 1 (indices 0–6) -->
-                <UniformGrid Height="40" Rows="1" Columns="7" Margin="0">
-                    <ToggleButton Foreground="{Binding RelativeSource={RelativeSource Self}, Path=Tag, Converter={StaticResource TagToColorConverter}}" Content="Sun" IsChecked="{Binding Week1Sunday}" Tag="0"  />
-                    <ToggleButton Foreground="{Binding RelativeSource={RelativeSource Self}, Path=Tag, Converter={StaticResource TagToColorConverter}}" Content="Mon" IsChecked="{Binding Week1Monday}" Tag="1"  />
-                    <ToggleButton Foreground="{Binding RelativeSource={RelativeSource Self}, Path=Tag, Converter={StaticResource TagToColorConverter}}" Content="Tue" IsChecked="{Binding Week1Tuesday}" Tag="2"  />
-                    <ToggleButton Foreground="{Binding RelativeSource={RelativeSource Self}, Path=Tag, Converter={StaticResource TagToColorConverter}}" Content="Wed" IsChecked="{Binding Week1Wednesday}" Tag="3"  />
-                    <ToggleButton Foreground="{Binding RelativeSource={RelativeSource Self}, Path=Tag, Converter={StaticResource TagToColorConverter}}" Content="Thu" IsChecked="{Binding Week1Thursday}" Tag="4"  />
-                    <ToggleButton Foreground="{Binding RelativeSource={RelativeSource Self}, Path=Tag, Converter={StaticResource TagToColorConverter}}" Content="Fri" IsChecked="{Binding Week1Friday}" Tag="5"  />
-                    <ToggleButton Foreground="{Binding RelativeSource={RelativeSource Self}, Path=Tag, Converter={StaticResource TagToColorConverter}}"  Content="Sat" IsChecked="{Binding Week1Saturday}" Tag="6"  />
-                </UniformGrid>
-
-                <!-- Week 2 (indices 7–13) -->
-                <UniformGrid Height="40" Rows="1" Columns="7">
-                    <ToggleButton Foreground="{Binding RelativeSource={RelativeSource Self}, Path=Tag, Converter={StaticResource TagToColorConverter}}" Content="Sun" IsChecked="{Binding Week2Sunday}" Tag="7"  />
-                    <ToggleButton Foreground="{Binding RelativeSource={RelativeSource Self}, Path=Tag, Converter={StaticResource TagToColorConverter}}" Content="Mon" IsChecked="{Binding Week2Monday}" Tag="8"  />
-                    <ToggleButton Foreground="{Binding RelativeSource={RelativeSource Self}, Path=Tag, Converter={StaticResource TagToColorConverter}}" Content="Tue" IsChecked="{Binding Week2Tuesday}" Tag="9"  />
-                    <ToggleButton Foreground="{Binding RelativeSource={RelativeSource Self}, Path=Tag, Converter={StaticResource TagToColorConverter}}" Content="Wed" IsChecked="{Binding Week2Wednesday}" Tag="10" />
-                    <ToggleButton Foreground="{Binding RelativeSource={RelativeSource Self}, Path=Tag, Converter={StaticResource TagToColorConverter}}" Content="Thu" IsChecked="{Binding Week2Thursday}" Tag="11"  />
-                    <ToggleButton Foreground="{Binding RelativeSource={RelativeSource Self}, Path=Tag, Converter={StaticResource TagToColorConverter}}" Content="Fri" IsChecked="{Binding Week2Friday}" Tag="12"  />
-                    <ToggleButton Foreground="{Binding RelativeSource={RelativeSource Self}, Path=Tag, Converter={StaticResource TagToColorConverter}}" Content="Sat" IsChecked="{Binding Week2Saturday}" Tag="13"  />
-                </UniformGrid>
+    <Grid>
+        <DockPanel>
+            <!--
+                Side Navigation:
+                Vertical stack of navigation buttons for each section.
+            -->
+            <StackPanel DockPanel.Dock="Left" Width="120" Background="{DynamicResource BoiseStateBlue}">
+                <Image Source="/Assets/BoiseStateLogo.png" Height="64" Margin="16"/>
+                <Button Style="{StaticResource NavButtonStyle}" Content="Overview" Margin="8" Command="{Binding SelectSectionCommand}" CommandParameter="Overview"/>
+                <Button Style="{StaticResource NavButtonStyle}" Content="Schedule" Margin="8" Command="{Binding SelectSectionCommand}" CommandParameter="Schedule"/>
+                <Button Style="{StaticResource NavButtonStyle}" Content="History" Margin="8" Command="{Binding SelectSectionCommand}" CommandParameter="History"/>
+                <Button Style="{StaticResource NavButtonStyle}" Content="Settings" Margin="8" Command="{Binding SelectSectionCommand}" CommandParameter="Settings"/>
             </StackPanel>
 
+            <!--
+                Main Content Area:
+                Contains header/status bar and the main content panels (switched by section).
+            -->
             <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <!-- Start Times with RadialTimePickers -->
-                <StackPanel Grid.Column="0" Orientation="Vertical">
-                    <Grid>
+                <!--
+                    Header/Status Bar:
+                    Shows app title, connection status, and current time.
+                -->
+                <Border Background="{DynamicResource BoiseStateOrange}" Height="60" VerticalAlignment="Top">
+                    <Grid Margin="16,0">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="1*"/>
+                            <ColumnDefinition Width="2*"/>
+                            <ColumnDefinition Width="1*"/>
                         </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0">
-                            <ItemsControl ItemsSource="{Binding StartTimes}" Margin="0,10">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <StackPanel Orientation="Horizontal" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <StackPanel Orientation="Vertical" Margin="10,0">
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <!-- Checkbox to enable/disable -->
-                                                <CheckBox Style="{StaticResource CircleCheckboxStyle}" IsChecked="{Binding IsEnabled}" VerticalAlignment="Center" Margin="0,0,10,0"/>
-
-                                                <Border  CornerRadius="6" Padding="8">
-                                                    <StackPanel Orientation="Vertical">
-                                                        <TextBlock Text="Start Time"  FontWeight="SemiBold" FontSize="12" Margin="0,0,0,4" HorizontalAlignment="Center"/>
-                                                        <StackPanel Orientation="Horizontal">
-                                                            <TextBox Width="80"
-                                 Text="{Binding Time, Mode=TwoWay}"
-                                 IsEnabled="{Binding IsEnabled}"
-                                 HorizontalContentAlignment="Center"
-
-                                 BorderThickness="1"
-                                 Padding="4"
-                                 Margin="0,0,0,6"/>
-                                                            <Button Width="36" Height="36"
-                                ToolTip="Pick Time"
-                                Command="{Binding DataContext.OpenTimePickerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                CommandParameter="{Binding}"
-                                IsEnabled="{Binding IsEnabled}">
-                                                                <fa:ImageAwesome Icon="ClockOutline" Width="20" Height="12" />
-                                                            </Button>
-                                                        </StackPanel>
-                                                    </StackPanel>
-                                                </Border>
-                                            </StackPanel>
-                                        </StackPanel>
-                                    </DataTemplate>
-
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-
-
+                        <TextBlock Text="{Binding CurrentTime}" FontSize="18" Foreground="White" Margin="24,0,0,0"/>
+                        <TextBlock Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Top" Text="Sprinkler Control Panel" FontSize="28" FontWeight="Bold" Foreground="White"/>
+                        <StackPanel Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" Orientation="Horizontal">
+                            <Image Source="{Binding StatusIconPath}" Width="50" Height="50" HorizontalAlignment="Center" />
+                            <TextBlock Text="{Binding CurrentRunStatus, FallbackValue=Offline}" Foreground="Lime" FontWeight="Bold" Margin="24,0,0,0"/>
                         </StackPanel>
-
                     </Grid>
-                </StackPanel>
-                <!-- Footer Buttons -->
-                <Border  BorderThickness="2" CornerRadius="8" Margin="10" VerticalAlignment="Bottom" HorizontalAlignment="Center" Padding="10" Grid.Column="1">
-                    <StackPanel>
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,0">
-                            <Button Content="Manual" FontSize="20"
-            Width="80" Height="40" Margin="5,0"
-            Command="{Binding RunOnceCommand}" />
-                            <Button Content="Send" FontSize="20"
-            Width="55" Height="40" Margin="5,0"
-            Command="{Binding SaveAndSendCommand}" />
-                            <Button Content="Log"
-                                    FontSize="20"
-        Width="50" Height="40" Margin="5,0"
-        Command="{Binding ShowPiLogCommand}" />
-                            <Button Content="Plots"
-                            FontSize="20"
-Width="60" Height="40" Margin="5,0"
-Command="{Binding ShowPlotsCommand}" />
-                            <Button Content="Stop!" 
-        Command="{Binding StopAllCommand}" 
-        FontWeight="Bold" 
-        Width="100" 
-                                    FontSize="20"
-        Margin="5,0"/>
-                            <Button Content="Copy" FontSize="20"
-            Width="60" Height="40" Margin="5,0"
-            Command="{Binding CopyProject}" />
-                            <Button Content="Exit" FontSize="20"
-            Width="60" Height="40" Margin="5,0"
-             Command="{Binding ExitCommand}"/>
-                        </StackPanel>
-                    </StackPanel>
                 </Border>
+
+                <!--
+                    Main Panels:
+                    ContentControl switches between section templates based on SelectedSection.
+                -->
+                <ContentControl Margin="0,70,0,0"
+                                Content="{Binding SelectedSection}"
+                                ContentTemplateSelector="{StaticResource SectionTemplateSelector}"/>
             </Grid>
-        </StackPanel>
-
-
+        </DockPanel>
     </Grid>
 </UserControl>

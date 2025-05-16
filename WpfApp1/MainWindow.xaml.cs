@@ -11,7 +11,6 @@ namespace BackyardBoss
             // Load ProgramEditorView into the MainContent control
             //MainContent.Content = new ProgramEditorView();
             // Right after InitializeComponent
-
         }
     }
 }

@@ -9,6 +9,7 @@
                 <ResourceDictionary Source="Styles/SliderStyles.xaml"/>
                 <ResourceDictionary Source="Themes/BoiseStateTheme.xaml" />
                 <ResourceDictionary Source="Themes/BaseControls.xaml" />
+                <ResourceDictionary Source="Styles/Converters.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
         

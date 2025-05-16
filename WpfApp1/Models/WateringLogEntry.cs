@@ -8,21 +8,15 @@ namespace BackyardBoss.Models
 {
     public class WateringLogEntry
     {
-        public DateTime Date
+        public DateTime Date { get; set; }
+        public string SetName { get; set; }
+        public string Source { get; set; } // "SCHEDULED" or "MANUAL"
+        public TimeSpan Duration { get; set; }
+        public int DurationMinutes
         {
-            get; set;
+            get => (int)Duration.TotalMinutes;
+            set => Duration = TimeSpan.FromMinutes(value);
         }
-        public string SetName
-        {
-            get; set;
-        }
-        public string Source
-        {
-            get; set;
-        } // "SCHEDULED" or "MANUAL"
-        public TimeSpan Duration
-        {
-            get; set;
-        }
+        public string Status { get; set; } // e.g. Completed, Error
     }
 }
