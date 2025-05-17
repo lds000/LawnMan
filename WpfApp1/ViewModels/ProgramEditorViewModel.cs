@@ -60,7 +60,16 @@ namespace BackyardBoss.ViewModels
 
         #region Properties
         public ObservableCollection<StartTimeViewModel> StartTimes => Schedule.StartTimes;
-        public ObservableCollection<SprinklerSet> VisibleSets => new ObservableCollection<SprinklerSet>(Sets.Where(s => !s.SetName.Equals("Misters", StringComparison.OrdinalIgnoreCase)));
+        
+        public ObservableCollection<SprinklerSet> VisibleSets
+        {
+            get
+            {
+
+               return new ObservableCollection<SprinklerSet>(Sets.Where(s => !s.SetName.Equals("Misters", StringComparison.OrdinalIgnoreCase)));
+            }
+        }
+        
         public ObservableCollection<ScheduledRunPreview> UpcomingRuns { get; private set; } = new();
         public ObservableCollection<string> PiStatusLog { get; private set; } = new();
         public WeatherViewModel WeatherVM { get; } = new WeatherViewModel();
@@ -145,84 +154,6 @@ namespace BackyardBoss.ViewModels
                 _selectedSet = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(IsSetSelected));
-            }
-        }
-        public int MistDuration
-        {
-            get => Schedule.Mist.DurationMinutes;
-            set
-            {
-                if (Schedule.Mist.DurationMinutes != value)
-                {
-                    Schedule.Mist.DurationMinutes = value;
-                    OnPropertyChanged();
-                    AutoSave();
-                }
-            }
-        }
-        public bool MistTime1030
-        {
-            get => Schedule.Mist.Time1030;
-            set
-            {
-                if (Schedule.Mist.Time1030 != value)
-                {
-                    Schedule.Mist.Time1030 = value;
-                    OnPropertyChanged();
-                    AutoSave();
-                }
-            }
-        }
-        public bool MistTime1330
-        {
-            get => Schedule.Mist.Time1330;
-            set
-            {
-                if (Schedule.Mist.Time1330 != value)
-                {
-                    Schedule.Mist.Time1330 = value;
-                    OnPropertyChanged();
-                    AutoSave();
-                }
-            }
-        }
-        public bool MistTime1600
-        {
-            get => Schedule.Mist.Time1600;
-            set
-            {
-                if (Schedule.Mist.Time1600 != value)
-                {
-                    Schedule.Mist.Time1600 = value;
-                    OnPropertyChanged();
-                    AutoSave();
-                }
-            }
-        }
-        public int? MistPulseDuration
-        {
-            get => Schedule.Mist.PulseDurationMinutes;
-            set
-            {
-                if (Schedule.Mist.PulseDurationMinutes != value)
-                {
-                    Schedule.Mist.PulseDurationMinutes = value;
-                    OnPropertyChanged();
-                    AutoSave();
-                }
-            }
-        }
-        public int? MistSoakDuration
-        {
-            get => Schedule.Mist.SoakDurationMinutes;
-            set
-            {
-                if (Schedule.Mist.SoakDurationMinutes != value)
-                {
-                    Schedule.Mist.SoakDurationMinutes = value;
-                    OnPropertyChanged();
-                    AutoSave();
-                }
             }
         }
         public string SelectedStartTime
@@ -356,6 +287,8 @@ namespace BackyardBoss.ViewModels
             get => _lastWeekHistory;
             set { _lastWeekHistory = value; OnPropertyChanged(); }
         }
+
+        public ObservableCollection<MistSettingViewModel> MistSettingsCollection => Schedule.Mist.TemperatureSettings;
         #endregion
 
         #region Commands
@@ -431,12 +364,10 @@ namespace BackyardBoss.ViewModels
             ExitCommand = new RelayCommand(_ => Application.Current.Shutdown());
             QuickMistCommand = new RelayCommand(_ =>
             {
-                MistDuration = 2;
-                AutoSave();
                 var mistSet = Sets.FirstOrDefault(s => s.SetName.Equals("Misters", StringComparison.OrdinalIgnoreCase));
                 if (mistSet != null)
                 {
-                    SendManualRun(mistSet.SetName, MistDuration);
+                    SendManualRun(mistSet.SetName, 2);
                 }
                 else
                 {
@@ -470,6 +401,18 @@ namespace BackyardBoss.ViewModels
                 if (param is string section)
                     SelectedSection = section;
             });
+
+            if (Schedule.Mist == null)
+                Schedule.Mist = new MistSettings();
+            if (Schedule.Mist.TemperatureSettings == null || Schedule.Mist.TemperatureSettings.Count == 0)
+            {
+                Schedule.Mist.TemperatureSettings = new System.Collections.ObjectModel.ObservableCollection<MistSettingViewModel>
+                {
+                    new MistSettingViewModel { Temperature = 90, Interval = 20, Duration = 2 },
+                    new MistSettingViewModel { Temperature = 95, Interval = 20, Duration = 2 },
+                    new MistSettingViewModel { Temperature = 100, Interval = 20, Duration = 2 }
+                };
+            }
         }
         #endregion
 
@@ -491,6 +434,26 @@ namespace BackyardBoss.ViewModels
             var loaded = await ProgramDataService.LoadScheduleAsync();
             if (loaded != null)
             {
+                // Debug: Print mist settings from loaded JSON
+                if (loaded.Mist != null && loaded.Mist.TemperatureSettings != null && loaded.Mist.TemperatureSettings.Count > 0)
+                {
+                    Debug.WriteLine($"Loaded.Mist.TemperatureSettings.Count: {loaded.Mist.TemperatureSettings.Count}");
+                    int idx = 0;
+                    foreach (var m in loaded.Mist.TemperatureSettings)
+                    {
+                        Debug.WriteLine($"[{idx}] Temp: {m.Temperature}, Interval: {m.Interval}, Duration: {m.Duration}");
+                        Debug.WriteLine($"    Type: {m.GetType().FullName}");
+                        Debug.WriteLine($"    Assembly: {m.GetType().AssemblyQualifiedName}");
+                        idx++;
+                    }
+                    var expectedType = typeof(BackyardBoss.Models.MistSettingViewModel);
+                    Debug.WriteLine($"Expected type: {expectedType.FullName}");
+                    Debug.WriteLine($"Expected assembly: {expectedType.AssemblyQualifiedName}");
+                }
+                else
+                {
+                    Debug.WriteLine("Loaded.Mist or TemperatureSettings is null or empty");
+                }
                 Schedule = loaded;
                 if (loaded.ScheduleDays == null || loaded.ScheduleDays.Count != 14)
                 {
@@ -501,6 +464,16 @@ namespace BackyardBoss.ViewModels
                 {
                     DebugLog("Mist section missing — initializing defaults.");
                     loaded.Mist = new MistSettings();
+                }
+                if (loaded.Mist.TemperatureSettings == null || loaded.Mist.TemperatureSettings.Count == 0)
+                {
+                    DebugLog("TemperatureSettings missing — initializing defaults.");
+                    loaded.Mist.TemperatureSettings = new ObservableCollection<MistSettingViewModel>
+                    {
+                        new MistSettingViewModel { Temperature = 90, Interval = 20, Duration = 2 },
+                        new MistSettingViewModel { Temperature = 95, Interval = 20, Duration = 2 },
+                        new MistSettingViewModel { Temperature = 100, Interval = 20, Duration = 2 }
+                    };
                 }
                 if (loaded.StartTimes == null || loaded.StartTimes.Count == 0)
                 {
@@ -515,10 +488,6 @@ namespace BackyardBoss.ViewModels
                 OnPropertyChanged(nameof(StartTimes));
                 OnPropertyChanged(nameof(SeasonalAdjustment));
                 OnPropertyChanged(nameof(SeasonalAdjustmentPercent));
-                OnPropertyChanged(nameof(MistDuration));
-                OnPropertyChanged(nameof(MistTime1030));
-                OnPropertyChanged(nameof(MistTime1330));
-                OnPropertyChanged(nameof(MistTime1600));
                 OnPropertyChanged(nameof(VisibleSets));
                 OnPropertyChanged(nameof(Week1Sunday));
                 OnPropertyChanged(nameof(Week1Monday));
@@ -534,6 +503,7 @@ namespace BackyardBoss.ViewModels
                 OnPropertyChanged(nameof(Week2Thursday));
                 OnPropertyChanged(nameof(Week2Friday));
                 OnPropertyChanged(nameof(Week2Saturday));
+                OnPropertyChanged(nameof(MistSettingsCollection));
                 _isDirty = false;
                 DebugLog("Schedule loaded successfully.");
                 UpdateUpcomingRunsPreview();

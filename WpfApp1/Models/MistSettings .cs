@@ -1,101 +1,49 @@
-﻿using System.Text.Json.Serialization;
+﻿using System;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Text.Json.Serialization;
 
-public class MistSettings : INotifyPropertyChanged
+namespace BackyardBoss.Models
 {
-    private int _durationMinutes = 2;
-    private bool _time1030;
-    private bool _time1330;
-    private bool _time1600;
-    private int? _pulseDurationMinutes;
-    private int? _soakDurationMinutes;
-
-    [JsonPropertyName("duration_minutes")]
-    public int DurationMinutes
+    public class MistSettings : INotifyPropertyChanged
     {
-        get => _durationMinutes;
-        set
-        {
-            if (_durationMinutes != value)
-            {
-                _durationMinutes = value;
-                OnPropertyChanged();
-            }
-        }
+        [JsonPropertyName("temperature_settings")]
+        public ObservableCollection<MistSettingViewModel> TemperatureSettings { get; set; } = new();
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+        private void OnPropertyChanged([CallerMemberName] string name = null) =>
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 
-    [JsonPropertyName("time_1030")]
-    public bool Time1030
+    public class MistSettingViewModel : INotifyPropertyChanged
     {
-        get => _time1030;
-        set
+        private int _interval;
+        private int _duration;
+        [JsonPropertyName("temperature")]
+        public int Temperature { get; set; }
+
+        [JsonPropertyName("interval")]
+        public int Interval
         {
-            if (_time1030 != value)
-            {
-                _time1030 = value;
-                OnPropertyChanged();
-            }
+            get => _interval;
+            set { if (_interval != value) { _interval = value; OnPropertyChanged();
+                if (BackyardBoss.ViewModels.ProgramEditorViewModel.Current != null)
+                    BackyardBoss.ViewModels.ProgramEditorViewModel.Current.AutoSave();
+            } }
         }
+
+        [JsonPropertyName("duration")]
+        public int Duration
+        {
+            get => _duration;
+            set { if (_duration != value) { _duration = value; OnPropertyChanged();
+                if (BackyardBoss.ViewModels.ProgramEditorViewModel.Current != null)
+                    BackyardBoss.ViewModels.ProgramEditorViewModel.Current.AutoSave();
+            } }
+        }
+        public event PropertyChangedEventHandler? PropertyChanged;
+        protected void OnPropertyChanged([CallerMemberName] string name = null) =>
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
-
-    [JsonPropertyName("time_1330")]
-    public bool Time1330
-    {
-        get => _time1330;
-        set
-        {
-            if (_time1330 != value)
-            {
-                _time1330 = value;
-                OnPropertyChanged();
-            }
-        }
-    }
-
-    [JsonPropertyName("time_1600")]
-    public bool Time1600
-    {
-        get => _time1600;
-        set
-        {
-            if (_time1600 != value)
-            {
-                _time1600 = value;
-                OnPropertyChanged();
-            }
-        }
-    }
-
-        [JsonPropertyName("pulse_duration_minutes")]
-        public int? PulseDurationMinutes
-        {
-            get => _pulseDurationMinutes;
-            set
-            {
-                if (_pulseDurationMinutes != value)
-                {
-                    _pulseDurationMinutes = value;
-                    OnPropertyChanged();
-                }
-            }
-        }
-
-        [JsonPropertyName("soak_duration_minutes")]
-        public int? SoakDurationMinutes
-        {
-            get => _soakDurationMinutes;
-            set
-            {
-                if (_soakDurationMinutes != value)
-                {
-                    _soakDurationMinutes = value;
-                    OnPropertyChanged();
-                }
-            }
-        }
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-    private void OnPropertyChanged([CallerMemberName] string name = null) =>
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }

@@ -28,30 +28,5 @@
                        VerticalAlignment="Center"/>
         </StackPanel>
 
-        <!-- Per-set controls -->
-        <ItemsControl ItemsSource="{Binding Sets}">
-            <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                    <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Margin="0,8,0,0" Padding="8">
-                        <DockPanel VerticalAlignment="Center">
-                            <!-- Enable Checkbox -->
-                            <CheckBox Style="{DynamicResource CircleCheckboxStyle}"
-                                      IsChecked="{Binding Mode, Mode=TwoWay}"
-                                      VerticalAlignment="Center"
-                                      Margin="0,0,12,0"/>
-                            <!-- Set Name -->
-                            <TextBlock Text="{Binding SetName}" FontWeight="Bold" FontSize="16" Foreground="{DynamicResource PrimaryText}" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                            <!-- Duration Slider -->
-                            <Slider Width="120" Minimum="1" Maximum="60" Value="{Binding RunDurationMinutes, Mode=TwoWay}" Style="{DynamicResource TouchSliderStyle}" Margin="0,0,12,0"/>
-                            <TextBlock Text="{Binding RunDurationMinutes}" FontSize="16" Foreground="{DynamicResource PrimaryText}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                            <TextBlock Text="min" FontSize="14" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                            <!-- Pulse/Soak Edit Button -->
-                            <Button Style="{DynamicResource SecondaryButtonStyle}" Content="Pulse/Soak" Command="{Binding OpenPulseKeypadCommand}" Margin="0,0,8,0"/>
-                            <Button Style="{DynamicResource SecondaryButtonStyle}" Content="Soak" Command="{Binding OpenSoakKeypadCommand}"/>
-                        </DockPanel>
-                    </Border>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
     </StackPanel>
 </UserControl>

@@ -17,19 +17,22 @@
         <Border Background="{DynamicResource CardBackground}"
                 Padding="10"
                 CornerRadius="10"
-                Width="180">
+                >
             <StackPanel>
                 <!-- Test Mode Row -->
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,10">
                     <CheckBox Content="Test Mode"
+                              Style="{StaticResource CircleCheckboxStyle}"
                               IsChecked="{Binding PiReportedTestMode}"
                               IsEnabled="False"
                               Margin="0,0,10,0"
                               Foreground="{DynamicResource PrimaryText}" />
+                    <TextBlock Text="Test Mode"/>
                     <Button Content="Toggle"
                             Command="{Binding ToggleTestModeCommand}"
-                            Width="60"
-                            Height="30"
+                            FontSize="16"
+                            Padding="5"
+                            VerticalAlignment="Center"
                             Style="{StaticResource PrimaryButtonStyle}" />
                 </StackPanel>
 
