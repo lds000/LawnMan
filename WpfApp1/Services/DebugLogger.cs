@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using BackyardBoss.Models;
 using BackyardBoss.ViewModels;
 
@@ -24,6 +25,13 @@ namespace BackyardBoss.Services
         public static void LogVariableStatus(string message)
         {
             DebugViewModel.Current?.AddDebug(message, "VariableStatus");
+            if (Settings.VariableStatus)
+                Debug.WriteLine($"[VariableStatus] {message}");
+        }
+
+        public static void LogVariableStatus(string message, string details)
+        {
+            DebugViewModel.Current?.AddDebug(message, "VariableStatus", details);
             if (Settings.VariableStatus)
                 Debug.WriteLine($"[VariableStatus] {message}");
         }

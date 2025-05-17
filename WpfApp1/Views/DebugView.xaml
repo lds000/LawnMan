@@ -12,27 +12,30 @@
     <StackPanel Margin="10">
         <TextBlock Text="Debug Information" FontWeight="Bold" FontSize="18" Margin="0,0,0,10"/>
         <!-- Debug type checkboxes via DebugSettingsView -->
-        <views:DebugSettingsView />
+        <views:DebugSettingsView Loaded="DebugSettingsView_Loaded" />
         <!-- Debug info display -->
-        <ListView x:Name="DebugListView" ItemsSource="{Binding FilteredDebugItems}" Height="300"
-                  Foreground="Black" 
-                  Background="{DynamicResource CardBackground}"
-                  SizeChanged="DebugListView_SizeChanged">
-            <ListView.View>
-                <GridView>
-                    <GridView.ColumnHeaderContainerStyle>
-                        <Style TargetType="GridViewColumnHeader">
-                            <Setter Property="Foreground" Value="White"/>
-                            <Setter Property="FontWeight" Value="Bold"/>
-                            <Setter Property="Background" Value="#333333"/>
-                        </Style>
-                    </GridView.ColumnHeaderContainerStyle>
-                    <GridViewColumn Header="Time" Width="300" DisplayMemberBinding="{Binding Timestamp}"/>
-                    <GridViewColumn Header="Type" Width="200" DisplayMemberBinding="{Binding Source}"/>
-                    <GridViewColumn Header="Message" Width="600" DisplayMemberBinding="{Binding Message}"/>
-                    <GridViewColumn Header="Details" x:Name="DetailsColumn" DisplayMemberBinding="{Binding Details}"/>
-                </GridView>
-            </ListView.View>
-        </ListView>
+        <ScrollViewer Height="300" Background="{DynamicResource CardBackground}">
+            <ItemsControl ItemsSource="{Binding FilteredDebugItems}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Margin="2" Padding="6" Background="#222" CornerRadius="4">
+                            <Grid>
+								<Grid.ColumnDefinitions>
+									<ColumnDefinition Width="150"/>
+									<ColumnDefinition Width="100"/>
+									<ColumnDefinition Width="100"/>
+									<ColumnDefinition Width="200"/>
+								</Grid.ColumnDefinitions>
+								<TextBlock ToolTip="{Binding Timestamp}" FontSize="12" Grid.Column="0" Text="{Binding Timestamp}" Width="180" Foreground="LightGray" FontWeight="Bold"/>
+								<TextBlock ToolTip="{Binding Source}" FontSize="12"  Grid.Column="1" Text="{Binding Source}" Width="120" Foreground="Orange" Margin="10,0,0,0"/>
+								<TextBlock ToolTip="{Binding Message}" FontSize="12"  Grid.Column="2" Text="{Binding Message}" Width="300" Foreground="White" Margin="10,0,0,0"/>
+								<TextBlock ToolTip="{Binding Details}" FontSize="12" Grid.Column="3" Text="{Binding Details}" Foreground="LightBlue" Margin="10,0,0,0"/>
+							</Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+        <Button Click="CopyDetailsToClipboard_Click">Copy Details to clipboard.</Button>
     </StackPanel>
 </UserControl>

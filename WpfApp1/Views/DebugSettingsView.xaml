@@ -4,15 +4,38 @@
              xmlns:vm="clr-namespace:BackyardBoss.ViewModels"
              xmlns:models="clr-namespace:BackyardBoss.Models"
              Height="Auto" Width="Auto">
-    <WrapPanel Margin="10">
-        <TextBlock Text="Debug Settings" FontWeight="Bold" FontSize="18" Margin="0,0,0,10"/>
-        <CheckBox Content="File I/O" IsChecked="{Binding Settings.FileIO}"/>
-        <CheckBox Content="Property Changes" IsChecked="{Binding Settings.PropertyChanges}"/>
-        <CheckBox Content="Variable Status" IsChecked="{Binding Settings.VariableStatus}"/>
-        <CheckBox Content="Network" IsChecked="{Binding Settings.Network}"/>
-        <CheckBox Content="AutoSave" IsChecked="{Binding Settings.AutoSave}"/>
-        <CheckBox Content="Pi Communication" IsChecked="{Binding Settings.PiCommunication}"/>
-        <CheckBox Content="Error" IsChecked="{Binding Settings.Error}"/>
-        <CheckBox Content="Current Issue" IsChecked="{Binding Settings.CurrentIssue}"/>
-    </WrapPanel>
+    <StackPanel>
+        <TextBlock>Debug Sections</TextBlock>
+    <Grid Margin="10">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition/>
+            <ColumnDefinition/>
+            <ColumnDefinition/>
+            <ColumnDefinition/>
+            <ColumnDefinition/>
+        </Grid.ColumnDefinitions>
+        <StackPanel Grid.Column="0">
+            <CheckBox FontSize="14" VerticalAlignment="Center" Content="File I/O" IsChecked="{Binding Settings.FileIO}"/>
+        </StackPanel>
+
+        <StackPanel Grid.Column="1">
+                <CheckBox FontSize="14" Content="Property Changes" IsChecked="{Binding Settings.PropertyChanges}"/>
+                <CheckBox FontSize="14" Content="Variable Status" IsChecked="{Binding Settings.VariableStatus}"/>
+        </StackPanel>
+
+        <StackPanel Grid.Column="2">
+                <CheckBox FontSize="14" Content="Network" IsChecked="{Binding Settings.Network}"/>
+                <CheckBox FontSize="14" Content="AutoSave" IsChecked="{Binding Settings.AutoSave}"/>
+                <CheckBox FontSize="14" Content="Pi Communication" IsChecked="{Binding Settings.PiCommunication}"/>
+        </StackPanel>
+
+        <StackPanel Grid.Column="3">
+                <CheckBox FontSize="14" Content="Error" IsChecked="{Binding Settings.Error}"/>
+        </StackPanel>
+
+        <StackPanel Grid.Column="4">
+                <CheckBox FontSize="14" Content="Current Issue" IsChecked="{Binding Settings.CurrentIssue}"/>
+        </StackPanel>
+    </Grid>
+    </StackPanel>
 </UserControl>

@@ -630,13 +630,15 @@ namespace BackyardBoss.ViewModels
                 var json = await response.Content.ReadAsStringAsync();
                 Debug.WriteLine("RAW JSON:");
                 Debug.WriteLine(json);
+                DebugLogger.LogVariableStatus("Pi status JSON received.",json);
+
                 var parsed = JsonSerializer.Deserialize<PiStatusResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                 if (parsed != null)
                 {
                     PiReportedTestMode = parsed.TestMode;
                     if (parsed.Log == null)
                     {
-                        Debug.WriteLine("Deserialization failed or log is null.");
+                        DebugLogger.LogError("Deserialization failed or log is null.");
                         return;
                     }
                     if ((DateTime.Now - _lastManualTestModeChange).TotalSeconds > 3)

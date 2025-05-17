@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using BackyardBoss.ViewModels;
@@ -12,15 +13,19 @@ namespace BackyardBoss.Views
             this.DataContext = DebugViewModel.Current; // Use singleton instance
         }
 
-        private void DebugListView_SizeChanged(object sender, SizeChangedEventArgs e)
+        private void DebugSettingsView_Loaded(object sender, RoutedEventArgs e)
         {
-            if (DebugListView.View is GridView gridView && gridView.Columns.Count == 4)
+
+        }
+
+        private void CopyDetailsToClipboard_Click(object sender, RoutedEventArgs e)
+        {
+            if (this.DataContext is BackyardBoss.ViewModels.DebugViewModel vm && vm.FilteredDebugItems != null)
             {
-                double totalWidth = DebugListView.ActualWidth;
-                double otherColumnsWidth = gridView.Columns[0].Width + gridView.Columns[1].Width + gridView.Columns[2].Width;
-                double detailsWidth = totalWidth - otherColumnsWidth - 35; // 35 for scrollbar/margin fudge factor
-                if (detailsWidth > 100)
-                    gridView.Columns[3].Width = detailsWidth;
+                var lines = vm.FilteredDebugItems.Select(item =>
+                    $"{item.Timestamp:yyyy-MM-dd HH:mm:ss}\t{item.Source}\t{item.Message}\t{item.Details}");
+                var text = string.Join("\n", lines);
+                Clipboard.SetText(text);
             }
         }
     }
