@@ -1,0 +1,18 @@
+<UserControl x:Class="BackyardBoss.Views.DebugSettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:BackyardBoss.ViewModels"
+             xmlns:models="clr-namespace:BackyardBoss.Models"
+             Height="Auto" Width="Auto">
+    <WrapPanel Margin="10">
+        <TextBlock Text="Debug Settings" FontWeight="Bold" FontSize="18" Margin="0,0,0,10"/>
+        <CheckBox Content="File I/O" IsChecked="{Binding Settings.FileIO}"/>
+        <CheckBox Content="Property Changes" IsChecked="{Binding Settings.PropertyChanges}"/>
+        <CheckBox Content="Variable Status" IsChecked="{Binding Settings.VariableStatus}"/>
+        <CheckBox Content="Network" IsChecked="{Binding Settings.Network}"/>
+        <CheckBox Content="AutoSave" IsChecked="{Binding Settings.AutoSave}"/>
+        <CheckBox Content="Pi Communication" IsChecked="{Binding Settings.PiCommunication}"/>
+        <CheckBox Content="Error" IsChecked="{Binding Settings.Error}"/>
+        <CheckBox Content="Current Issue" IsChecked="{Binding Settings.CurrentIssue}"/>
+    </WrapPanel>
+</UserControl>

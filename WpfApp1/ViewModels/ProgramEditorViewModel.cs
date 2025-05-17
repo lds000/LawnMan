@@ -314,7 +314,7 @@ namespace BackyardBoss.ViewModels
         #region Constructor
         public ProgramEditorViewModel()
         {
-            DebugLog("Constructor initialized.");
+            DebugLogger.LogVariableStatus("Constructor initialized.");
             Current = this;
             WeatherVM = new WeatherViewModel();
             _ = WeatherVM.LoadWeatherAsync();
@@ -385,7 +385,7 @@ namespace BackyardBoss.ViewModels
             {
                 if (entry == null)
                 {
-                    DebugLog("Entry is null. Cannot open time picker.");
+                    DebugLogger.LogVariableStatus("Entry is null. Cannot open time picker.");
                     return;
                 }
                 var dialog = new RadialTimePickerDialog { Owner = Application.Current.MainWindow };
@@ -423,13 +423,14 @@ namespace BackyardBoss.ViewModels
             var today = DateTime.Today;
             var deltaDays = (today - baseDate).Days;
             TodayScheduleIndex = deltaDays % 14;
+            DebugLogger.LogVariableStatus($"TodayScheduleIndex calculated: {TodayScheduleIndex}");
         }
         public bool IsTodayIndex(int index) => index == TodayScheduleIndex;
         private async void LoadSchedule()
         {
-            Debug.WriteLine($"Today (Local): {DateTime.Today:yyyy-MM-dd}");
-            Debug.WriteLine($"Today (UTC):   {DateTime.UtcNow.Date:yyyy-MM-dd}");
-            DebugLog("Loading schedule...");
+            DebugLogger.LogFileIO($"Today (Local): {DateTime.Today:yyyy-MM-dd}");
+            DebugLogger.LogFileIO($"Today (UTC):   {DateTime.UtcNow.Date:yyyy-MM-dd}");
+            DebugLogger.LogFileIO("Loading schedule...");
             _suppressExport = true;
             var loaded = await ProgramDataService.LoadScheduleAsync();
             if (loaded != null)
@@ -437,37 +438,34 @@ namespace BackyardBoss.ViewModels
                 // Debug: Print mist settings from loaded JSON
                 if (loaded.Mist != null && loaded.Mist.TemperatureSettings != null && loaded.Mist.TemperatureSettings.Count > 0)
                 {
-                    Debug.WriteLine($"Loaded.Mist.TemperatureSettings.Count: {loaded.Mist.TemperatureSettings.Count}");
+                    DebugLogger.LogFileIO($"Loaded.Mist.TemperatureSettings.Count: {loaded.Mist.TemperatureSettings.Count}");
                     int idx = 0;
                     foreach (var m in loaded.Mist.TemperatureSettings)
                     {
-                        Debug.WriteLine($"[{idx}] Temp: {m.Temperature}, Interval: {m.Interval}, Duration: {m.Duration}");
-                        Debug.WriteLine($"    Type: {m.GetType().FullName}");
-                        Debug.WriteLine($"    Assembly: {m.GetType().AssemblyQualifiedName}");
+                        DebugLogger.LogFileIO($"[{idx}] Temp: {m.Temperature}, Interval: {m.Interval}, Duration: {m.Duration}");
+                        DebugLogger.LogFileIO($"    Type: {m.GetType().FullName}");
+                        DebugLogger.LogFileIO($"    Assembly: {m.GetType().AssemblyQualifiedName}");
                         idx++;
                     }
-                    var expectedType = typeof(BackyardBoss.Models.MistSettingViewModel);
-                    Debug.WriteLine($"Expected type: {expectedType.FullName}");
-                    Debug.WriteLine($"Expected assembly: {expectedType.AssemblyQualifiedName}");
                 }
                 else
                 {
-                    Debug.WriteLine("Loaded.Mist or TemperatureSettings is null or empty");
+                    DebugLogger.LogFileIO("Loaded.Mist or TemperatureSettings is null or empty");
                 }
                 Schedule = loaded;
                 if (loaded.ScheduleDays == null || loaded.ScheduleDays.Count != 14)
                 {
-                    DebugLog("Initializing blank ScheduleDays array.");
+                    DebugLogger.LogFileIO("Initializing blank ScheduleDays array.");
                     loaded.ScheduleDays = new ObservableCollection<bool>(Enumerable.Repeat(false, 14));
                 }
                 if (loaded.Mist == null)
                 {
-                    DebugLog("Mist section missing — initializing defaults.");
+                    DebugLogger.LogFileIO("Mist section missing — initializing defaults.");
                     loaded.Mist = new MistSettings();
                 }
                 if (loaded.Mist.TemperatureSettings == null || loaded.Mist.TemperatureSettings.Count == 0)
                 {
-                    DebugLog("TemperatureSettings missing — initializing defaults.");
+                    DebugLogger.LogFileIO("TemperatureSettings missing — initializing defaults.");
                     loaded.Mist.TemperatureSettings = new ObservableCollection<MistSettingViewModel>
                     {
                         new MistSettingViewModel { Temperature = 90, Interval = 20, Duration = 2 },
@@ -477,7 +475,7 @@ namespace BackyardBoss.ViewModels
                 }
                 if (loaded.StartTimes == null || loaded.StartTimes.Count == 0)
                 {
-                    DebugLog("No start times found — inserting default 06:00 and 17:00.");
+                    DebugLogger.LogFileIO("No start times found — inserting default 06:00 and 17:00.");
                     loaded.StartTimes = new ObservableCollection<StartTimeViewModel>
                     {
                         new StartTimeViewModel { Time = "06:00", IsEnabled = true },
@@ -505,12 +503,12 @@ namespace BackyardBoss.ViewModels
                 OnPropertyChanged(nameof(Week2Saturday));
                 OnPropertyChanged(nameof(MistSettingsCollection));
                 _isDirty = false;
-                DebugLog("Schedule loaded successfully.");
+                DebugLogger.LogFileIO("Schedule loaded successfully.");
                 UpdateUpcomingRunsPreview();
             }
             else
             {
-                DebugLog("Failed to load schedule.");
+                DebugLogger.LogFileIO("Failed to load schedule.");
             }
             _suppressExport = false;
         }
@@ -518,10 +516,10 @@ namespace BackyardBoss.ViewModels
         {
             if (_suppressExport)
             {
-                DebugLog("AutoSave skipped (suppressed during load).");
+                DebugLogger.LogAutoSave("AutoSave skipped (suppressed during load).");
                 return;
             }
-            DebugLog("AutoSave called.");
+            DebugLogger.LogAutoSave("AutoSave called.");
             MarkDirty();
             Save(SaveTarget.LocalOnly);
         }
@@ -529,7 +527,7 @@ namespace BackyardBoss.ViewModels
         {
             var newSet = new SprinklerSet { SetName = "New Set", RunDurationMinutes = 10 };
             Sets.Add(newSet);
-            DebugLog($"Set added: {newSet.SetName}, {newSet.RunDurationMinutes} min.");
+            DebugLogger.LogVariableStatus($"Set added: {newSet.SetName}, {newSet.RunDurationMinutes} min.");
             AutoSave();
             UpdateUpcomingRunsPreview();
         }
@@ -537,7 +535,7 @@ namespace BackyardBoss.ViewModels
         {
             if (SelectedSet != null)
             {
-                DebugLog($"Removing set: {SelectedSet.SetName}");
+                DebugLogger.LogVariableStatus($"Removing set: {SelectedSet.SetName}");
                 Sets.Remove(SelectedSet);
                 SelectedSet = null;
                 AutoSave();
@@ -545,14 +543,14 @@ namespace BackyardBoss.ViewModels
             }
             else
             {
-                DebugLog("RemoveSet called, but no set was selected.");
+                DebugLogger.LogVariableStatus("RemoveSet called, but no set was selected.");
             }
         }
         private void AddStartTime()
         {
             var time = new StartTimeViewModel { Time = "06:00" };
             StartTimes.Add(time);
-            DebugLog($"Start time added: {time.Time}");
+            DebugLogger.LogVariableStatus($"Start time added: {time.Time}");
             AutoSave();
             UpdateUpcomingRunsPreview();
         }
@@ -562,23 +560,23 @@ namespace BackyardBoss.ViewModels
             {
                 var removed = StartTimes.Last();
                 StartTimes.Remove(removed);
-                DebugLog($"Start time removed: {removed.Time}");
+                DebugLogger.LogVariableStatus($"Start time removed: {removed.Time}");
                 AutoSave();
                 UpdateUpcomingRunsPreview();
             }
             else
             {
-                DebugLog("RemoveStartTime called but list was empty.");
+                DebugLogger.LogVariableStatus("RemoveStartTime called but list was empty.");
             }
         }
         public void SortStartTimes()
         {
-            DebugLog("Sorting start times.");
+            DebugLogger.LogVariableStatus("Sorting start times.");
             var sorted = StartTimes.OrderBy(t => TimeSpan.Parse(t.Time)).ToList();
             StartTimes.Clear();
             foreach (var t in sorted)
             {
-                DebugLog($" - {t.Time}");
+                DebugLogger.LogVariableStatus($" - {t.Time}");
                 StartTimes.Add(t);
             }
             AutoSave();
@@ -586,6 +584,7 @@ namespace BackyardBoss.ViewModels
         }
         public void UpdateUpcomingRunsPreview()
         {
+            DebugLogger.LogVariableStatus("Updating upcoming runs preview.");
             UpcomingRuns.Clear();
             var now = DateTime.Now.TimeOfDay;
             foreach (var start in StartTimes)
@@ -615,7 +614,7 @@ namespace BackyardBoss.ViewModels
         }
         private void MarkDirty()
         {
-            DebugLog("MarkDirty called.");
+            DebugLogger.LogAutoSave("MarkDirty called.");
             _isDirty = true;
         }
         #endregion
@@ -742,11 +741,11 @@ namespace BackyardBoss.ViewModels
                     ssh.Connect();
                     ssh.RunCommand($"echo {value} > /home/lds00/sprinkler/test_mode.txt");
                     ssh.Disconnect();
-                    DebugLog($"TEST_MODE updated to {value}");
+                    DebugLogger.LogVariableStatus($"TEST_MODE updated to {value}");
                 }
                 catch (Exception ex)
                 {
-                    DebugLog($"Failed to update TEST_MODE: {ex.Message}");
+                    DebugLogger.LogVariableStatus($"Failed to update TEST_MODE: {ex.Message}");
                 }
             }
         }
@@ -806,10 +805,10 @@ namespace BackyardBoss.ViewModels
                     MessageBox.Show("No durations selected.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
                     return;
                 }
-                DebugLog("RunOnce: Executing the following sets:");
+                DebugLogger.LogVariableStatus("RunOnce: Executing the following sets:");
                 foreach (var run in selected)
                 {
-                    DebugLog($" - {run.SetName}: {run.Duration} min");
+                    DebugLogger.LogVariableStatus($" - {run.SetName}: {run.Duration} min");
                 }
                 var command = new
                 {
@@ -922,7 +921,7 @@ namespace BackyardBoss.ViewModels
         {
             lock (_saveLock)
             {
-                DebugLog("Save triggered.");
+                DebugLogger.LogFileIO("Save triggered.");
                 Schedule.StartTimes = new ObservableCollection<StartTimeViewModel>(StartTimes);
                 foreach (var set in Schedule.Sets)
                 {
@@ -959,7 +958,7 @@ namespace BackyardBoss.ViewModels
                     }
                     else
                     {
-                        DebugLog("Schedule saved locally only.");
+                        DebugLogger.LogFileIO("Schedule saved locally only.");
                     }
                     _isDirty = false;
                 }
@@ -975,19 +974,13 @@ namespace BackyardBoss.ViewModels
         public event PropertyChangedEventHandler? PropertyChanged;
         public void OnPropertyChanged([CallerMemberName] string propertyName = "")
         {
-            DebugLog($"PropertyChanged: {propertyName}");
+            DebugLogger.LogPropertyChange($"PropertyChanged: {propertyName}");
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
         #endregion
 
         #region Debug
-        private void DebugLog(string message, [CallerMemberName] string caller = "")
-        {
-            if (Properties.Settings.Default.DEBUG_VERBOSE)
-            {
-                Debug.WriteLine($"[DEBUG {DateTime.Now:HH:mm:ss.fff}] {caller}: {message}");
-            }
-        }
+        // DebugLog method replaced by DebugLogger usage throughout the class.
         #endregion
 
         #region Nested Types

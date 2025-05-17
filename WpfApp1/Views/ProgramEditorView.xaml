@@ -246,6 +246,13 @@
             </Grid>
         </DataTemplate>
         <!--
+            DebugViewTemplate:
+            Displays the debug view user control.
+        -->
+        <DataTemplate x:Key="DebugViewTemplate">
+            <views:DebugView />
+        </DataTemplate>
+        <!--
             SectionTemplateSelector:
             Custom template selector that chooses which DataTemplate to use based on SelectedSection.
         -->
@@ -253,7 +260,8 @@
             OverviewTemplate="{StaticResource OverviewTemplate}"
             ScheduleTemplate="{StaticResource ScheduleTemplate}"
             HistoryTemplate="{StaticResource HistoryTemplate}"
-            SettingsTemplate="{StaticResource SettingsTemplate}"/>
+            SettingsTemplate="{StaticResource SettingsTemplate}"
+            DebugTemplate="{StaticResource DebugViewTemplate}"/>
     </UserControl.Resources>
 
     <Grid>
@@ -268,6 +276,7 @@
                 <Button Style="{StaticResource NavButtonStyle}" Content="Schedule" Margin="8" Command="{Binding SelectSectionCommand}" CommandParameter="Schedule"/>
                 <Button Style="{StaticResource NavButtonStyle}" Content="History" Margin="8" Command="{Binding SelectSectionCommand}" CommandParameter="History"/>
                 <Button Style="{StaticResource NavButtonStyle}" Content="Settings" Margin="8" Command="{Binding SelectSectionCommand}" CommandParameter="Settings"/>
+                <Button Style="{StaticResource NavButtonStyle}" Content="Debug" Margin="8" Command="{Binding SelectSectionCommand}" CommandParameter="Debug"/>
             </StackPanel>
 
             <!--

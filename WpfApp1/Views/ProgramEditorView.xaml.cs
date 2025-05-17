@@ -3,7 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using BackyardBoss.Views;
 using System.Windows.Input; // Needed to open PickTimeWindow
-
+using BackyardBoss.Services; // For DebugLogger
 
 namespace BackyardBoss.Views
 {
@@ -13,6 +13,9 @@ namespace BackyardBoss.Views
         {
             InitializeComponent();
             this.DataContext = new ProgramEditorViewModel(); // Set DataContext here for classic WPF pattern
+
+            // Add a test debug log entry
+            DebugLogger.LogFileIO("Test FileIO message from ProgramEditorView");
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)
@@ -22,10 +25,9 @@ namespace BackyardBoss.Views
 
         private void WeatherPanel_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
-                var weatherWindow = new WeatherPanelView();
+            var weatherWindow = new WeatherPanelView();
             weatherWindow.Owner = Window.GetWindow(this); // ✅ Gets the parent window
             weatherWindow.ShowDialog();
-
         }
 
         private void TextBox_TouchNumericEntry(object sender, MouseButtonEventArgs e)
@@ -58,7 +60,5 @@ namespace BackyardBoss.Views
                 }
             }
         }
-
-
     }
 }
