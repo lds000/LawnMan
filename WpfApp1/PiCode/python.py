@@ -79,7 +79,7 @@ def status():
 @app.route("/history-log")
 def history_log():
     try:
-        with open("/home/lds00/watering_history.log", "r") as f:
+        with open("/home/lds00/sprinkler/watering_history.log", "r") as f:
             return f.read(), 200, {'Content-Type': 'text/plain'}
     except Exception as e:
         return str(e), 500
@@ -97,7 +97,7 @@ from datetime import datetime
 from logger import log
 
 STATUS_LED_PIN = 5
-STATUS_LOG = "/home/lds00/status_test_mode.log"
+STATUS_LOG = "/home/lds00/sprinkler/status_test_mode.log"
 TEST_MODE_FILE = "/home/lds00/sprinkler/test_mode.txt"
 
 _last_states = {}  # Track relay states to suppress duplicate logs
@@ -220,8 +220,8 @@ from config import RELAYS
 
 
 SCHEDULE_FILE = "/home/lds00/sprinkler_schedule.json"
-MANUAL_COMMAND_FILE = "/home/lds00/manual_command.json"
-LOG_FILE = "/home/lds00/watering_history.log"
+MANUAL_COMMAND_FILE = "/home/lds00/sprinkler/manual_command.json"
+LOG_FILE = "/home/lds00/sprinkler/watering_history.log"
 TEST_MODE_FILE = "/home/lds00/sprinkler/test_mode.txt"
 
 DEBUG_VERBOSE = os.getenv("DEBUG_VERBOSE", "0") == "1"

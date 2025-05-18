@@ -123,6 +123,20 @@
                                         <TextBlock FontSize="16" VerticalAlignment="Center" Margin="10,0,0,0" Text="{Binding LastRunDisplay}"  Foreground="{DynamicResource PrimaryText}"/>
                                     </StackPanel>
                                 </Border>
+                                <!-- Manual Run Button -->
+                                <Button Content="Manual Run"
+                                        Command="{Binding RunOnceCommand}"
+                                        Margin="0,0,0,12"
+                                        Height="40"
+                                        FontSize="18"/>
+                                <!-- Stop All Button -->
+                                <Button Content="Stop All"
+                                        Command="{Binding StopAllCommand}"
+                                        Margin="0,0,0,12"
+                                        Height="40"
+                                        FontSize="18"
+                                        Background="Red"
+                                        Foreground="White"/>
                                 <!--
                                     Upcoming Runs Card:
                                     Shows a list of upcoming scheduled runs.

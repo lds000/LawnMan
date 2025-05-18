@@ -56,6 +56,7 @@ namespace BackyardBoss.ViewModels
         private string _lastRunDisplay = "-";
         private ObservableCollection<ZoneStatus> _zoneStatuses = new();
         private ObservableCollection<WateringLogEntry> _lastWeekHistory = new();
+        private DispatcherTimer _debounceSaveTimer;
         #endregion
 
         #region Properties
@@ -182,7 +183,7 @@ namespace BackyardBoss.ViewModels
                         set.OnPropertyChanged(nameof(set.SeasonallyAdjustedMinutes));
                     }
                     UpdateUpcomingRunsPreview();
-                    AutoSave();
+                    DebouncedSaveAndSendToPi();
                 }
             }
         }
@@ -236,21 +237,21 @@ namespace BackyardBoss.ViewModels
         }
 
         // Week 1
-        public bool Week1Sunday { get => Schedule.ScheduleDays[0]; set { Schedule.ScheduleDays[0] = value; OnPropertyChanged(); AutoSave(); } }
-        public bool Week1Monday { get => Schedule.ScheduleDays[1]; set { Schedule.ScheduleDays[1] = value; OnPropertyChanged(); AutoSave(); } }
-        public bool Week1Tuesday { get => Schedule.ScheduleDays[2]; set { Schedule.ScheduleDays[2] = value; OnPropertyChanged(); AutoSave(); } }
-        public bool Week1Wednesday { get => Schedule.ScheduleDays[3]; set { Schedule.ScheduleDays[3] = value; OnPropertyChanged(); AutoSave(); } }
-        public bool Week1Thursday { get => Schedule.ScheduleDays[4]; set { Schedule.ScheduleDays[4] = value; OnPropertyChanged(); AutoSave(); } }
-        public bool Week1Friday { get => Schedule.ScheduleDays[5]; set { Schedule.ScheduleDays[5] = value; OnPropertyChanged(); AutoSave(); } }
-        public bool Week1Saturday { get => Schedule.ScheduleDays[6]; set { Schedule.ScheduleDays[6] = value; OnPropertyChanged(); AutoSave(); } }
+        public bool Week1Sunday { get => Schedule.ScheduleDays[0]; set { Schedule.ScheduleDays[0] = value; OnPropertyChanged(); DebouncedSaveAndSendToPi(); } }
+        public bool Week1Monday { get => Schedule.ScheduleDays[1]; set { Schedule.ScheduleDays[1] = value; OnPropertyChanged(); DebouncedSaveAndSendToPi(); } }
+        public bool Week1Tuesday { get => Schedule.ScheduleDays[2]; set { Schedule.ScheduleDays[2] = value; OnPropertyChanged(); DebouncedSaveAndSendToPi(); } }
+        public bool Week1Wednesday { get => Schedule.ScheduleDays[3]; set { Schedule.ScheduleDays[3] = value; OnPropertyChanged(); DebouncedSaveAndSendToPi(); } }
+        public bool Week1Thursday { get => Schedule.ScheduleDays[4]; set { Schedule.ScheduleDays[4] = value; OnPropertyChanged(); DebouncedSaveAndSendToPi(); } }
+        public bool Week1Friday { get => Schedule.ScheduleDays[5]; set { Schedule.ScheduleDays[5] = value; OnPropertyChanged(); DebouncedSaveAndSendToPi(); } }
+        public bool Week1Saturday { get => Schedule.ScheduleDays[6]; set { Schedule.ScheduleDays[6] = value; OnPropertyChanged(); DebouncedSaveAndSendToPi(); } }
         // Week 2
-        public bool Week2Sunday { get => Schedule.ScheduleDays[7]; set { Schedule.ScheduleDays[7] = value; OnPropertyChanged(); AutoSave(); } }
-        public bool Week2Monday { get => Schedule.ScheduleDays[8]; set { Schedule.ScheduleDays[8] = value; OnPropertyChanged(); AutoSave(); } }
-        public bool Week2Tuesday { get => Schedule.ScheduleDays[9]; set { Schedule.ScheduleDays[9] = value; OnPropertyChanged(); AutoSave(); } }
-        public bool Week2Wednesday { get => Schedule.ScheduleDays[10]; set { Schedule.ScheduleDays[10] = value; OnPropertyChanged(); AutoSave(); } }
-        public bool Week2Thursday { get => Schedule.ScheduleDays[11]; set { Schedule.ScheduleDays[11] = value; OnPropertyChanged(); AutoSave(); } }
-        public bool Week2Friday { get => Schedule.ScheduleDays[12]; set { Schedule.ScheduleDays[12] = value; OnPropertyChanged(); AutoSave(); } }
-        public bool Week2Saturday { get => Schedule.ScheduleDays[13]; set { Schedule.ScheduleDays[13] = value; OnPropertyChanged(); AutoSave(); } }
+        public bool Week2Sunday { get => Schedule.ScheduleDays[7]; set { Schedule.ScheduleDays[7] = value; OnPropertyChanged(); DebouncedSaveAndSendToPi(); } }
+        public bool Week2Monday { get => Schedule.ScheduleDays[8]; set { Schedule.ScheduleDays[8] = value; OnPropertyChanged(); DebouncedSaveAndSendToPi(); } }
+        public bool Week2Tuesday { get => Schedule.ScheduleDays[9]; set { Schedule.ScheduleDays[9] = value; OnPropertyChanged(); DebouncedSaveAndSendToPi(); } }
+        public bool Week2Wednesday { get => Schedule.ScheduleDays[10]; set { Schedule.ScheduleDays[10] = value; OnPropertyChanged(); DebouncedSaveAndSendToPi(); } }
+        public bool Week2Thursday { get => Schedule.ScheduleDays[11]; set { Schedule.ScheduleDays[11] = value; OnPropertyChanged(); DebouncedSaveAndSendToPi(); } }
+        public bool Week2Friday { get => Schedule.ScheduleDays[12]; set { Schedule.ScheduleDays[12] = value; OnPropertyChanged(); DebouncedSaveAndSendToPi(); } }
+        public bool Week2Saturday { get => Schedule.ScheduleDays[13]; set { Schedule.ScheduleDays[13] = value; OnPropertyChanged(); DebouncedSaveAndSendToPi(); } }
         public string CurrentStation { get => _currentStation; set { if (_currentStation != value) { _currentStation = value; OnPropertyChanged(); } } }
         public string Countdown { get => _countdown; set { if (_countdown != value) { _countdown = value; OnPropertyChanged(); } } }
         public int? PiScheduleIndex { get => _piScheduleIndex; set { _piScheduleIndex = value; OnPropertyChanged(); OnPropertyChanged(nameof(ScheduleIndexMismatch)); } }
@@ -321,6 +322,13 @@ namespace BackyardBoss.ViewModels
             CurrentRunStatus = "• Checking Status...";
             CalculateTodayScheduleIndex();
             LoadSchedule(); // <-- Enable real data loading
+            // Debounce timer for saving and uploading schedule
+            _debounceSaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+            _debounceSaveTimer.Tick += (s, e) =>
+            {
+                _debounceSaveTimer.Stop();
+                Save(SaveTarget.LocalAndSendToPi);
+            };
             // Populate mock data for dashboard demo
             SystemStatus = "All Systems Nominal";
             ZoneStatuses = new ObservableCollection<ZoneStatus>
@@ -393,7 +401,7 @@ namespace BackyardBoss.ViewModels
                 if (dialog.ShowDialog() == true)
                 {
                     entry.ParsedTime = dialog.SelectedTime;
-                    AutoSave();
+                    DebouncedSaveAndSendToPi();
                 }
             });
             SelectSectionCommand = new RelayCommand(param =>
@@ -523,12 +531,24 @@ namespace BackyardBoss.ViewModels
             MarkDirty();
             Save(SaveTarget.LocalOnly);
         }
+        private void DebouncedSaveAndSendToPi()
+        {
+            if (_suppressExport)
+            {
+                DebugLogger.LogAutoSave("DebouncedSaveAndSendToPi skipped (suppressed during load).");
+                return;
+            }
+            DebugLogger.LogAutoSave("DebouncedSaveAndSendToPi called.");
+            MarkDirty();
+            _debounceSaveTimer.Stop();
+            _debounceSaveTimer.Start();
+        }
         private void AddSet()
         {
             var newSet = new SprinklerSet { SetName = "New Set", RunDurationMinutes = 10 };
             Sets.Add(newSet);
             DebugLogger.LogVariableStatus($"Set added: {newSet.SetName}, {newSet.RunDurationMinutes} min.");
-            AutoSave();
+            DebouncedSaveAndSendToPi();
             UpdateUpcomingRunsPreview();
         }
         private void RemoveSet()
@@ -538,7 +558,7 @@ namespace BackyardBoss.ViewModels
                 DebugLogger.LogVariableStatus($"Removing set: {SelectedSet.SetName}");
                 Sets.Remove(SelectedSet);
                 SelectedSet = null;
-                AutoSave();
+                DebouncedSaveAndSendToPi();
                 UpdateUpcomingRunsPreview();
             }
             else
@@ -551,7 +571,7 @@ namespace BackyardBoss.ViewModels
             var time = new StartTimeViewModel { Time = "06:00" };
             StartTimes.Add(time);
             DebugLogger.LogVariableStatus($"Start time added: {time.Time}");
-            AutoSave();
+            DebouncedSaveAndSendToPi();
             UpdateUpcomingRunsPreview();
         }
         private void RemoveStartTime()
@@ -561,7 +581,7 @@ namespace BackyardBoss.ViewModels
                 var removed = StartTimes.Last();
                 StartTimes.Remove(removed);
                 DebugLogger.LogVariableStatus($"Start time removed: {removed.Time}");
-                AutoSave();
+                DebouncedSaveAndSendToPi();
                 UpdateUpcomingRunsPreview();
             }
             else
@@ -579,7 +599,7 @@ namespace BackyardBoss.ViewModels
                 DebugLogger.LogVariableStatus($" - {t.Time}");
                 StartTimes.Add(t);
             }
-            AutoSave();
+            DebouncedSaveAndSendToPi();
             UpdateUpcomingRunsPreview();
         }
         public void UpdateUpcomingRunsPreview()
@@ -821,7 +841,7 @@ namespace BackyardBoss.ViewModels
                     }
                 };
                 string localPath = "manual_command.json";
-                string remotePath = "/home/lds00/manual_command.json";
+                string remotePath = "/home/lds00/sprinkler/manual_command.json";
                 string piHost = "100.116.147.6";
                 string username = "lds00";
                 string password = "Celica1!";
@@ -852,7 +872,7 @@ namespace BackyardBoss.ViewModels
                 }
             };
             string localPath = "manual_command.json";
-            string remotePath = "/home/lds00/manual_command.json";
+            string remotePath = "/home/lds00/sprinkler/manual_command.json";
             string piHost = "100.116.147.6";
             string username = "lds00";
             string password = "Celica1!";
@@ -937,7 +957,7 @@ namespace BackyardBoss.ViewModels
                     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault
                 };
                 string localPath = "sprinkler_schedule.json";
-                string remotePath = "/home/lds00/sprinkler_schedule.json";
+                string remotePath = "/home/lds00/sprinkler/sprinkler_schedule.json";
                 string piHost = "100.116.147.6";
                 string username = "lds00";
                 string password = "Celica1!";

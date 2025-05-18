@@ -1,0 +1,59 @@
+Raspberry Pi Sprinkler Controller Integration Checklist
+
+1. Schedule JSON File
+   - Path: /home/lds00/sprinkler/sprinkler_schedule.json
+   - Structure must match the WPF app:
+     - start_times: array of { "time": "HH:mm", "isEnabled": true }
+     - sets: array of { "set_name", "run_duration_minutes", "pulse_duration_minutes", "soak_duration_minutes", "mode" }
+     - seasonal_adjustment: float
+     - schedule_days: array of 14 booleans
+     - mist: { "temperature_settings": [ { "temperature", "interval", "duration" } ] }
+
+2. Manual Command JSON
+   - Path: /home/lds00/sprinkler/manual_command.json
+   - Example:
+     {
+       "manual_run": {
+         "sets": ["Zone 1", "Zone 2"],
+         "duration_minutes": 10
+       }
+     }
+   - Pi should parse, execute, and delete this file.
+
+3. Test Mode
+   - Path: /home/lds00/sprinkler/test_mode.txt
+   - "1" = test mode (simulate GPIO), "0" = normal mode.
+
+4. API Endpoints (Flask)
+   - /status: Return last 100 log lines, current run info, and test mode status.
+   - /schedule-index: Return current schedule index, local time, timezone.
+   - /stop-all: POST to stop all watering.
+   - /history-log: Return watering history log as plain text.
+
+5. Logging
+   - Log file: /home/lds00/sprinkler/sprinkler_status.log
+   - Log all actions, errors, and test mode changes.
+
+6. GPIO Pin Mapping
+   - Use:
+     RELAYS = {
+       "Hanging Pots": 17,
+       "Garden": 27,
+       "Misters": 22
+     }
+   - Set names must match between Pi and WPF app.
+
+7. Mist Logic
+   - Support misting as defined in the mist section of the schedule JSON.
+
+8. Error Handling
+   - Handle missing/malformed JSON gracefully; log errors.
+
+9. Schedule Reload
+   - Reload the schedule JSON if the file changes (after upload from WPF app).
+
+10. General
+    - Be robust, log all actions, and handle new schedule uploads at any time.
+
+Summary:
+Ensure the Pi code reads the same JSON structure as the WPF GUI, watches for new schedule/manual command files, supports test mode, exposes the required Flask API endpoints, uses the correct GPIO mapping, and logs all actions. Handle errors gracefully and reload the schedule when the file changes.
