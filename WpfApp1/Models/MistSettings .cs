@@ -20,6 +20,8 @@ namespace BackyardBoss.Models
     {
         private int _interval;
         private int _duration;
+        private bool _mistEnabled;
+
         [JsonPropertyName("temperature")]
         public int Temperature { get; set; }
 
@@ -42,6 +44,13 @@ namespace BackyardBoss.Models
                     BackyardBoss.ViewModels.ProgramEditorViewModel.Current.AutoSave();
             } }
         }
+
+        public bool MistEnabled
+        {
+            get => _mistEnabled;
+            set { if (_mistEnabled != value) { _mistEnabled = value; OnPropertyChanged(); } }
+        }
+
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string name = null) =>
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

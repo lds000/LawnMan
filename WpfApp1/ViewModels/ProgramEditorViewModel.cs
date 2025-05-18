@@ -128,10 +128,15 @@ namespace BackyardBoss.ViewModels
             {
                 if (_isTestMode != value)
                 {
+                    DebugLogger.LogVariableStatus($"IsTestMode SET: {_isTestMode} -> {value}");
                     _isTestMode = value;
                     _lastManualTestModeChange = DateTime.Now;
                     OnPropertyChanged();
                     SetEnvironmentVariable("TEST_MODE", value ? "1" : "0");
+                }
+                else
+                {
+                    DebugLogger.LogVariableStatus($"IsTestMode unchanged: {_isTestMode}");
                 }
             }
         }
@@ -655,15 +660,37 @@ namespace BackyardBoss.ViewModels
                 var parsed = JsonSerializer.Deserialize<PiStatusResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                 if (parsed != null)
                 {
+                    if (!string.IsNullOrEmpty(parsed.SystemStatus))
+                        SystemStatus = parsed.SystemStatus;
+                    // Map Pi zones to user-friendly set names if possible
+                    if (parsed.Zones != null && parsed.Zones.Count > 0)
+                    {
+                        App.Current.Dispatcher.Invoke(() =>
+                        {
+                            ZoneStatuses.Clear();
+                            foreach (var piZone in parsed.Zones)
+                            {
+                                // Try to map "Zone 1" to the first set, etc.
+                                string friendlyName = piZone.Name;
+                                if (piZone.Name.StartsWith("Zone "))
+                                {
+                                    if (int.TryParse(piZone.Name.Substring(5), out int zoneNum) && zoneNum > 0 && zoneNum <= Sets.Count)
+                                    {
+                                        friendlyName = Sets[zoneNum - 1].SetName;
+                                    }
+                                }
+                                ZoneStatuses.Add(new ZoneStatus { Name = friendlyName, Status = piZone.Status });
+                            }
+                        });
+                    }
                     PiReportedTestMode = parsed.TestMode;
+                    DebugLogger.LogVariableStatus($"LoadPiStatusAsync: parsed.TestMode={parsed.TestMode}, IsTestMode={IsTestMode}");
+                    // Always update IsTestMode from Pi
+                    IsTestMode = parsed.TestMode;
                     if (parsed.Log == null)
                     {
                         DebugLogger.LogError("Deserialization failed or log is null.");
                         return;
-                    }
-                    if ((DateTime.Now - _lastManualTestModeChange).TotalSeconds > 3)
-                    {
-                        IsTestMode = parsed.TestMode;
                     }
                     OnPropertyChanged(nameof(IsTestMode));
                     App.Current.Dispatcher.Invoke(() =>
@@ -753,21 +780,31 @@ namespace BackyardBoss.ViewModels
                 MessageBox.Show($"Error: {ex.Message}", "Stop Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-        private void SetEnvironmentVariable(string variableName, string value)
+        private async void SetEnvironmentVariable(string variableName, string value)
         {
+            DebugLogger.LogVariableStatus($"SetEnvironmentVariable called: {variableName}={value}");
             if (variableName == "TEST_MODE")
             {
                 try
                 {
-                    using var ssh = new SshClient("100.116.147.6", "lds00", "Celica1!");
-                    ssh.Connect();
-                    ssh.RunCommand($"echo {value} > /home/lds00/sprinkler/test_mode.txt");
-                    ssh.Disconnect();
-                    DebugLogger.LogVariableStatus($"TEST_MODE updated to {value}");
+                    using var client = new HttpClient();
+                    var url = "http://100.116.147.6:5000/set-test-mode";
+                    var payload = new { test_mode = value == "1" };
+                    DebugLogger.LogVariableStatus($"Sending to Pi: test_mode={(value == "1")}" );
+                    var content = new StringContent(System.Text.Json.JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+                    var response = await client.PostAsync(url, content);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        DebugLogger.LogVariableStatus($"TEST_MODE updated via API to {value}");
+                    }
+                    else
+                    {
+                        DebugLogger.LogVariableStatus($"Failed to update TEST_MODE via API: {response.StatusCode}");
+                    }
                 }
                 catch (Exception ex)
                 {
-                    DebugLogger.LogVariableStatus($"Failed to update TEST_MODE: {ex.Message}");
+                    DebugLogger.LogVariableStatus($"Failed to update TEST_MODE via API: {ex.Message}");
                 }
             }
         }
@@ -910,8 +947,9 @@ namespace BackyardBoss.ViewModels
         private void ToggleTestMode()
         {
             bool newValue = !PiReportedTestMode;
+            DebugLogger.LogVariableStatus($"ToggleTestMode called. PiReportedTestMode={PiReportedTestMode}, sending newValue={newValue}");
             SetEnvironmentVariable("TEST_MODE", newValue ? "1" : "0");
-            PiReportedTestMode = newValue;
+            // Do not set PiReportedTestMode here; rely on Pi status polling
         }
         private void OpenPlotWindow()
         {
@@ -1018,7 +1056,10 @@ namespace BackyardBoss.ViewModels
         {
             public List<string> Log { get; set; } = new();
             public CurrentRunInfo Current_Run { get; set; } = new();
+            [JsonPropertyName("test_mode")]
             public bool TestMode { get; set; }
+            public string SystemStatus { get; set; }
+            public List<ZoneStatus> Zones { get; set; } // Add this for zone mapping
         }
         #endregion
 
@@ -1030,7 +1071,7 @@ namespace BackyardBoss.ViewModels
                 var jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sprinkler_schedule.json");
                 if (!File.Exists(jsonPath)) return;
                 var json = File.ReadAllText(jsonPath);
-                using var doc = JsonDocument.Parse(json);
+                using var doc = JsonDocument.Parse(json)    ;
                 var root = doc.RootElement;
                 var startTimes = root.GetProperty("start_times").EnumerateArray()
                     .Where(st => st.GetProperty("isEnabled").GetBoolean())
