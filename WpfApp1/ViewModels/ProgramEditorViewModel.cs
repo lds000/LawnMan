@@ -57,6 +57,16 @@ namespace BackyardBoss.ViewModels
         public string Status { get; set; }
     }
 
+    public class UpcomingRunInfo
+    {
+        [JsonPropertyName("set")]
+        public string Set { get; set; }
+        [JsonPropertyName("start_time")]
+        public string StartTime { get; set; }
+        [JsonPropertyName("duration_minutes")]
+        public int DurationMinutes { get; set; }
+    }
+
     public class PiStatusResponse
     {
         [JsonPropertyName("system_status")]
@@ -75,6 +85,8 @@ namespace BackyardBoss.ViewModels
         public PiRunInfo NextRun { get; set; }
         [JsonPropertyName("last_completed_run")]
         public LastCompletedRunInfo LastCompletedRun { get; set; }
+        [JsonPropertyName("upcoming_runs")]
+        public List<UpcomingRunInfo> UpcomingRuns { get; set; }
     }
 
     public class ProgramEditorViewModel : INotifyPropertyChanged
@@ -110,6 +122,7 @@ namespace BackyardBoss.ViewModels
         private PiRunInfo _currentRun;
         private PiRunInfo _nextRun;
         private LastCompletedRunInfo _lastCompletedRun;
+        private ObservableCollection<UpcomingRunInfo> _upcomingRuns = new();
         #endregion
 
         #region Properties
@@ -124,7 +137,12 @@ namespace BackyardBoss.ViewModels
             }
         }
         
-        public ObservableCollection<ScheduledRunPreview> UpcomingRuns { get; private set; } = new();
+        public ObservableCollection<ScheduledRunPreview> UpcomingRunsPreview { get; private set; } = new();
+        public ObservableCollection<UpcomingRunInfo> UpcomingRuns
+        {
+            get => _upcomingRuns;
+            set { _upcomingRuns = value; OnPropertyChanged(); }
+        }
         public ObservableCollection<string> PiStatusLog { get; private set; } = new();
         public WeatherViewModel WeatherVM { get; } = new WeatherViewModel();
         public SprinklerSchedule Schedule { get; private set; } = new SprinklerSchedule();
@@ -373,7 +391,7 @@ namespace BackyardBoss.ViewModels
                 new ZoneStatus { Name = demoSetNames[2], Status = "Idle" }
             };
             LastRunDisplay = $"{DateTime.Now.AddHours(-2):yyyy-MM-dd HH:mm} - {demoSetNames[0]} (10 min)";
-            UpcomingRuns = new ObservableCollection<ScheduledRunPreview>
+            UpcomingRunsPreview = new ObservableCollection<ScheduledRunPreview>
             {
                 new ScheduledRunPreview { SetName = demoSetNames[1], StartTime = DateTime.Now.AddHours(1).ToString("HH:mm"), SeasonallyAdjustedMinutes = 12 },
                 new ScheduledRunPreview { SetName = demoSetNames[2], StartTime = DateTime.Now.AddHours(2).ToString("HH:mm"), SeasonallyAdjustedMinutes = 15 }
@@ -639,7 +657,7 @@ namespace BackyardBoss.ViewModels
         public void UpdateUpcomingRunsPreview()
         {
             DebugLogger.LogVariableStatus("Updating upcoming runs preview.");
-            UpcomingRuns.Clear();
+            UpcomingRunsPreview.Clear();
             var now = DateTime.Now.TimeOfDay;
             foreach (var start in StartTimes)
             {
@@ -650,7 +668,7 @@ namespace BackyardBoss.ViewModels
                     foreach (var set in Sets)
                     {
                         int adjusted = (int)Math.Round(set.RunDurationMinutes * SeasonalAdjustment);
-                        UpcomingRuns.Add(new ScheduledRunPreview
+                        UpcomingRunsPreview.Add(new ScheduledRunPreview
                         {
                             SetName = set.SetName,
                             StartTime = cumulative.ToString(@"hh\:mm"),
@@ -661,10 +679,10 @@ namespace BackyardBoss.ViewModels
                     }
                 }
             }
-            var sorted = UpcomingRuns.OrderBy(r => TimeSpan.Parse(r.StartTime)).ToList();
-            UpcomingRuns.Clear();
+            var sorted = UpcomingRunsPreview.OrderBy(r => TimeSpan.Parse(r.StartTime)).ToList();
+            UpcomingRunsPreview.Clear();
             foreach (var r in sorted)
-                UpcomingRuns.Add(r);
+                UpcomingRunsPreview.Add(r);
         }
         private void MarkDirty()
         {
@@ -694,6 +712,9 @@ namespace BackyardBoss.ViewModels
                     CurrentRun = parsed.CurrentRun;
                     NextRun = parsed.NextRun;
                     LastCompletedRun = parsed.LastCompletedRun;
+                    // Update UpcomingRuns from Pi
+                    if (parsed.UpcomingRuns != null)
+                        UpcomingRuns = new ObservableCollection<UpcomingRunInfo>(parsed.UpcomingRuns);
                 }
             }
             catch (Exception ex)
