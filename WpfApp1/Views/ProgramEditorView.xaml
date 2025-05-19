@@ -36,13 +36,24 @@
                             -->
                             <Border Background="{DynamicResource CardBackground}" CornerRadius="10" Padding="16" Margin="0,0,16,0">
                                 <StackPanel>
-
-                                    <TextBlock Text="System Status" FontWeight="Bold" FontSize="22" Foreground="{DynamicResource PrimaryText}"/>
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
+                                        <Ellipse Width="18" Height="18" Margin="0,0,8,0"
+                                                 Fill="{Binding LedColors[system], Converter={StaticResource ColorStringToBrushConverter}}"/>
+                                        <TextBlock Text="System Status" FontWeight="Bold" FontSize="22" Foreground="{DynamicResource PrimaryText}"/>
+                                    </StackPanel>
                                     <TextBlock Text="{Binding SystemStatus}" Foreground="Lime"/>
                                     <ItemsControl ItemsSource="{Binding ZoneStatuses}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <StackPanel Orientation="Horizontal">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <Ellipse Width="16" Height="16" Margin="0,0,8,0">
+                                                        <Ellipse.Fill>
+                                                            <MultiBinding Converter="{StaticResource ColorStringToBrushConverter}">
+                                                                <Binding Path="Name"/>
+                                                                <Binding Path="DataContext.LedColors" RelativeSource="{RelativeSource AncestorType=UserControl}"/>
+                                                            </MultiBinding>
+                                                        </Ellipse.Fill>
+                                                    </Ellipse>
                                                     <TextBlock Text="{Binding Name}" FontWeight="Bold" Margin="0,0,8,0" Foreground="{DynamicResource PrimaryText}"/>
                                                     <TextBlock Text="{Binding Status}" Foreground="{DynamicResource PrimaryText}"/>
                                                 </StackPanel>
@@ -302,12 +313,12 @@
                     Header/Status Bar:
                     Shows app title, connection status, and current time.
                 -->
-                <Border Background="{DynamicResource BoiseStateOrange}" Height="60" VerticalAlignment="Top">
+                <Border Background="{DynamicResource BoiseStateOrange}" Height="70" VerticalAlignment="Top">
                     <Grid Margin="16,0">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="1*"/>
-                            <ColumnDefinition Width="2*"/>
-                            <ColumnDefinition Width="1*"/>
+                            <ColumnDefinition Width="3*"/>
+                            <ColumnDefinition Width="4*"/>
+                            <ColumnDefinition Width="3*"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="{Binding CurrentTime}" FontSize="18" Foreground="White" Margin="24,0,0,0"/>
                         <TextBlock Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Top" Text="Sprinkler Control Panel" FontSize="28" FontWeight="Bold" Foreground="White"/>

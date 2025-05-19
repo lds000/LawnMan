@@ -6,4 +6,5 @@
     <conv:TodayHighlightConverter x:Key="TodayHighlightConverter"/>
     <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
     <conv:TagToColorConverter x:Key="TagToColorConverter"/>
+    <conv:ColorStringToBrushConverter x:Key="ColorStringToBrushConverter"/>
 </ResourceDictionary>

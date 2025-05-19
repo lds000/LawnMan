@@ -57,6 +57,7 @@ namespace BackyardBoss.ViewModels
         private ObservableCollection<ZoneStatus> _zoneStatuses = new();
         private ObservableCollection<WateringLogEntry> _lastWeekHistory = new();
         private DispatcherTimer _debounceSaveTimer;
+        private Dictionary<string, string> _ledColors = new();
         #endregion
 
         #region Properties
@@ -295,6 +296,11 @@ namespace BackyardBoss.ViewModels
         }
 
         public ObservableCollection<MistSettingViewModel> MistSettingsCollection => Schedule.Mist.TemperatureSettings;
+        public Dictionary<string, string> LedColors
+        {
+            get => _ledColors;
+            set { _ledColors = value; OnPropertyChanged(); }
+        }
         #endregion
 
         #region Commands
@@ -653,77 +659,56 @@ namespace BackyardBoss.ViewModels
                 var response = await client.GetAsync("http://100.116.147.6:5000/status");
                 response.EnsureSuccessStatusCode();
                 var json = await response.Content.ReadAsStringAsync();
-                Debug.WriteLine("RAW JSON:");
-                Debug.WriteLine(json);
-                DebugLogger.LogVariableStatus("Pi status JSON received.",json);
+                DebugLogger.LogVariableStatus("RAW JSON from PiStatus:", json);
 
                 var parsed = JsonSerializer.Deserialize<PiStatusResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                 if (parsed != null)
                 {
                     if (!string.IsNullOrEmpty(parsed.SystemStatus))
                         SystemStatus = parsed.SystemStatus;
-                    // Map Pi zones to user-friendly set names if possible
+                    PiReportedTestMode = parsed.TestMode;
+                    LedColors = parsed.LedColors ?? new Dictionary<string, string>();
                     if (parsed.Zones != null && parsed.Zones.Count > 0)
                     {
                         App.Current.Dispatcher.Invoke(() =>
                         {
-                            ZoneStatuses.Clear();
-                            foreach (var piZone in parsed.Zones)
-                            {
-                                // Try to map "Zone 1" to the first set, etc.
-                                string friendlyName = piZone.Name;
-                                if (piZone.Name.StartsWith("Zone "))
-                                {
-                                    if (int.TryParse(piZone.Name.Substring(5), out int zoneNum) && zoneNum > 0 && zoneNum <= Sets.Count)
-                                    {
-                                        friendlyName = Sets[zoneNum - 1].SetName;
-                                    }
-                                }
-                                ZoneStatuses.Add(new ZoneStatus { Name = friendlyName, Status = piZone.Status });
-                            }
+                            ZoneStatuses = new ObservableCollection<ZoneStatus>(parsed.Zones);
                         });
                     }
-                    PiReportedTestMode = parsed.TestMode;
-                    DebugLogger.LogVariableStatus($"LoadPiStatusAsync: parsed.TestMode={parsed.TestMode}, IsTestMode={IsTestMode}");
-                    // Always update IsTestMode from Pi
-                    IsTestMode = parsed.TestMode;
-                    if (parsed.Log == null)
+
+                    // Build the status string
+                    if (!string.IsNullOrEmpty(parsed.CurrentRunSet))
                     {
-                        DebugLogger.LogError("Deserialization failed or log is null.");
-                        return;
-                    }
-                    OnPropertyChanged(nameof(IsTestMode));
-                    App.Current.Dispatcher.Invoke(() =>
-                    {
-                        PiStatusLog.Clear();
-                        foreach (var line in parsed.Log)
-                            PiStatusLog.Add(line);
-                        if (parsed.Current_Run?.Running == true)
+                        if (parsed.CurrentRunPhase == "Watering" && parsed.TimeRemainingSec > 0)
                         {
-                            var minutes = parsed.Current_Run.Time_Remaining_Sec / 60;
-                            var seconds = parsed.Current_Run.Time_Remaining_Sec % 60;
-                            var soak = parsed.Current_Run.Soak_Remaining_Sec;
-                            var phase = parsed.Current_Run.Phase ?? "Watering";
-                            if (phase == "Soaking")
+                            var min = parsed.TimeRemainingSec / 60;
+                            var sec = parsed.TimeRemainingSec % 60;
+                            if (parsed.PulseTimeLeftSec > 0)
                             {
-                                var soakMin = soak / 60;
-                                var soakSec = soak % 60;
-                                CurrentRunStatus = $"• {parsed.Current_Run.Set}\nWatering ({minutes:D2}:{seconds:D2}\nSoaking ({soakMin:D2}:{soakSec:D2})";
+                                var pulseMin = parsed.PulseTimeLeftSec / 60;
+                                var pulseSec = parsed.PulseTimeLeftSec % 60;
+                                CurrentRunStatus = $"• {parsed.CurrentRunSet}\nWatering ({min:D2}:{sec:D2})\nPulse ({pulseMin:D2}:{pulseSec:D2})";
                             }
                             else
                             {
-                                CurrentRunStatus = $"• {parsed.Current_Run.Set}\nWatering ({minutes:D2}:{seconds:D2})";
+                                CurrentRunStatus = $"• {parsed.CurrentRunSet}\nWatering ({min:D2}:{sec:D2})";
                             }
+                        }
+                        else if (parsed.CurrentRunPhase == "Soaking" && parsed.SoakRemainingSec > 0)
+                        {
+                            var soakMin = parsed.SoakRemainingSec / 60;
+                            var soakSec = parsed.SoakRemainingSec % 60;
+                            CurrentRunStatus = $"• {parsed.CurrentRunSet}\nSoaking ({soakMin:D2}:{soakSec:D2})";
                         }
                         else
                         {
-                            CurrentRunStatus = "• Idle";
+                            CurrentRunStatus = $"• {parsed.CurrentRunSet}";
                         }
-                        var last10 = parsed.Log.TakeLast(10).ToList();
-                        Set1Color = last10.LastOrDefault(l => l.Contains("PIN_17"))?.Contains("ON") == true ? Brushes.LimeGreen : Brushes.Red;
-                        Set2Color = last10.LastOrDefault(l => l.Contains("PIN_22"))?.Contains("ON") == true ? Brushes.LimeGreen : Brushes.Red;
-                        Set3Color = last10.LastOrDefault(l => l.Contains("PIN_27"))?.Contains("ON") == true ? Brushes.LimeGreen : Brushes.Red;
-                    });
+                    }
+                    else
+                    {
+                        CurrentRunStatus = "• Idle";
+                    }
                 }
                 else
                 {
@@ -743,7 +728,6 @@ namespace BackyardBoss.ViewModels
             OnPropertyChanged(nameof(PiLocalTime));
             OnPropertyChanged(nameof(PiTimezone));
             OnPropertyChanged(nameof(ScheduleIndexMismatch));
-
         }
 
         /// <summary>
@@ -1044,22 +1028,28 @@ namespace BackyardBoss.ViewModels
         #endregion
 
         #region Nested Types
-        public class CurrentRunInfo
-        {
-            public bool Running { get; set; }
-            public string Set { get; set; }
-            public int Time_Remaining_Sec { get; set; }
-            public int Soak_Remaining_Sec { get; set; }
-            public string Phase { get; set; }
-        }
         private class PiStatusResponse
         {
-            public List<string> Log { get; set; } = new();
-            public CurrentRunInfo Current_Run { get; set; } = new();
+            [JsonPropertyName("system_status")]
+            public string SystemStatus { get; set; }
             [JsonPropertyName("test_mode")]
             public bool TestMode { get; set; }
-            public string SystemStatus { get; set; }
-            public List<ZoneStatus> Zones { get; set; } // Add this for zone mapping
+            [JsonPropertyName("test_mode_timestamp")]
+            public double TestModeTimestamp { get; set; }
+            [JsonPropertyName("led_colors")]
+            public Dictionary<string, string> LedColors { get; set; }
+            [JsonPropertyName("zones")]
+            public List<ZoneStatus> Zones { get; set; }
+            [JsonPropertyName("current_run_set")]
+            public string CurrentRunSet { get; set; }
+            [JsonPropertyName("current_run_phase")]
+            public string CurrentRunPhase { get; set; }
+            [JsonPropertyName("time_remaining_sec")]
+            public int TimeRemainingSec { get; set; }
+            [JsonPropertyName("pulse_time_left_sec")]
+            public int PulseTimeLeftSec { get; set; }
+            [JsonPropertyName("soak_remaining_sec")]
+            public int SoakRemainingSec { get; set; }
         }
         #endregion
 

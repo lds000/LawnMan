@@ -45,36 +45,108 @@ RELAYS = {
 📄 flask_api.py
 ================================================================================
 
-### flask_api.py
-
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from status import CURRENT_RUN
+from run_manager import force_stop_all
+import os
+from scheduler import get_schedule_day_index
+from datetime import datetime
+import time
+from logger import declare_log, log
+from gpio_controller import get_led_colors
 
 TEST_MODE_FILE = "/home/lds00/sprinkler/test_mode.txt"
 
-def read_test_mode():
-    try:
-        with open(TEST_MODE_FILE) as f:
-            return f.read().strip() == "1"
-    except Exception:
-        return False
-
 app = Flask(__name__)
-from logger import declare_log
 
-from run_manager import force_stop_all
+# Add global state for manual_set and soon_set
+manual_set = None
+soon_set = None
+
+@app.route("/schedule-index")
+def schedule_index():
+    try:
+        index = get_schedule_day_index()
+        now = datetime.now()
+        local_time = now.strftime("%Y-%m-%d %H:%M:%S")
+        timezone = time.tzname[time.daylight] if time.daylight else time.tzname[0]
+
+        return jsonify({
+            "schedule_index": index,
+            "local_time": local_time,
+            "timezone": timezone
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/stop-all", methods=["POST"])
 def stop_all():
-    force_stop_all()  # this will stop GPIO activity and clear CURRENT_RUN
+    force_stop_all()
     return jsonify({"status": "stopped"})
+
+@app.route("/set-test-mode", methods=["POST"])
+def set_test_mode():
+    try:
+        data = request.get_json(force=True)
+        value = data.get("test_mode")
+        if value is None:
+            return jsonify({"error": "Missing 'test_mode' in request."}), 400
+        # Write the new value to test_mode.txt
+        with open(TEST_MODE_FILE, "w") as f:
+            f.write("1" if value else "0")
+        log(f"[API] Test mode set to {value} (file written)")
+        # Log file contents and mtime after write
+        try:
+            with open(TEST_MODE_FILE) as f:
+                contents = f.read().strip()
+            mtime = os.path.getmtime(TEST_MODE_FILE)
+            log(f"[DEBUG] test_mode.txt now: '{contents}', mtime: {mtime}")
+        except Exception as e:
+            log(f"[DEBUG] Could not read test_mode.txt after write: {e}")
+        return jsonify({"status": "ok", "test_mode": value}), 200
+    except Exception as e:
+        log(f"[ERROR] Failed to set test mode via API: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/status")
 def status():
-    return jsonify({
-        "Log": declare_log[-100:],
-        "Current_Run": CURRENT_RUN,
-        "TestMode": read_test_mode()
-    })
+    global manual_set, soon_set
+    # Use actual set names for zones
+    set_names = ["Hanging Pots", "Garden", "Misters"]
+    zones = []
+    current_set = CURRENT_RUN.get("Set", "")
+    running = CURRENT_RUN.get("Running", False)
+    for set_name in set_names:
+        if running and current_set == set_name:
+            status_str = CURRENT_RUN.get("Phase", "Watering") or "Watering"
+        else:
+            status_str = "Idle"
+        zones.append({"name": set_name, "status": status_str})
+    # Read test mode and timestamp
+    try:
+        with open(TEST_MODE_FILE) as f:
+            test_mode_val = f.read().strip() == "1"
+        test_mode_mtime = os.path.getmtime(TEST_MODE_FILE)
+    except Exception:
+        test_mode_val = False
+        test_mode_mtime = None
+    # Use global manual_set and soon_set
+    led_colors = get_led_colors(current_set, running, test_mode_val, None, manual_set, soon_set, False)
+    # Add advanced run state fields
+    resp = {
+        "system_status": "All Systems Nominal",
+        "zones": zones,
+        "test_mode": test_mode_val,
+        "test_mode_timestamp": test_mode_mtime,
+        "led_colors": led_colors,
+        # Advanced run state for UI:
+        "current_run_set": CURRENT_RUN.get("Set", ""),
+        "current_run_phase": CURRENT_RUN.get("Phase", ""),
+        "time_remaining_sec": CURRENT_RUN.get("Time_Remaining_Sec", 0),
+        "soak_remaining_sec": CURRENT_RUN.get("Soak_Remaining_Sec", 0),
+        "pulse_time_left_sec": CURRENT_RUN.get("Pulse_Time_Left_Sec", 0),
+    }
+    return jsonify(resp)
 
 @app.route("/history-log")
 def history_log():
@@ -83,6 +155,13 @@ def history_log():
             return f.read(), 200, {'Content-Type': 'text/plain'}
     except Exception as e:
         return str(e), 500
+
+def read_test_mode():
+    try:
+        with open(TEST_MODE_FILE) as f:
+            return f.read().strip() == "1"
+    except Exception:
+        return False
 
 
 ================================================================================
@@ -95,46 +174,104 @@ import RPi.GPIO as GPIO
 import time
 from datetime import datetime
 from logger import log
+import os
+import threading
 
-STATUS_LED_PIN = 5
 STATUS_LOG = "/home/lds00/sprinkler/status_test_mode.log"
 TEST_MODE_FILE = "/home/lds00/sprinkler/test_mode.txt"
 
 _last_states = {}  # Track relay states to suppress duplicate logs
 
+# Define GPIO pins for 4 RGB LEDs (example pin numbers, adjust as needed)
+RGB_LEDS = [
+    {'R': 5,  'G': 6,  'B': 13},   # LED 1 (status LED, replaces old STATUS_LED_PIN)
+    {'R': 19, 'G': 26, 'B': 21},   # LED 2
+    {'R': 20, 'G': 16, 'B': 12},   # LED 3
+    {'R': 25, 'G': 24, 'B': 23},   # LED 4
+]
+
+# LED assignments:
+# LED 0: System status
+# LED 1: Hanging Pots
+# LED 2: Garden
+# LED 3: Misters
+SET_LED_MAP = {
+    "Hanging Pots": 1,
+    "Garden": 2,
+    "Misters": 3
+}
+
+# PWM support for brightness (0-100)
+PWM_FREQ = 100
+_pwm_channels = {}
+def setup_pwm():
+    for led in RGB_LEDS:
+        for color in ['R', 'G', 'B']:
+            pin = led[color]
+            if pin not in _pwm_channels:
+                _pwm_channels[pin] = GPIO.PWM(pin, PWM_FREQ)
+                _pwm_channels[pin].start(0)
+
+def set_rgb_pwm(led_idx, r, g, b, brightness=100):
+    pins = RGB_LEDS[led_idx]
+    for color, val in zip(['R', 'G', 'B'], [r, g, b]):
+        duty = brightness if val else 0
+        _pwm_channels[pins[color]].ChangeDutyCycle(duty)
+
+def set_rgb(led_idx, r, g, b, brightness=100):
+    # Use PWM if initialized, else fallback to digital
+    if _pwm_channels:
+        set_rgb_pwm(led_idx, r, g, b, brightness)
+    else:
+        pins = RGB_LEDS[led_idx]
+        GPIO.output(pins['R'], GPIO.HIGH if r else GPIO.LOW)
+        GPIO.output(pins['G'], GPIO.HIGH if g else GPIO.LOW)
+        GPIO.output(pins['B'], GPIO.HIGH if b else GPIO.LOW)
+
+def all_leds_off():
+    for i in range(len(RGB_LEDS)):
+        set_rgb(i, 0, 0, 0)
+
 def is_test_mode():
     try:
         with open(TEST_MODE_FILE) as f:
-            return f.read().strip() == "1"
-    except Exception:
+            val = f.read().strip()
+        mtime = os.path.getmtime(TEST_MODE_FILE)
+        log(f"[DEBUG] is_test_mode read test_mode.txt: '{val}', mtime: {mtime}")
+        return val == "1"
+    except Exception as e:
+        log(f"[DEBUG] is_test_mode failed to read test_mode.txt: {e}")
         return False
 
 def initialize_gpio(RELAYS):
     log("[SYSTEM] Controller starting up...")
-
-    if is_test_mode():
-        log("[TEST MODE ENABLED] GPIO commands will be logged, not executed.")
-        for name, pin in RELAYS.items():
-            turn_off(pin, name)
-    else:
-        GPIO.setmode(GPIO.BCM)
-        for name, pin in RELAYS.items():
-            GPIO.setup(pin, GPIO.OUT)
-            GPIO.output(pin, GPIO.LOW)
-        GPIO.setup(STATUS_LED_PIN, GPIO.OUT)
-        GPIO.output(STATUS_LED_PIN, GPIO.LOW)
-        startup_blink()
+    GPIO.setmode(GPIO.BCM)
+    for led in RGB_LEDS:
+        for color in ['R', 'G', 'B']:
+            GPIO.setup(led[color], GPIO.OUT)
+            GPIO.output(led[color], GPIO.LOW)
+    setup_pwm()  # Now safe to call multiple times
+    for name, pin in RELAYS.items():
+        GPIO.setup(pin, GPIO.OUT)
+        GPIO.output(pin, GPIO.LOW)
+    startup_blink()
 
 def startup_blink():
-    if is_test_mode():
-        log("[TEST] Simulated startup blink")
-        return
-
+    # Rainbow sweep
+    colors = [(1,0,0),(1,1,0),(0,1,0),(0,1,1),(0,0,1),(1,0,1)]
+    for _ in range(2):
+        for c in colors:
+            for i in range(len(RGB_LEDS)):
+                set_rgb(i, *c)
+            time.sleep(0.1)
+    all_leds_off()
+    # All blink red for boot
     for _ in range(3):
-        GPIO.output(STATUS_LED_PIN, GPIO.HIGH)
-        time.sleep(0.15)
-        GPIO.output(STATUS_LED_PIN, GPIO.LOW)
-        time.sleep(0.15)
+        for i in range(len(RGB_LEDS)):
+            set_rgb(i, 1, 0, 0)
+        time.sleep(0.2)
+        all_leds_off()
+        time.sleep(0.2)
 
 def turn_on(pin, name=None):
     label = name or f"PIN_{pin}"
@@ -144,7 +281,6 @@ def turn_on(pin, name=None):
         _last_states[pin] = "ON"
     else:
         GPIO.output(pin, GPIO.HIGH)
-        GPIO.output(STATUS_LED_PIN, GPIO.HIGH)
         _last_states[pin] = "ON"
 
 def turn_off(pin, name=None):
@@ -155,24 +291,153 @@ def turn_off(pin, name=None):
         _last_states[pin] = "OFF"
     else:
         GPIO.output(pin, GPIO.LOW)
-        GPIO.output(STATUS_LED_PIN, GPIO.LOW)
         _last_states[pin] = "OFF"
 
-def status_led_controller(CURRENT_RUN):
-    if is_test_mode():
-        return
+# Set status LED (LED 0) color
+# color: 'idle', 'running', 'off', 'wifi', 'test', 'maintenance', 'error'
+def set_status_led(color):
+    if color == 'idle':
+        set_rgb(0, 1, 0, 0, 30)  # Dim red
+    elif color == 'running':
+        set_rgb(0, 0, 1, 0, 100)  # Bright green
+    elif color == 'wifi':
+        set_rgb(0, 1, 1, 0, 100)  # Yellow
+    elif color == 'test':
+        set_rgb(0, 0, 0, 1, 100)  # Blue
+    elif color == 'maintenance':
+        set_rgb(0, 1, 1, 1, 100)  # White
+    elif color == 'error':
+        set_rgb(0, 1, 1, 0, 100)  # Yellow
+    else:
+        set_rgb(0, 0, 0, 0)
 
+# Enhanced set LED logic
+# Accepts: current_set, running, test_mode, error_zones, manual_set, soon_set, maintenance, brightness
+# Unique color per set: Green (Hanging Pots), Blue (Garden), Cyan (Misters)
+# Error: yellow, Test: blue, Manual: fast blink, Scheduled soon: orange pulse, Maintenance: white blink
+
+def update_set_leds(current_set, running, test_mode=False, error_zones=None, manual_set=None, soon_set=None, maintenance=False, brightness=100):
+    # Consistent color scheme for all sets:
+    # Watering: green, Soaking: purple, Idle: dim red, Test: blue, Error: yellow, Maintenance: white, Manual: green (blink), Soon: orange
+    from status import CURRENT_RUN
+    phase = CURRENT_RUN.get("Phase", "")
+    for set_name, led_idx in SET_LED_MAP.items():
+        if error_zones and set_name in error_zones:
+            set_rgb(led_idx, 1, 1, 0, brightness)  # Yellow for error
+        elif test_mode:
+            set_rgb(led_idx, 0, 0, 1, brightness)  # Blue for test mode
+        elif maintenance:
+            set_rgb(led_idx, 1, 1, 1, brightness)  # White for maintenance
+        elif manual_set and set_name == manual_set:
+            set_rgb(led_idx, 0, 1, 0, brightness)  # Green (fast blink handled in controller)
+        elif soon_set and set_name == soon_set:
+            set_rgb(led_idx, 1, 0.5, 0, brightness)  # Orange (PWM only)
+        elif running and current_set == set_name:
+            if phase == "Soaking":
+                set_rgb(led_idx, 1, 0, 1, brightness)  # Purple for soaking
+            else:
+                set_rgb(led_idx, 0, 1, 0, brightness)  # Green for watering
+        else:
+            set_rgb(led_idx, 1, 0, 0, 30)  # Dim red for idle
+
+# Example: error_zones=["Garden"], test_mode=True, manual_set="Misters", soon_set="Hanging Pots", maintenance=True
+
+# Blinking logic for status LED and set LEDs
+# Call in a thread
+
+def status_led_controller(CURRENT_RUN, test_mode=False, error_zones=None, manual_set=None, soon_set=None, maintenance=False):
+    blink_state = False
     while True:
-        if CURRENT_RUN["Running"]:
-            GPIO.output(STATUS_LED_PIN, GPIO.HIGH)
+        running = CURRENT_RUN["Running"]
+        current_set = CURRENT_RUN["Set"]
+        # Maintenance blink
+        if maintenance:
+            set_status_led('maintenance')
+            update_set_leds(current_set, running, maintenance=True)
+            time.sleep(0.5)
+            all_leds_off()
+            time.sleep(0.5)
+            continue
+        # Error blink
+        if error_zones:
+            set_status_led('error')
+            update_set_leds(current_set, running, error_zones=error_zones)
+            time.sleep(0.5)
+            all_leds_off()
+            time.sleep(0.5)
+            continue
+        # Test mode pulse
+        if test_mode:
+            set_status_led('test')
+            update_set_leds(current_set, running, test_mode=True)
+            time.sleep(0.5)
+            all_leds_off()
+            time.sleep(0.5)
+            continue
+        # Manual run fast blink
+        if manual_set:
+            set_status_led('running')
+            update_set_leds(current_set, running, manual_set=manual_set)
+            time.sleep(0.1)
+            all_leds_off()
+            time.sleep(0.1)
+            continue
+        # Scheduled soon pulse
+        if soon_set:
+            set_status_led('idle')
+            update_set_leds(current_set, running, soon_set=soon_set)
+            time.sleep(0.3)
+            all_leds_off()
+            time.sleep(0.3)
+            continue
+        # Normal running/idle
+        if running:
+            set_status_led('running')
+            update_set_leds(current_set, running)
             time.sleep(0.2)
-            GPIO.output(STATUS_LED_PIN, GPIO.LOW)
+            set_status_led('off')
+            update_set_leds(current_set, running)
             time.sleep(0.2)
         else:
-            GPIO.output(STATUS_LED_PIN, GPIO.HIGH)
+            set_status_led('idle')
+            update_set_leds(current_set, running)
             time.sleep(1)
-            GPIO.output(STATUS_LED_PIN, GPIO.LOW)
-            time.sleep(1)
+
+def get_led_colors(current_set, running, test_mode=False, error_zones=None, manual_set=None, soon_set=None, maintenance=False):
+    from status import CURRENT_RUN
+    phase = CURRENT_RUN.get("Phase", "")
+    colors = {}
+    # System LED
+    if maintenance:
+        colors['system'] = 'white'
+    elif error_zones:
+        colors['system'] = 'yellow'
+    elif test_mode:
+        colors['system'] = 'blue'  # Test mode takes precedence for system
+    elif running:
+        colors['system'] = 'green'
+    else:
+        colors['system'] = 'red'
+    # Set LEDs (all sets use same color for each phase)
+    for set_name, led_idx in SET_LED_MAP.items():
+        if error_zones and set_name in error_zones:
+            colors[set_name] = 'yellow'
+        elif test_mode:
+            colors[set_name] = 'blue'
+        elif maintenance:
+            colors[set_name] = 'white'
+        elif manual_set and set_name == manual_set:
+            colors[set_name] = 'green'  # Fast blink in UI
+        elif soon_set and set_name == soon_set:
+            colors[set_name] = 'orange'
+        elif running and current_set == set_name:
+            if phase == "Soaking":
+                colors[set_name] = 'purple'
+            else:
+                colors[set_name] = 'green'
+        else:
+            colors[set_name] = 'red'
+    return colors
 
 
 ================================================================================
@@ -183,16 +448,26 @@ def status_led_controller(CURRENT_RUN):
 
 from datetime import datetime
 
-LOG_FILE = "/home/lds00/sprinkler_status.log"
+LOG_FILE = "/home/lds00/sprinkler/sprinkler_status.log"
 declare_log = []
+
+MAX_LOG_LINES = 1000
 
 def log(message):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     entry = f"[{now}] {message}"
     print(entry, flush=True)
     declare_log.append(entry)
-    with open(LOG_FILE, "a") as f:
-        f.write(entry + "\n")
+    # Keep only the last MAX_LOG_LINES in memory
+    if len(declare_log) > MAX_LOG_LINES:
+        declare_log[:] = declare_log[-MAX_LOG_LINES:]
+    # Write only the last MAX_LOG_LINES to file
+    try:
+        with open(LOG_FILE, "w") as f:
+            for line in declare_log:
+                f.write(line + "\n")
+    except Exception as e:
+        print(f"[LOGGER ERROR] Failed to write log file: {e}", flush=True)
 
 ================================================================================
 📄 main.py
@@ -204,22 +479,19 @@ import os
 import time
 import threading
 from datetime import datetime
-from scheduler import load_json, should_run_today, is_start_time_enabled, get_mist_flags
+from scheduler import load_json, should_run_today, is_start_time_enabled
 from gpio_controller import initialize_gpio, status_led_controller, turn_off
-from flask_api import app
+from flask_api import app, manual_set, soon_set
 from run_manager import run_set
 from status import CURRENT_RUN
 from logger import log
 import logging
-
-# Set werkzeug (Flask) logging level
-if os.getenv("DEBUG_VERBOSE", "0") != "1":
-    logging.getLogger('werkzeug').setLevel(logging.ERROR)
-
 from config import RELAYS
+import requests
 
 
-SCHEDULE_FILE = "/home/lds00/sprinkler_schedule.json"
+# NOTE: The Pi must NEVER write to test_mode.txt. This file is managed by the PC GUI only.
+SCHEDULE_FILE = "/home/lds00/sprinkler/sprinkler_schedule.json"
 MANUAL_COMMAND_FILE = "/home/lds00/sprinkler/manual_command.json"
 LOG_FILE = "/home/lds00/sprinkler/watering_history.log"
 TEST_MODE_FILE = "/home/lds00/sprinkler/test_mode.txt"
@@ -227,7 +499,58 @@ TEST_MODE_FILE = "/home/lds00/sprinkler/test_mode.txt"
 DEBUG_VERBOSE = os.getenv("DEBUG_VERBOSE", "0") == "1"
 _last_test_mode = None  # for change detection
 
-# 🔡️ Safety: turn off all relays on startup to ensure known state
+# --- MIST LOGIC ENHANCEMENT ---
+# Fetch temperature from OpenWeatherMap
+OPENWEATHER_API_KEY = "cf5f2b7705dbc0348d0f8a773d5d2882"
+OPENWEATHER_ZIP = "83702"  # Boise ZIP
+OPENWEATHER_UNITS = "imperial"
+OPENWEATHER_URL = f"https://api.openweathermap.org/data/2.5/weather?zip={OPENWEATHER_ZIP},us&units={OPENWEATHER_UNITS}&appid={OPENWEATHER_API_KEY}"
+
+def get_current_temperature():
+    try:
+        response = requests.get(OPENWEATHER_URL, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+        temp = data["main"]["temp"]
+        # Only log weather fetch if misting will be triggered (handled in mist_manager)
+        return temp
+    except Exception as e:
+        log(f"[ERROR] Failed to fetch temperature from OpenWeatherMap: {e}")
+        return 95  # Fallback default value
+
+# Track last mist times for each temperature setting
+_last_mist_times = {}
+
+def mist_manager(schedule):
+    mist_settings = schedule.get("mist", {}).get("temperature_settings", [])
+    if not mist_settings:
+        return
+    current_temp = get_current_temperature()
+    now = time.time()
+    for setting in mist_settings:
+        temp_threshold = setting.get("temperature")
+        interval = setting.get("interval")  # in minutes
+        duration = setting.get("duration")  # in minutes
+        if temp_threshold is None or interval is None or duration is None:
+            continue
+        if current_temp >= temp_threshold:
+            key = f"{temp_threshold}_{interval}_{duration}"
+            last_time = _last_mist_times.get(key, 0)
+            if now - last_time >= interval * 60:
+                log(f"[WEATHER] Current temperature from OpenWeatherMap: {current_temp}°F")
+                log(f"[MIST] Triggering mist for temp >= {temp_threshold}°F: {duration} min")
+                threading.Thread(
+                    target=run_set,
+                    args=("Misters", duration, RELAYS, LOG_FILE),
+                    kwargs={
+                        "source": f"MIST_{temp_threshold}",
+                        "pulse": None,
+                        "soak": None
+                    },
+                    daemon=True
+                ).start()
+                _last_mist_times[key] = now
+
 def ensure_all_relays_off():
     for name, pin in RELAYS.items():
         try:
@@ -237,6 +560,12 @@ def ensure_all_relays_off():
 
 def run_manual_command(command, schedule):
     log("[MANUAL] Manual run triggered")
+    # Always (re)initialize GPIO before running manual command
+    from gpio_controller import initialize_gpio
+    initialize_gpio(RELAYS)
+    # Interrupt and stop any currently running set(s)
+    from run_manager import force_stop_all
+    force_stop_all()
     sets = command.get("manual_run", {}).get("sets", [])
     duration = command.get("manual_run", {}).get("duration_minutes", 1)
 
@@ -247,12 +576,15 @@ def run_manual_command(command, schedule):
             threading.Thread(
                 target=run_set,
                 args=(set_name, duration, RELAYS, LOG_FILE),
-                kwargs={"source": "MANUAL",
-                        "pulse": match.get("pulse_duration_minutes"),
-                        "soak": match.get("soak_duration_minutes")},
+                kwargs={
+                    "source": "MANUAL",
+                    "pulse": match.get("pulse_duration_minutes"),
+                    "soak": match.get("soak_duration_minutes")
+                },
                 daemon=True
             ).start()
 
+# Only read from test_mode.txt, never write to it!
 def read_test_mode_from_file():
     try:
         with open(TEST_MODE_FILE) as f:
@@ -260,28 +592,48 @@ def read_test_mode_from_file():
     except Exception:
         return False
 
+def get_next_scheduled_set(schedule, current_time):
+    # Returns the set scheduled to run within the next 10 minutes
+    from datetime import datetime, timedelta
+    now = datetime.strptime(current_time, "%H:%M")
+    for entry in schedule.get("start_times", []):
+        if not entry.get("isEnabled", False):
+            continue
+        sched_time = datetime.strptime(entry["time"], "%H:%M")
+        if 0 <= (sched_time - now).total_seconds() <= 600:
+            # Find first enabled set (not "Misters")
+            for s in schedule.get("sets", []):
+                if s["set_name"] != "Misters" and s.get("mode", True):
+                    return s["set_name"]
+    return None
+
 def main_loop():
-    global _last_test_mode
+    global _last_test_mode, manual_set, soon_set
     log("[DEBUG] main_loop has started")
     last_manual_mtime = 0
     _last_test_mode = read_test_mode_from_file()
     log(f"[INFO] TEST_MODE = {_last_test_mode}")
-
+    manual_set = None
+    soon_set = None
+    error_zones = None
+    maintenance = False
     while True:
         now = datetime.now()
         current_time = now.strftime("%H:%M")
-        schedule = load_json(SCHEDULE_FILE)
-
-        if DEBUG_VERBOSE:
-            log(f"[TICK] Checking manual run + time = {current_time}")
-
+        try:
+            schedule = load_json(SCHEDULE_FILE)
+        except Exception as e:
+            log(f"[ERROR] Failed to load schedule: {e}")
+            time.sleep(5)
+            continue
+        # Manual run detection
         if os.path.exists(MANUAL_COMMAND_FILE):
             mtime = os.path.getmtime(MANUAL_COMMAND_FILE)
             if mtime > last_manual_mtime:
-                if DEBUG_VERBOSE:
-                    log("[CHECK] Manual command file changed — executing run_manual_command()")
                 try:
                     data = load_json(MANUAL_COMMAND_FILE)
+                    sets = data.get("manual_run", {}).get("sets", [])
+                    manual_set = sets[0] if sets else None
                     run_manual_command(data, schedule)
                 except Exception as e:
                     log(f"[ERROR] Failed to parse or execute manual command: {e}")
@@ -291,37 +643,30 @@ def main_loop():
                     except Exception as e:
                         log(f"[WARN] Could not delete manual command file: {e}")
                 last_manual_mtime = mtime
-        elif DEBUG_VERBOSE:
-            log("[CHECK] No manual command file found")
+        else:
+            manual_set = None
+        # Scheduled soon detection
+        soon_set = get_next_scheduled_set(schedule, current_time)
 
         if should_run_today(schedule):
-            if DEBUG_VERBOSE:
-                log(f"[DEBUG] Today is active. Checking time {current_time} against schedule...")
             if is_start_time_enabled(schedule, current_time):
                 for s in schedule.get("sets", []):
-                    if s.get("mode", "scheduled") == "scheduled":
-                        log(f"[SCHEDULED] Launching set {s['set_name']} at {current_time}")
-                        threading.Thread(
-                            target=run_set,
-                            args=(s["set_name"], s.get("run_duration_minutes", 1), RELAYS, LOG_FILE),
-                            kwargs={"pulse": s.get("pulse_duration_minutes"),
-                                    "soak": s.get("soak_duration_minutes")},
-                            daemon=True
-                        ).start()
+                    if s["set_name"] != "Misters" and not s.get("mode", True):
+                        continue  # skip inactive non-mist sets
+                    log(f"[SCHEDULED] Launching set {s['set_name']} at {current_time}")
+                    threading.Thread(
+                        target=run_set,
+                        args=(s["set_name"], s.get("run_duration_minutes", 1), RELAYS, LOG_FILE),
+                        kwargs={
+                            "pulse": s.get("pulse_duration_minutes"),
+                            "soak": s.get("soak_duration_minutes")
+                        },
+                        daemon=True
+                    ).start()
 
-        if get_mist_flags(schedule, current_time):
-            mist = next((s for s in schedule.get("sets", []) if s["set_name"] == "Misters"), None)
-            if mist and mist.get("mode", "scheduled") != "disabled":
-                log("[MIST] Triggering mist set")
-                threading.Thread(
-                    target=run_set,
-                    args=("Misters", schedule["mist"]["duration_minutes"], RELAYS, LOG_FILE),
-                    kwargs={"pulse": schedule["mist"].get("pulse_duration_minutes"),
-                            "soak": schedule["mist"].get("soak_duration_minutes")},
-                    daemon=True
-                ).start()
+        # Enhanced mist logic: use temperature_settings
+        mist_manager(schedule)
 
-        # 🔁 Monitor test mode status from file
         current_test_mode = read_test_mode_from_file()
         if current_test_mode != _last_test_mode:
             log(f"[INFO] TEST_MODE changed to {current_test_mode}")
@@ -329,11 +674,21 @@ def main_loop():
 
         time.sleep(1)
 
+def led_status_thread():
+    while True:
+        test_mode = read_test_mode_from_file()
+        # Use CURRENT_RUN, test_mode, manual_set, soon_set, error_zones, maintenance
+        status_led_controller(CURRENT_RUN, test_mode=test_mode)
+        time.sleep(0.1)
+
 if __name__ == "__main__":
     initialize_gpio(RELAYS)
-    ensure_all_relays_off()  # 🔡 Kill switch for safety
+    ensure_all_relays_off()
     threading.Thread(target=main_loop, daemon=True).start()
-    threading.Thread(target=status_led_controller, args=(CURRENT_RUN,), daemon=True).start()
+    threading.Thread(target=led_status_thread, daemon=True).start()
+    # Suppress Flask/Werkzeug request logs
+    import logging as py_logging
+    py_logging.getLogger('werkzeug').setLevel(py_logging.WARNING)
     app.run(host="0.0.0.0", port=5000)
 
 
@@ -385,20 +740,25 @@ def run_set(set_name, duration_minutes, RELAYS, log_file, source="SCHEDULED", pu
         "Set": set_name,
         "Phase": "Watering",
         "Time_Remaining_Sec": total,
-        "Soak_Remaining_Sec": 0
+        "Soak_Remaining_Sec": 0,
+        "Pulse_Time_Left_Sec": 0
     })
 
     if pulse and soak:
         while elapsed < total:
             CURRENT_RUN["Phase"] = "Watering"
             turn_on(pin)
-            for _ in range(pulse * 60):
+            pulse_left = pulse * 60
+            for i in range(pulse * 60):
                 if elapsed >= total:
                     break
                 time.sleep(1)
                 elapsed += 1
+                pulse_left -= 1
                 CURRENT_RUN["Time_Remaining_Sec"] = total - elapsed
+                CURRENT_RUN["Pulse_Time_Left_Sec"] = pulse_left
             turn_off(pin)
+            CURRENT_RUN["Pulse_Time_Left_Sec"] = 0
             if elapsed < total:
                 CURRENT_RUN["Phase"] = "Soaking"
                 CURRENT_RUN["Soak_Remaining_Sec"] = soak * 60
@@ -414,7 +774,8 @@ def run_set(set_name, duration_minutes, RELAYS, log_file, source="SCHEDULED", pu
                 "Set": set_name,
                 "Time_Remaining_Sec": total - i,
                 "Phase": "Watering",
-                "Soak_Remaining_Sec": 0
+                "Soak_Remaining_Sec": 0,
+                "Pulse_Time_Left_Sec": 0
             })
         turn_off(pin)
 
@@ -425,7 +786,8 @@ def run_set(set_name, duration_minutes, RELAYS, log_file, source="SCHEDULED", pu
         "Set": "",
         "Time_Remaining_Sec": 0,
         "Soak_Remaining_Sec": 0,
-        "Phase": ""
+        "Phase": "",
+        "Pulse_Time_Left_Sec": 0
     })
     log_watering_history(log_file, set_name, start_time, end_time, source)
     log(f"[SET] Completed {set_name}")
@@ -437,6 +799,9 @@ def run_set(set_name, duration_minutes, RELAYS, log_file, source="SCHEDULED", pu
 
 from datetime import datetime
 import json
+from datetime import datetime
+import time
+import os
 
 def load_json(path):
     with open(path, 'r') as f:
@@ -457,6 +822,12 @@ def is_start_time_enabled(schedule, time_str):
 def get_mist_flags(schedule, time_str):
     mist = schedule.get("mist", {})
     return mist.get(f"time_{time_str.replace(':', '')}", False)
+
+def is_active(set_entry):
+    # "Misters" are always active (run via mist schedule)
+    if set_entry.get("set_name") == "Misters":
+        return True
+    return set_entry.get("mode", True)
 
 
 ================================================================================
