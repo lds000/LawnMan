@@ -45,6 +45,18 @@ namespace BackyardBoss.ViewModels
         public int? SoakRemainingSec { get; set; }
     }
 
+    public class LastCompletedRunInfo
+    {
+        [JsonPropertyName("set")]
+        public string Set { get; set; }
+        [JsonPropertyName("end_time")]
+        public string EndTime { get; set; }
+        [JsonPropertyName("duration_minutes")]
+        public int? DurationMinutes { get; set; }
+        [JsonPropertyName("status")]
+        public string Status { get; set; }
+    }
+
     public class PiStatusResponse
     {
         [JsonPropertyName("system_status")]
@@ -61,6 +73,8 @@ namespace BackyardBoss.ViewModels
         public PiRunInfo CurrentRun { get; set; }
         [JsonPropertyName("next_run")]
         public PiRunInfo NextRun { get; set; }
+        [JsonPropertyName("last_completed_run")]
+        public LastCompletedRunInfo LastCompletedRun { get; set; }
     }
 
     public class ProgramEditorViewModel : INotifyPropertyChanged
@@ -95,6 +109,7 @@ namespace BackyardBoss.ViewModels
         private Dictionary<string, string> _ledColors = new();
         private PiRunInfo _currentRun;
         private PiRunInfo _nextRun;
+        private LastCompletedRunInfo _lastCompletedRun;
         #endregion
 
         #region Properties
@@ -270,7 +285,15 @@ namespace BackyardBoss.ViewModels
         public string NextRunDisplay => NextRun == null ? "-" : $"{NextRun.StartTime} - {NextRun.Set} ({NextRun.DurationMinutes} min)";
         public string LastRunDisplay
         {
-            get => _lastRunDisplay;
+            get
+            {
+                if (LastCompletedRun != null)
+                {
+                    var endTime = DateTime.TryParse(LastCompletedRun.EndTime, out var dt) ? dt.ToString("yyyy-MM-dd HH:mm") : LastCompletedRun.EndTime;
+                    return $"{endTime} - {LastCompletedRun.Set} ({LastCompletedRun.DurationMinutes} min, {LastCompletedRun.Status})";
+                }
+                return _lastRunDisplay;
+            }
             set { _lastRunDisplay = value; OnPropertyChanged(); }
         }
         public ObservableCollection<WateringLogEntry> LastWeekHistory
@@ -294,6 +317,11 @@ namespace BackyardBoss.ViewModels
         {
             get => _nextRun;
             set { _nextRun = value; OnPropertyChanged(); OnPropertyChanged(nameof(NextRunDisplay)); }
+        }
+        public LastCompletedRunInfo LastCompletedRun
+        {
+            get => _lastCompletedRun;
+            set { _lastCompletedRun = value; OnPropertyChanged(); OnPropertyChanged(nameof(LastRunDisplay)); }
         }
         public string CurrentRunDisplay => CurrentRun == null ? "Idle" : $"{CurrentRun.Set} {CurrentRun.Phase} ({CurrentRun.TimeRemainingSec / 60:D2}:{CurrentRun.TimeRemainingSec % 60:D2})";
         #endregion
@@ -665,6 +693,7 @@ namespace BackyardBoss.ViewModels
                         App.Current.Dispatcher.Invoke(() => { ZoneStatuses = new ObservableCollection<ZoneStatus>(parsed.Zones); });
                     CurrentRun = parsed.CurrentRun;
                     NextRun = parsed.NextRun;
+                    LastCompletedRun = parsed.LastCompletedRun;
                 }
             }
             catch (Exception ex)
