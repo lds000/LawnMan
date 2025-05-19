@@ -27,6 +27,42 @@ using System.Text.Json.Serialization;
 
 namespace BackyardBoss.ViewModels
 {
+    public class PiRunInfo
+    {
+        [JsonPropertyName("set")]
+        public string Set { get; set; }
+        [JsonPropertyName("start_time")]
+        public string StartTime { get; set; }
+        [JsonPropertyName("duration_minutes")]
+        public int? DurationMinutes { get; set; }
+        [JsonPropertyName("phase")]
+        public string Phase { get; set; }
+        [JsonPropertyName("time_remaining_sec")]
+        public int? TimeRemainingSec { get; set; }
+        [JsonPropertyName("pulse_time_left_sec")]
+        public int? PulseTimeLeftSec { get; set; }
+        [JsonPropertyName("soak_remaining_sec")]
+        public int? SoakRemainingSec { get; set; }
+    }
+
+    public class PiStatusResponse
+    {
+        [JsonPropertyName("system_status")]
+        public string SystemStatus { get; set; }
+        [JsonPropertyName("test_mode")]
+        public bool TestMode { get; set; }
+        [JsonPropertyName("test_mode_timestamp")]
+        public double TestModeTimestamp { get; set; }
+        [JsonPropertyName("led_colors")]
+        public Dictionary<string, string> LedColors { get; set; }
+        [JsonPropertyName("zones")]
+        public List<ZoneStatus> Zones { get; set; }
+        [JsonPropertyName("current_run")]
+        public PiRunInfo CurrentRun { get; set; }
+        [JsonPropertyName("next_run")]
+        public PiRunInfo NextRun { get; set; }
+    }
+
     public class ProgramEditorViewModel : INotifyPropertyChanged
     {
         #region Fields
@@ -35,7 +71,6 @@ namespace BackyardBoss.ViewModels
         private bool _isDirty;
         private int _todayScheduleIndex = -1;
         private string _statusIconPath;
-        private string _currentRunStatus = "Unknown";
         private bool _isSet1On, _isSet2On, _isSet3On;
         private Brush _set1Color = Brushes.LightGray;
         private Brush _set2Color = Brushes.LightGray;
@@ -58,6 +93,8 @@ namespace BackyardBoss.ViewModels
         private ObservableCollection<WateringLogEntry> _lastWeekHistory = new();
         private DispatcherTimer _debounceSaveTimer;
         private Dictionary<string, string> _ledColors = new();
+        private PiRunInfo _currentRun;
+        private PiRunInfo _nextRun;
         #endregion
 
         #region Properties
@@ -104,16 +141,6 @@ namespace BackyardBoss.ViewModels
                     _statusIconPath = value;
                     OnPropertyChanged();
                 }
-            }
-        }
-        public string CurrentRunStatus
-        {
-            get => _currentRunStatus;
-            set
-            {
-                _currentRunStatus = value;
-                OnPropertyChanged();
-                UpdateStatusIcon(value);
             }
         }
         public bool IsSet1On { get => _isSet1On; set { _isSet1On = value; OnPropertyChanged(); } }
@@ -203,45 +230,6 @@ namespace BackyardBoss.ViewModels
             }
         }
 
-        /// <summary>
-        /// Returns the remaining soak time as a string if the system is currently soaking, otherwise returns an empty string.
-        /// </summary>
-        public string SoakTimeRemaining
-        {
-            get
-            {
-                // CurrentRunStatus example: "• Zone 2\nWatering (12:34\nSoaking (05:00)"
-                if (!string.IsNullOrEmpty(CurrentRunStatus) && CurrentRunStatus.Contains("Soaking"))
-                {
-                    // Try to extract the soak time in the format Soaking (mm:ss)
-                    var soakIndex = CurrentRunStatus.IndexOf("Soaking (");
-                    if (soakIndex >= 0)
-                    {
-                        var start = soakIndex + "Soaking (".Length;
-                        var end = CurrentRunStatus.IndexOf(")", start);
-                        if (end > start)
-                        {
-                            var soakTime = CurrentRunStatus.Substring(start, end - start);
-                            return $"Soak: {soakTime}";
-                        }
-                    }
-                }
-                return string.Empty;
-            }
-        }
-
-        /// <summary>
-        /// Returns true if the system is currently in a soaking phase, otherwise false.
-        /// </summary>
-        public bool IsSoaking
-        {
-            get
-            {
-                // CurrentRunStatus example: "• Zone 2\nWatering (12:34\nSoaking (05:00)"
-                return !string.IsNullOrEmpty(CurrentRunStatus) && CurrentRunStatus.Contains("Soaking");
-            }
-        }
-
         // Week 1
         public bool Week1Sunday { get => Schedule.ScheduleDays[0]; set { Schedule.ScheduleDays[0] = value; OnPropertyChanged(); DebouncedSaveAndSendToPi(); } }
         public bool Week1Monday { get => Schedule.ScheduleDays[1]; set { Schedule.ScheduleDays[1] = value; OnPropertyChanged(); DebouncedSaveAndSendToPi(); } }
@@ -279,11 +267,7 @@ namespace BackyardBoss.ViewModels
             get => _zoneStatuses;
             set { _zoneStatuses = value; OnPropertyChanged(); }
         }
-        public string NextRunDisplay
-        {
-            get => _nextRunDisplay;
-            set { _nextRunDisplay = value; OnPropertyChanged(); }
-        }
+        public string NextRunDisplay => NextRun == null ? "-" : $"{NextRun.StartTime} - {NextRun.Set} ({NextRun.DurationMinutes} min)";
         public string LastRunDisplay
         {
             get => _lastRunDisplay;
@@ -301,6 +285,17 @@ namespace BackyardBoss.ViewModels
             get => _ledColors;
             set { _ledColors = value; OnPropertyChanged(); }
         }
+        public PiRunInfo CurrentRun
+        {
+            get => _currentRun;
+            set { _currentRun = value; OnPropertyChanged(); OnPropertyChanged(nameof(CurrentRunDisplay)); }
+        }
+        public PiRunInfo NextRun
+        {
+            get => _nextRun;
+            set { _nextRun = value; OnPropertyChanged(); OnPropertyChanged(nameof(NextRunDisplay)); }
+        }
+        public string CurrentRunDisplay => CurrentRun == null ? "Idle" : $"{CurrentRun.Set} {CurrentRun.Phase} ({CurrentRun.TimeRemainingSec / 60:D2}:{CurrentRun.TimeRemainingSec % 60:D2})";
         #endregion
 
         #region Commands
@@ -330,7 +325,6 @@ namespace BackyardBoss.ViewModels
             Current = this;
             WeatherVM = new WeatherViewModel();
             _ = WeatherVM.LoadWeatherAsync();
-            CurrentRunStatus = "• Checking Status...";
             CalculateTodayScheduleIndex();
             LoadSchedule(); // <-- Enable real data loading
             // Debounce timer for saving and uploading schedule
@@ -342,26 +336,27 @@ namespace BackyardBoss.ViewModels
             };
             // Populate mock data for dashboard demo
             SystemStatus = "All Systems Nominal";
+            // Use set names for mock ZoneStatuses if available, otherwise fallback to generic names
+            var demoSetNames = new[] { "Front Lawn", "Backyard", "Garden" };
             ZoneStatuses = new ObservableCollection<ZoneStatus>
             {
-                new ZoneStatus { Name = "Zone 1", Status = "Idle" },
-                new ZoneStatus { Name = "Zone 2", Status = "Watering" },
-                new ZoneStatus { Name = "Zone 3", Status = "Idle" }
+                new ZoneStatus { Name = demoSetNames[0], Status = "Idle" },
+                new ZoneStatus { Name = demoSetNames[1], Status = "Watering" },
+                new ZoneStatus { Name = demoSetNames[2], Status = "Idle" }
             };
-            NextRunDisplay = $"{DateTime.Now.AddHours(1):yyyy-MM-dd HH:mm} - Zone 2 (12 min)";
-            LastRunDisplay = $"{DateTime.Now.AddHours(-2):yyyy-MM-dd HH:mm} - Zone 1 (10 min)";
+            LastRunDisplay = $"{DateTime.Now.AddHours(-2):yyyy-MM-dd HH:mm} - {demoSetNames[0]} (10 min)";
             UpcomingRuns = new ObservableCollection<ScheduledRunPreview>
             {
-                new ScheduledRunPreview { SetName = "Zone 2", StartTime = DateTime.Now.AddHours(1).ToString("HH:mm"), SeasonallyAdjustedMinutes = 12 },
-                new ScheduledRunPreview { SetName = "Zone 3", StartTime = DateTime.Now.AddHours(2).ToString("HH:mm"), SeasonallyAdjustedMinutes = 15 }
+                new ScheduledRunPreview { SetName = demoSetNames[1], StartTime = DateTime.Now.AddHours(1).ToString("HH:mm"), SeasonallyAdjustedMinutes = 12 },
+                new ScheduledRunPreview { SetName = demoSetNames[2], StartTime = DateTime.Now.AddHours(2).ToString("HH:mm"), SeasonallyAdjustedMinutes = 15 }
             };
             LastWeekHistory = new ObservableCollection<WateringLogEntry>
             {
-                new WateringLogEntry { Date = DateTime.Today.AddDays(-1), SetName = "Zone 1", DurationMinutes = 10, Status = "Completed" },
-                new WateringLogEntry { Date = DateTime.Today.AddDays(-2), SetName = "Zone 2", DurationMinutes = 12, Status = "Completed" },
-                new WateringLogEntry { Date = DateTime.Today.AddDays(-3), SetName = "Zone 3", DurationMinutes = 15, Status = "Error" }
+                new WateringLogEntry { Date = DateTime.Today.AddDays(-1), SetName = demoSetNames[0], DurationMinutes = 10, Status = "Completed" },
+                new WateringLogEntry { Date = DateTime.Today.AddDays(-2), SetName = demoSetNames[1], DurationMinutes = 12, Status = "Completed" },
+                new WateringLogEntry { Date = DateTime.Today.AddDays(-3), SetName = demoSetNames[2], DurationMinutes = 15, Status = "Error" }
             };
-            // Call UpdateNextRunFromJson to populate NextRunDisplay from JSON
+            // Call UpdateNextRunFromJson to populate NextRun from JSON
             UpdateNextRunFromJson();
             var piScheduleTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             piScheduleTimer.Tick += async (s, e) => await UpdatePiScheduleInfoAsync();
@@ -660,68 +655,22 @@ namespace BackyardBoss.ViewModels
                 response.EnsureSuccessStatusCode();
                 var json = await response.Content.ReadAsStringAsync();
                 DebugLogger.LogVariableStatus("RAW JSON from PiStatus:", json);
-
                 var parsed = JsonSerializer.Deserialize<PiStatusResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                 if (parsed != null)
                 {
-                    if (!string.IsNullOrEmpty(parsed.SystemStatus))
-                        SystemStatus = parsed.SystemStatus;
+                    SystemStatus = parsed.SystemStatus;
                     PiReportedTestMode = parsed.TestMode;
                     LedColors = parsed.LedColors ?? new Dictionary<string, string>();
                     if (parsed.Zones != null && parsed.Zones.Count > 0)
-                    {
-                        App.Current.Dispatcher.Invoke(() =>
-                        {
-                            ZoneStatuses = new ObservableCollection<ZoneStatus>(parsed.Zones);
-                        });
-                    }
-
-                    // Build the status string
-                    if (!string.IsNullOrEmpty(parsed.CurrentRunSet))
-                    {
-                        if (parsed.CurrentRunPhase == "Watering" && parsed.TimeRemainingSec > 0)
-                        {
-                            var min = parsed.TimeRemainingSec / 60;
-                            var sec = parsed.TimeRemainingSec % 60;
-                            if (parsed.PulseTimeLeftSec > 0)
-                            {
-                                var pulseMin = parsed.PulseTimeLeftSec / 60;
-                                var pulseSec = parsed.PulseTimeLeftSec % 60;
-                                CurrentRunStatus = $"• {parsed.CurrentRunSet}\nWatering ({min:D2}:{sec:D2})\nPulse ({pulseMin:D2}:{pulseSec:D2})";
-                            }
-                            else
-                            {
-                                CurrentRunStatus = $"• {parsed.CurrentRunSet}\nWatering ({min:D2}:{sec:D2})";
-                            }
-                        }
-                        else if (parsed.CurrentRunPhase == "Soaking" && parsed.SoakRemainingSec > 0)
-                        {
-                            var soakMin = parsed.SoakRemainingSec / 60;
-                            var soakSec = parsed.SoakRemainingSec % 60;
-                            CurrentRunStatus = $"• {parsed.CurrentRunSet}\nSoaking ({soakMin:D2}:{soakSec:D2})";
-                        }
-                        else
-                        {
-                            CurrentRunStatus = $"• {parsed.CurrentRunSet}";
-                        }
-                    }
-                    else
-                    {
-                        CurrentRunStatus = "• Idle";
-                    }
-                }
-                else
-                {
-                    Debug.WriteLine("Parsed response is null.");
+                        App.Current.Dispatcher.Invoke(() => { ZoneStatuses = new ObservableCollection<ZoneStatus>(parsed.Zones); });
+                    CurrentRun = parsed.CurrentRun;
+                    NextRun = parsed.NextRun;
                 }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Failed to load Pi status: {ex.Message}");
-                App.Current.Dispatcher.Invoke(() =>
-                {
-                    CurrentRunStatus = "• Offline";
-                });
+                App.Current.Dispatcher.Invoke(() => { CurrentRun = null; });
             }
             //update PiScheduleIndex
             OnPropertyChanged(nameof(PiScheduleIndex));
@@ -917,16 +866,22 @@ namespace BackyardBoss.ViewModels
         #region UI Helpers
         private void UpdateStatusIcon(string status)
         {
-            if (status.Contains("Idle"))
-                StatusIconPath = "pack://application:,,,/Assets/Icons/idle.png";
-            else if (status.Contains("("))
+            if (CurrentRun != null && CurrentRun.Phase != null)
+            {
                 StatusIconPath = "pack://application:,,,/Assets/Icons/running.png";
+            }
             else if (status.Contains("Offline"))
+            {
                 StatusIconPath = "pack://application:,,,/Assets/Icons/offline.png";
+            }
             else if (status.Contains("Loading"))
+            {
                 StatusIconPath = "pack://application:,,,/Assets/Icons/loading.png";
+            }
             else
+            {
                 StatusIconPath = "pack://application:,,,/Assets/Icons/unknown.png";
+            }
         }
         private void ToggleTestMode()
         {
@@ -1028,29 +983,6 @@ namespace BackyardBoss.ViewModels
         #endregion
 
         #region Nested Types
-        private class PiStatusResponse
-        {
-            [JsonPropertyName("system_status")]
-            public string SystemStatus { get; set; }
-            [JsonPropertyName("test_mode")]
-            public bool TestMode { get; set; }
-            [JsonPropertyName("test_mode_timestamp")]
-            public double TestModeTimestamp { get; set; }
-            [JsonPropertyName("led_colors")]
-            public Dictionary<string, string> LedColors { get; set; }
-            [JsonPropertyName("zones")]
-            public List<ZoneStatus> Zones { get; set; }
-            [JsonPropertyName("current_run_set")]
-            public string CurrentRunSet { get; set; }
-            [JsonPropertyName("current_run_phase")]
-            public string CurrentRunPhase { get; set; }
-            [JsonPropertyName("time_remaining_sec")]
-            public int TimeRemainingSec { get; set; }
-            [JsonPropertyName("pulse_time_left_sec")]
-            public int PulseTimeLeftSec { get; set; }
-            [JsonPropertyName("soak_remaining_sec")]
-            public int SoakRemainingSec { get; set; }
-        }
         #endregion
 
         #region New Methods
@@ -1061,7 +993,7 @@ namespace BackyardBoss.ViewModels
                 var jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sprinkler_schedule.json");
                 if (!File.Exists(jsonPath)) return;
                 var json = File.ReadAllText(jsonPath);
-                using var doc = JsonDocument.Parse(json)    ;
+                using var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement;
                 var startTimes = root.GetProperty("start_times").EnumerateArray()
                     .Where(st => st.GetProperty("isEnabled").GetBoolean())
@@ -1071,7 +1003,7 @@ namespace BackyardBoss.ViewModels
                 if (startTimes.Count == 0) return;
                 var now = DateTime.Now.TimeOfDay;
                 var nextTime = startTimes.FirstOrDefault(t => t > now);
-                if (nextTime == default) nextTime = startTimes.First(); // fallback to first if all have passed
+                if (nextTime == default) nextTime = startTimes.First();
                 var sets = root.GetProperty("sets").EnumerateArray()
                     .Where(s => s.TryGetProperty("run_duration_minutes", out _))
                     .Select(s => new
@@ -1081,8 +1013,12 @@ namespace BackyardBoss.ViewModels
                     })
                     .ToList();
                 if (sets.Count == 0) return;
-                var nextSet = sets.First(); // Just pick the first set for demo
-                NextRunDisplay = $"{nextTime:hh\\:mm} - {nextSet.Name} ({nextSet.Duration} min)";
+                var nextSet = sets.First();
+                NextRun = new PiRunInfo {
+                    Set = nextSet.Name,
+                    StartTime = nextTime.ToString(@"hh\:mm"),
+                    DurationMinutes = nextSet.Duration
+                };
             }
             catch { /* ignore errors for now */ }
         }

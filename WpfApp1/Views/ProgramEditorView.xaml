@@ -99,13 +99,13 @@
                                     </StackPanel>
                                 </Border>
                                 <!--
-                                    SoakTimeRemaining only visible if IsSoaking is true (uses BoolToVisibilityConverter)
+                                    Current Run Display:
+                                    Displays the current run status.
                                 -->
-                                <TextBlock Text="{Binding SoakTimeRemaining}"
-                       FontSize="12"
-                       HorizontalAlignment="Center"
-                       Foreground="{DynamicResource SecondaryTextBrush}"
-                       Visibility="{Binding IsSoaking, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                <TextBlock Text="{Binding CurrentRunDisplay}"
+                                           FontSize="16"
+                                           HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" />
                             </StackPanel>
                         </StackPanel>
                         <Grid Grid.Row="1">
@@ -324,7 +324,7 @@
                         <TextBlock Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Top" Text="Sprinkler Control Panel" FontSize="28" FontWeight="Bold" Foreground="White"/>
                         <StackPanel Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" Orientation="Horizontal">
                             <Image Source="{Binding StatusIconPath}" Width="50" Height="50" HorizontalAlignment="Center" />
-                            <TextBlock Text="{Binding CurrentRunStatus, FallbackValue=Offline}" Foreground="Lime" FontWeight="Bold" Margin="24,0,0,0"/>
+                            <TextBlock Text="{Binding CurrentRunDisplay, FallbackValue=Idle}" Foreground="Lime" FontWeight="Bold" Margin="24,0,0,0"/>
                         </StackPanel>
                     </Grid>
                 </Border>
