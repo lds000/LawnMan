@@ -87,6 +87,8 @@ namespace BackyardBoss.ViewModels
         public LastCompletedRunInfo LastCompletedRun { get; set; }
         [JsonPropertyName("upcoming_runs")]
         public List<UpcomingRunInfo> UpcomingRuns { get; set; }
+        [JsonPropertyName("today_is_watering_day")]
+        public bool TodayIsWateringDay { get; set; }
     }
 
     public class ProgramEditorViewModel : INotifyPropertyChanged
@@ -123,6 +125,7 @@ namespace BackyardBoss.ViewModels
         private PiRunInfo _nextRun;
         private LastCompletedRunInfo _lastCompletedRun;
         private ObservableCollection<UpcomingRunInfo> _upcomingRuns = new();
+        private BackyardBoss.Models.MistStatus _mistStatus;
         #endregion
 
         #region Properties
@@ -288,7 +291,16 @@ namespace BackyardBoss.ViewModels
         public string SelectedSection
         {
             get => _selectedSection;
-            set { _selectedSection = value; OnPropertyChanged(); }
+            set
+            {
+                _selectedSection = value;
+                OnPropertyChanged();
+                if (value == "History")
+                {
+                    // Fetch latest history from Pi when switching to History section
+                    _ = LoadHistoryFromPiAsync();
+                }
+            }
         }
         public string SystemStatus
         {
@@ -341,7 +353,35 @@ namespace BackyardBoss.ViewModels
             get => _lastCompletedRun;
             set { _lastCompletedRun = value; OnPropertyChanged(); OnPropertyChanged(nameof(LastRunDisplay)); }
         }
-        public string CurrentRunDisplay => CurrentRun == null ? "Idle" : $"{CurrentRun.Set} {CurrentRun.Phase} ({CurrentRun.TimeRemainingSec / 60:D2}:{CurrentRun.TimeRemainingSec % 60:D2})";
+        public string CurrentRunDisplay
+        {
+            get
+            {
+                if (CurrentRun == null)
+                    return "Idle";
+                string phase = CurrentRun.Phase ?? string.Empty;
+                if (phase.Equals("Soaking", StringComparison.OrdinalIgnoreCase) && CurrentRun.SoakRemainingSec.HasValue)
+                {
+                    int sec = CurrentRun.SoakRemainingSec.Value;
+                    int sec2 = CurrentRun.TimeRemainingSec.Value;
+                    return $"{CurrentRun.Set} Soak ({sec / 60:D2}:{sec % 60:D2} -> {sec2 / 60:D2}:{sec2 % 60:D2})";
+                }
+                else if (CurrentRun.TimeRemainingSec.HasValue)
+                {
+                    int sec = CurrentRun.TimeRemainingSec.Value;
+                    return $"{CurrentRun.Set} {CurrentRun.Phase} ({sec / 60:D2}:{sec % 60:D2})";
+                }
+                else
+                {
+                    return $"{CurrentRun.Set} {CurrentRun.Phase}";
+                }
+            }
+        }
+        public BackyardBoss.Models.MistStatus MistStatus
+        {
+            get => _mistStatus;
+            set { _mistStatus = value; OnPropertyChanged(); }
+        }
         #endregion
 
         #region Commands
@@ -473,6 +513,13 @@ namespace BackyardBoss.ViewModels
                     new MistSettingViewModel { Temperature = 100, Interval = 20, Duration = 2 }
                 };
             }
+
+            // Add mist status polling
+            var mistStatusTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
+            mistStatusTimer.Tick += async (s, e) => await LoadMistStatusAsync();
+            mistStatusTimer.Start();
+            // Initial load for mist status
+            _ = LoadMistStatusAsync();
         }
         #endregion
 
@@ -830,6 +877,52 @@ namespace BackyardBoss.ViewModels
                     DurationMinutes = 10 + i,
                     Status = "Completed"
                 });
+            }
+        }
+
+        public async Task LoadHistoryFromPiAsync()
+        {
+            try
+            {
+                using var client = new HttpClient();
+                var response = await client.GetAsync("http://100.116.147.6:5000/history");
+                response.EnsureSuccessStatusCode();
+                var json = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("watering_history", out var historyArray))
+                {
+                    var newHistory = new ObservableCollection<WateringLogEntry>();
+                    foreach (var entry in historyArray.EnumerateArray())
+                    {
+                        var logEntry = new WateringLogEntry
+                        {
+                            Date = DateTime.TryParse(entry.GetProperty("date").GetString(), out var dt) ? dt : DateTime.MinValue,
+                            SetName = entry.GetProperty("set").GetString(),
+                            DurationMinutes = entry.GetProperty("duration_minutes").GetInt32(),
+                            Status = entry.GetProperty("status").GetString()
+                        };
+                        newHistory.Add(logEntry);
+                    }
+                    App.Current.Dispatcher.Invoke(() => LastWeekHistory = newHistory);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to load watering history: {ex.Message}");
+            }
+        }
+
+        public async Task LoadMistStatusAsync()
+        {
+            try
+            {
+                using var client = new HttpClient();
+                var json = await client.GetStringAsync("http://100.116.147.6:5000/mist-status");
+                MistStatus = System.Text.Json.JsonSerializer.Deserialize<BackyardBoss.Models.MistStatus>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to load mist status: {ex.Message}");
             }
         }
         #endregion

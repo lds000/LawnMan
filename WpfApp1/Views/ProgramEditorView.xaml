@@ -72,6 +72,18 @@
                                 Displays weather info. DataContext is set to WeatherVM property of the main ViewModel.
                             -->
                                 <usercontrols:WeatherCard Width="300" DataContext="{Binding WeatherVM}"/>
+                                <!-- Mist Status Card: -->
+                                <Border Background="{DynamicResource CardBackground}" CornerRadius="10" Padding="12" Margin="0,8,0,12">
+                                    <StackPanel>
+                                        <TextBlock Text="Mist Status" FontWeight="Bold" FontSize="18" Foreground="{DynamicResource PrimaryText}"/>
+                                        <TextBlock Text="{Binding MistStatus.CurrentTemperature, StringFormat=Current Temp: {0}°}" FontSize="14"/>
+                                        <TextBlock Text="{Binding MistStatus.IsMisting, StringFormat=Currently Misting: {0}}" FontSize="14"/>
+                                        <TextBlock Text="{Binding MistStatus.LastMistEvent, StringFormat=Last Mist: {0:G}}" FontSize="14"/>
+                                        <TextBlock Text="{Binding MistStatus.NextMistEvent, StringFormat=Next Mist: {0:G}}" FontSize="14"/>
+                                        <TextBlock Text="{Binding MistStatus.IntervalMinutes, StringFormat=Interval: {0} min}" FontSize="14"/>
+                                        <TextBlock Text="{Binding MistStatus.DurationMinutes, StringFormat=Duration: {0} min}" FontSize="14"/>
+                                    </StackPanel>
+                                </Border>
                                 <Border Background="{DynamicResource CardBackground}" CornerRadius="10" Padding="12" Margin="0,0,0,12">
 
                                     <StackPanel Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -178,12 +190,29 @@
         </DataTemplate>
         <!--
             ScheduleTemplate:
-            Displays the schedule editor, including seasonal adjustment and set editors for each visible set.
+            Displays the schedule editor, including seasonal adjustment, start times editor, and set editors for each visible set.
         -->
         <DataTemplate x:Key="ScheduleTemplate">
             <StackPanel DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=UserControl}}">
                 <!-- Seasonal adjustment slider/control -->
                 <usercontrols:SeasonalAdjustControl Margin="10"/>
+                <!-- Start Times Editor -->
+                <GroupBox Header="Start Times" Margin="0,0,0,12">
+                    <StackPanel>
+                        <ItemsControl ItemsSource="{Binding StartTimes}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                                        <Button Content="{Binding Time}" Command="{Binding DataContext.OpenTimePickerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" Width="80" Margin="0,0,8,0"/>
+                                        <CheckBox Content="Enabled" IsChecked="{Binding IsEnabled, Mode=TwoWay}" VerticalAlignment="Center"/>
+                                        <Button Content="Remove" Command="{Binding DataContext.RemoveStartTimeCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" Width="60" Margin="8,0,0,0"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Button Content="Add Start Time" Command="{Binding AddStartTimeCommand}" Width="120" Margin="0,8,0,0"/>
+                    </StackPanel>
+                </GroupBox>
                 <!-- List of sets (excluding "Misters") -->
                 <ItemsControl ItemsSource="{Binding VisibleSets}">
                     <ItemsControl.ItemTemplate>
@@ -225,31 +254,34 @@
             Placeholder for future history/settings panel.
         -->
         <DataTemplate x:Key="HistoryTemplate">
-            <!--
-                               Last Week History Card:
-                               Shows a list of watering events from the last week.
-                           -->
-            <Border Grid.Column="1" Background="{DynamicResource CardBackground}" CornerRadius="10" Padding="12" Margin="12,0,0,0">
-                <StackPanel>
-                    <TextBlock Text="Last Week History" FontWeight="Bold" FontSize="20" Foreground="{DynamicResource PrimaryText}"/>
-                    <ItemsControl ItemsSource="{Binding LastWeekHistory}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock FontSize="16" Text="{Binding Date, StringFormat=MM-dd}" Margin="0,0,8,0" Foreground="{DynamicResource PrimaryText}"/>
-                                    <TextBlock FontSize="16" Text="{Binding SetName}" Margin="0,0,8,0" Foreground="{DynamicResource PrimaryText}"/>
-                                    <TextBlock FontSize="16" Text="{Binding DurationMinutes}" Foreground="{DynamicResource PrimaryText}"/>
-                                    <TextBlock FontSize="16" Text=" min" Foreground="{DynamicResource PrimaryText}"/>
-                                    <TextBlock FontSize="16" Text=" (" Foreground="{DynamicResource PrimaryText}"/>
-                                    <TextBlock FontSize="16" Text="{Binding Status}" Foreground="{DynamicResource PrimaryText}"/>
-                                    <TextBlock FontSize="16" Text=")" Foreground="{DynamicResource PrimaryText}"/>
-                                </StackPanel>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </StackPanel>
-            </Border>
-
+            <ContentPresenter DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                <ContentPresenter.Content>
+                    <!--
+                        Last Week History Card:
+                        Shows a list of watering events from the last week.
+                    -->
+                    <Border Grid.Column="1" Background="{DynamicResource CardBackground}" CornerRadius="10" Padding="12" Margin="12,0,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Last Week History" FontWeight="Bold" FontSize="20" Foreground="{DynamicResource PrimaryText}"/>
+                            <ItemsControl ItemsSource="{Binding LastWeekHistory}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock FontSize="16" Text="{Binding Date, StringFormat=MM-dd}" Margin="0,0,8,0" Foreground="{DynamicResource PrimaryText}"/>
+                                            <TextBlock FontSize="16" Text="{Binding SetName}" Margin="0,0,8,0" Foreground="{DynamicResource PrimaryText}"/>
+                                            <TextBlock FontSize="16" Text="{Binding DurationMinutes}" Foreground="{DynamicResource PrimaryText}"/>
+                                            <TextBlock FontSize="16" Text=" min" Foreground="{DynamicResource PrimaryText}"/>
+                                            <TextBlock FontSize="16" Text=" (" Foreground="{DynamicResource PrimaryText}"/>
+                                            <TextBlock FontSize="16" Text="{Binding Status}" Foreground="{DynamicResource PrimaryText}"/>
+                                            <TextBlock FontSize="16" Text=")" Foreground="{DynamicResource PrimaryText}"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </ContentPresenter.Content>
+            </ContentPresenter>
         </DataTemplate>
         <!--
             SettingsTemplate:
