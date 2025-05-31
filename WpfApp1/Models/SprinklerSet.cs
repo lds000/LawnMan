@@ -72,6 +72,10 @@ public class SprinklerSet : INotifyPropertyChanged
             if (int.TryParse(result, out int value))
                 PulseDurationMinutes = value;
         };
+        keypad.Cancelled += (s, e) =>
+        {
+            // Handle cancellation if needed (optional)
+        };
         keypad.Show(); // non-modal
     });
 

@@ -7,4 +7,5 @@
     <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
     <conv:TagToColorConverter x:Key="TagToColorConverter"/>
     <conv:ColorStringToBrushConverter x:Key="ColorStringToBrushConverter"/>
+    <conv:PercentToHeightConverter x:Key="PercentToHeightConverter"/>
 </ResourceDictionary>

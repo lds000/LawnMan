@@ -18,5 +18,6 @@ namespace BackyardBoss.Models
             set => Duration = TimeSpan.FromMinutes(value);
         }
         public string Status { get; set; } // e.g. Completed, Error
+        public string DateTimeDisplay => Date == DateTime.MinValue ? string.Empty : Date.ToString("MMM dd, yyyy h:mm tt");
     }
 }

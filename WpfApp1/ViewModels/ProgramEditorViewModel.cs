@@ -58,13 +58,23 @@ namespace BackyardBoss.ViewModels
     }
 
     public class UpcomingRunInfo
-    {
+    {   
         [JsonPropertyName("set")]
         public string Set { get; set; }
         [JsonPropertyName("start_time")]
         public string StartTime { get; set; }
         [JsonPropertyName("duration_minutes")]
         public int DurationMinutes { get; set; }
+
+        public string StartTimeDisplay =>
+       DateTime.TryParse(StartTime, out var dt)
+           ? dt.ToString("MMM dd, yyyy 'at' h:mm tt")
+           : StartTime;
+
+        public int SeasonallyAdjustedMinutes
+        {
+            get => (int)Math.Round(DurationMinutes * ProgramEditorViewModel.Current?.SeasonalAdjustment ?? 1.0);
+        }
     }
 
     public class PiStatusResponse
@@ -126,6 +136,7 @@ namespace BackyardBoss.ViewModels
         private LastCompletedRunInfo _lastCompletedRun;
         private ObservableCollection<UpcomingRunInfo> _upcomingRuns = new();
         private BackyardBoss.Models.MistStatus _mistStatus;
+        private readonly DispatcherTimer _timeTimer;
         #endregion
 
         #region Properties
@@ -139,7 +150,8 @@ namespace BackyardBoss.ViewModels
                return new ObservableCollection<SprinklerSet>(Sets.Where(s => !s.SetName.Equals("Misters", StringComparison.OrdinalIgnoreCase)));
             }
         }
-        
+
+        public string SystemLedColor => LedColors != null && LedColors.TryGetValue("system", out var color) ? color : null;
         public ObservableCollection<ScheduledRunPreview> UpcomingRunsPreview { get; private set; } = new();
         public ObservableCollection<UpcomingRunInfo> UpcomingRuns
         {
@@ -148,6 +160,7 @@ namespace BackyardBoss.ViewModels
         }
         public ObservableCollection<string> PiStatusLog { get; private set; } = new();
         public WeatherViewModel WeatherVM { get; } = new WeatherViewModel();
+        public SoilDataViewModel SoilDataVM { get; } = new SoilDataViewModel();
         public SprinklerSchedule Schedule { get; private set; } = new SprinklerSchedule();
         public ObservableCollection<SprinklerSet> Sets => Schedule.Sets;
         public static ProgramEditorViewModel Current { get; private set; }
@@ -169,7 +182,9 @@ namespace BackyardBoss.ViewModels
         public Brush TodayIndexColor => IsTodayIndex(TodayScheduleIndex) ? Brushes.Red : Brushes.White;
         public string StatusIconPath
         {
-            get => _statusIconPath;
+            get => string.IsNullOrEmpty(_statusIconPath)
+                ? "pack://application:,,,/Assets/Icons/unknown.png" // fallback image
+                : _statusIconPath;
             set
             {
                 if (_statusIconPath != value)
@@ -305,21 +320,42 @@ namespace BackyardBoss.ViewModels
         public string SystemStatus
         {
             get => _systemStatus;
-            set { _systemStatus = value; OnPropertyChanged(); }
+            set
+            {
+                _systemStatus = value;
+                OnPropertyChanged();
+                UpdateStatusIcon(_systemStatus);
+            }
         }
         public ObservableCollection<ZoneStatus> ZoneStatuses
         {
             get => _zoneStatuses;
             set { _zoneStatuses = value; OnPropertyChanged(); }
         }
-        public string NextRunDisplay => NextRun == null ? "-" : $"{NextRun.StartTime} - {NextRun.Set} ({NextRun.DurationMinutes} min)";
+        public string NextRunDisplay
+        {
+            get
+            {
+                if (NextRun == null)
+                    return "-";
+                // Try to parse the start time as a DateTime
+                if (DateTime.TryParse(NextRun.StartTime, out var dt))
+                {
+                    return $"{dt:MMM dd, yyyy 'at' h:mm tt} - {NextRun.Set} ({NextRun.DurationMinutes} min)";
+                }
+                // Fallback to original string if parsing fails
+                return $"{NextRun.StartTime} - {NextRun.Set} ({NextRun.DurationMinutes} min)";
+            }
+        }
         public string LastRunDisplay
         {
             get
             {
                 if (LastCompletedRun != null)
                 {
-                    var endTime = DateTime.TryParse(LastCompletedRun.EndTime, out var dt) ? dt.ToString("yyyy-MM-dd HH:mm") : LastCompletedRun.EndTime;
+                    var endTime = DateTime.TryParse(LastCompletedRun.EndTime, out var dt)
+                        ? dt.ToString("MMM dd, yyyy 'at' h:mm tt")
+                        : LastCompletedRun.EndTime;
                     return $"{endTime} - {LastCompletedRun.Set} ({LastCompletedRun.DurationMinutes} min, {LastCompletedRun.Status})";
                 }
                 return _lastRunDisplay;
@@ -341,12 +377,18 @@ namespace BackyardBoss.ViewModels
         public PiRunInfo CurrentRun
         {
             get => _currentRun;
-            set { _currentRun = value; OnPropertyChanged(); OnPropertyChanged(nameof(CurrentRunDisplay)); }
+            set
+            {
+                _currentRun = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(CurrentRunDisplay));
+                UpdateStatusIcon(SystemStatus);
+            }
         }
         public PiRunInfo NextRun
         {
             get => _nextRun;
-            set { _nextRun = value; OnPropertyChanged(); OnPropertyChanged(nameof(NextRunDisplay)); }
+            set { _nextRun = value; OnPropertyChanged(); OnPropertyChanged(nameof(NextRunDisplay)); UpdateStatusIcon(SystemStatus); }
         }
         public LastCompletedRunInfo LastCompletedRun
         {
@@ -357,6 +399,8 @@ namespace BackyardBoss.ViewModels
         {
             get
             {
+                if (SystemStatus != null && SystemStatus.Contains("Offline", StringComparison.OrdinalIgnoreCase))
+                    return "Offline";
                 if (CurrentRun == null)
                     return "Idle";
                 string phase = CurrentRun.Phase ?? string.Empty;
@@ -499,7 +543,11 @@ namespace BackyardBoss.ViewModels
             SelectSectionCommand = new RelayCommand(param =>
             {
                 if (param is string section)
+                {
                     SelectedSection = section;
+                    if (section == "Soil Data")
+                        _ = SoilDataVM.LoadSoilDataAsync();
+                }
             });
 
             if (Schedule.Mist == null)
@@ -520,6 +568,15 @@ namespace BackyardBoss.ViewModels
             mistStatusTimer.Start();
             // Initial load for mist status
             _ = LoadMistStatusAsync();
+
+            _timeTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(1)
+            };
+            _timeTimer.Tick += (s, e) => CurrentTime = DateTime.Now.ToString("dd MMM yyyy HH:mm:ss");
+
+            _timeTimer.Start();
+
         }
         #endregion
 
@@ -767,7 +824,11 @@ namespace BackyardBoss.ViewModels
             catch (Exception ex)
             {
                 Debug.WriteLine($"Failed to load Pi status: {ex.Message}");
-                App.Current.Dispatcher.Invoke(() => { CurrentRun = null; });
+                App.Current.Dispatcher.Invoke(() =>
+                {
+                    CurrentRun = null;
+                    SystemStatus = "Offline"; // <-- Add this line
+                });
             }
             //update PiScheduleIndex
             OnPropertyChanged(nameof(PiScheduleIndex));
@@ -780,7 +841,7 @@ namespace BackyardBoss.ViewModels
         /// Current time string, binds to PiStatusViewModel.
         /// </summary>
         /// <returns></returns>
-        private string _currentTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+        private string _currentTime = DateTime.Now.ToString("dd MMM yyyy HH:mm:ss");
         public string CurrentTime
         {
             get => _currentTime;
@@ -793,7 +854,6 @@ namespace BackyardBoss.ViewModels
                 }
             }
         }
-
         private async Task StopAllAsync()
         {
             try
@@ -867,10 +927,10 @@ namespace BackyardBoss.ViewModels
         {
             // TODO: Implement logic to fetch and parse last week history from Pi (e.g., HTTP or SFTP)
             // For now, add mock data:
-            LastWeekHistory.Clear();
+            var tempList = new List<WateringLogEntry>();
             for (int i = 0; i < 7; i++)
             {
-                LastWeekHistory.Add(new WateringLogEntry
+                tempList.Add(new WateringLogEntry
                 {
                     Date = DateTime.Today.AddDays(-i),
                     SetName = $"Zone {i + 1}",
@@ -878,6 +938,10 @@ namespace BackyardBoss.ViewModels
                     Status = "Completed"
                 });
             }
+            var sorted = tempList.OrderByDescending(x => x.Date).ToList();
+            LastWeekHistory.Clear();
+            foreach (var entry in sorted)
+                LastWeekHistory.Add(entry);
         }
 
         public async Task LoadHistoryFromPiAsync()
@@ -891,7 +955,7 @@ namespace BackyardBoss.ViewModels
                 using var doc = JsonDocument.Parse(json);
                 if (doc.RootElement.TryGetProperty("watering_history", out var historyArray))
                 {
-                    var newHistory = new ObservableCollection<WateringLogEntry>();
+                    var newHistory = new List<WateringLogEntry>();
                     foreach (var entry in historyArray.EnumerateArray())
                     {
                         var logEntry = new WateringLogEntry
@@ -903,7 +967,13 @@ namespace BackyardBoss.ViewModels
                         };
                         newHistory.Add(logEntry);
                     }
-                    App.Current.Dispatcher.Invoke(() => LastWeekHistory = newHistory);
+                    var sorted = newHistory.OrderByDescending(x => x.Date).ToList();
+                    App.Current.Dispatcher.Invoke(() =>
+                    {
+                        LastWeekHistory.Clear();
+                        foreach (var entry in sorted)
+                            LastWeekHistory.Add(entry);
+                    });
                 }
             }
             catch (Exception ex)
@@ -1017,14 +1087,7 @@ namespace BackyardBoss.ViewModels
             {
                 StatusIconPath = "pack://application:,,,/Assets/Icons/offline.png";
             }
-            else if (status.Contains("Loading"))
-            {
-                StatusIconPath = "pack://application:,,,/Assets/Icons/loading.png";
-            }
-            else
-            {
-                StatusIconPath = "pack://application:,,,/Assets/Icons/unknown.png";
-            }
+            // ... rest of logic
         }
         private void ToggleTestMode()
         {

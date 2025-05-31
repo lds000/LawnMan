@@ -7,6 +7,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
+             
              Background="{DynamicResource PrimaryBackground}"
              FontSize="24">
 
@@ -38,7 +39,7 @@
                                 <StackPanel>
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
                                         <Ellipse Width="18" Height="18" Margin="0,0,8,0"
-                                                 Fill="{Binding LedColors[system], Converter={StaticResource ColorStringToBrushConverter}}"/>
+         Fill="{Binding SystemLedColor, Converter={StaticResource ColorStringToBrushConverter}}"/>
                                         <TextBlock Text="System Status" FontWeight="Bold" FontSize="22" Foreground="{DynamicResource PrimaryText}"/>
                                     </StackPanel>
                                     <TextBlock Text="{Binding SystemStatus}" Foreground="Lime"/>
@@ -71,7 +72,7 @@
                                 Weather Card:
                                 Displays weather info. DataContext is set to WeatherVM property of the main ViewModel.
                             -->
-                                <usercontrols:WeatherCard Width="300" DataContext="{Binding WeatherVM}"/>
+                                <usercontrols:WeatherCard Width="250" DataContext="{Binding WeatherVM}"/>
                                 <!-- Mist Status Card: -->
                                 <Border Background="{DynamicResource CardBackground}" CornerRadius="10" Padding="12" Margin="0,8,0,12">
                                     <StackPanel>
@@ -84,9 +85,12 @@
                                         <TextBlock Text="{Binding MistStatus.DurationMinutes, StringFormat=Duration: {0} min}" FontSize="14"/>
                                     </StackPanel>
                                 </Border>
+
+                            </StackPanel>
+                            <StackPanel>
                                 <Border Background="{DynamicResource CardBackground}" CornerRadius="10" Padding="12" Margin="0,0,0,12">
 
-                                    <StackPanel Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <StackPanel Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center">
 
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Margin="0,0,5,0" Text="Time:" FontWeight="Bold"/>
@@ -110,79 +114,43 @@
                Visibility="{Binding ScheduleIndexMismatch, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                     </StackPanel>
                                 </Border>
-                                <!--
-                                    Current Run Display:
-                                    Displays the current run status.
-                                -->
-                                <TextBlock Text="{Binding CurrentRunDisplay}"
-                                           FontSize="16"
-                                           HorizontalAlignment="Center"
-                                           Foreground="{DynamicResource SecondaryTextBrush}" />
+                                <Border Margin="10,0,0,0" Grid.Column="1" Background="{DynamicResource CardBackground}" CornerRadius="10" Padding="12">
+                                    <StackPanel>
+                                        <TextBlock Text="Upcoming Runs" FontWeight="Bold" FontSize="20" Foreground="{DynamicResource PrimaryText}"/>
+                                        <ItemsControl ItemsSource="{Binding UpcomingRuns}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock FontSize="14" Text="{Binding Set}" FontWeight="Bold" Margin="0,0,8,0" Foreground="{DynamicResource PrimaryText}"/>
+                                                        <TextBlock FontSize="12" Text="{Binding StartTimeDisplay}" Margin="0,0,8,0" Foreground="{DynamicResource PrimaryText}"/>
+                                                        <TextBlock FontSize="12" Text="{Binding SeasonallyAdjustedMinutes}" Foreground="{DynamicResource PrimaryText}"/>
+                                                        <TextBlock FontSize="12" Text=" min" Foreground="{DynamicResource PrimaryText}"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+
                             </StackPanel>
                         </StackPanel>
-                        <Grid Grid.Row="1">
+                        <Grid Grid.Row="1" VerticalAlignment="Top">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="8*"/>
                                 <ColumnDefinition Width="7*"/>
                             </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0" Margin="0,0,10,0">
-                                <!--
-                                    Next Run Card:
-                                    Shows the next scheduled run.
-                                -->
-                                <Border Background="{DynamicResource CardBackground}" CornerRadius="10" Padding="12" Margin="0,0,0,12">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock VerticalAlignment="Center" Text="Next Run" FontWeight="Bold" FontSize="20" Foreground="{DynamicResource PrimaryText}"/>
-                                        <TextBlock FontSize="16" VerticalAlignment="Center" Margin="10,0,0,0" x:Name="NextRunTextBlock" Text="{Binding NextRunDisplay}" Foreground="{DynamicResource PrimaryText}"/>
-                                    </StackPanel>
-                                </Border>
-                                <!--
-                                    Last Run Card:
-                                    Shows the last completed run.
-                                -->
-                                <Border Background="{DynamicResource CardBackground}" CornerRadius="10" Padding="12" Margin="0,0,0,12">
+                                
+                                <Border Grid.Column="0" Grid.ColumnSpan="2" Background="{DynamicResource CardBackground}" CornerRadius="10" Padding="12" Margin="0,0,0,12">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock VerticalAlignment="Center" Text="Last Run" FontWeight="Bold" FontSize="20" Foreground="{DynamicResource PrimaryText}"/>
                                         <TextBlock FontSize="16" VerticalAlignment="Center" Margin="10,0,0,0" Text="{Binding LastRunDisplay}"  Foreground="{DynamicResource PrimaryText}"/>
                                     </StackPanel>
                                 </Border>
-                                <!-- Manual Run Button -->
-                                <Button Content="Manual Run"
-                                        Command="{Binding RunOnceCommand}"
-                                        Margin="0,0,0,12"
-                                        Height="40"
-                                        FontSize="18"/>
-                                <!-- Stop All Button -->
-                                <Button Content="Stop All"
-                                        Command="{Binding StopAllCommand}"
-                                        Margin="0,0,0,12"
-                                        Height="40"
-                                        FontSize="18"
-                                        Background="Red"
-                                        Foreground="White"/>
                                 <!--
                                     Upcoming Runs Card:
                                     Shows a list of upcoming scheduled runs.
                                 -->
 
-                            </StackPanel>
-                            <Border Margin="10,0,0,0" Grid.Column="1" Background="{DynamicResource CardBackground}" CornerRadius="10" Padding="12">
-                                <StackPanel>
-                                    <TextBlock Text="Upcoming Runs" FontWeight="Bold" FontSize="20" Foreground="{DynamicResource PrimaryText}"/>
-                                    <ItemsControl ItemsSource="{Binding UpcomingRuns}">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <StackPanel Orientation="Horizontal">
-                                                    <TextBlock FontSize="14" Text="{Binding SetName}" FontWeight="Bold" Margin="0,0,8,0" Foreground="{DynamicResource PrimaryText}"/>
-                                                    <TextBlock FontSize="12" Text="{Binding StartTime}" Margin="0,0,8,0" Foreground="{DynamicResource PrimaryText}"/>
-                                                    <TextBlock FontSize="12" Text="{Binding SeasonallyAdjustedMinutes}" Foreground="{DynamicResource PrimaryText}"/>
-                                                    <TextBlock FontSize="12" Text=" min" Foreground="{DynamicResource PrimaryText}"/>
-                                                </StackPanel>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </StackPanel>
-                            </Border>
                         </Grid>
                     </Grid>
                 </ContentPresenter.Content>
@@ -194,25 +162,42 @@
         -->
         <DataTemplate x:Key="ScheduleTemplate">
             <StackPanel DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=UserControl}}">
-                <!-- Seasonal adjustment slider/control -->
-                <usercontrols:SeasonalAdjustControl Margin="10"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/>
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
                 <!-- Start Times Editor -->
                 <GroupBox Header="Start Times" Margin="0,0,0,12">
                     <StackPanel>
                         <ItemsControl ItemsSource="{Binding StartTimes}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <StackPanel Orientation="Horizontal" Margin="0,2">
-                                        <Button Content="{Binding Time}" Command="{Binding DataContext.OpenTimePickerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" Width="80" Margin="0,0,8,0"/>
-                                        <CheckBox Content="Enabled" IsChecked="{Binding IsEnabled, Mode=TwoWay}" VerticalAlignment="Center"/>
-                                        <Button Content="Remove" Command="{Binding DataContext.RemoveStartTimeCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" Width="60" Margin="8,0,0,0"/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                                            <Button 
+                                            Content="{Binding Time}" Command="{Binding DataContext.OpenTimePickerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" 
+                                            CommandParameter="{Binding}" 
+                                            Width="80" 
+                                            VerticalAlignment="Center"
+                                            Margin="0,0,8,0"/>
+                                            <StackPanel Orientation="Horizontal"></StackPanel>
+                                            <CheckBox 
+                                            Content="Enabled" 
+                                                  IsChecked="{Binding IsEnabled, Mode=TwoWay}" 
+                                            VerticalAlignment="Center"
+                                            Style="{StaticResource CircleCheckboxStyle}"/>
+                                            <TextBlock Margin="5,0,0,0" VerticalAlignment="Center" Text="Enabled"/>
+                                            <!-- <Button Content="Remove" Command="{Binding DataContext.RemoveStartTimeCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" Width="60" Margin="8,0,0,0"/> -->
                                     </StackPanel>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                        <Button Content="Add Start Time" Command="{Binding AddStartTimeCommand}" Width="120" Margin="0,8,0,0"/>
+                     <!--   <Button Content="Add Start Time" Command="{Binding AddStartTimeCommand}" Width="120" Margin="0,8,0,0"/> -->
                     </StackPanel>
                 </GroupBox>
+                    <!-- Seasonal adjustment slider/control -->
+                    <usercontrols:SeasonalAdjustControl Grid.Column="1" Margin="10"/>
+                </Grid>
                 <!-- List of sets (excluding "Misters") -->
                 <ItemsControl ItemsSource="{Binding VisibleSets}">
                     <ItemsControl.ItemTemplate>
@@ -267,7 +252,7 @@
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock FontSize="16" Text="{Binding Date, StringFormat=MM-dd}" Margin="0,0,8,0" Foreground="{DynamicResource PrimaryText}"/>
+                                            <TextBlock FontSize="16" Text="{Binding DateTimeDisplay}" Margin="0,0,8,0" Foreground="{DynamicResource PrimaryText}"/>
                                             <TextBlock FontSize="16" Text="{Binding SetName}" Margin="0,0,8,0" Foreground="{DynamicResource PrimaryText}"/>
                                             <TextBlock FontSize="16" Text="{Binding DurationMinutes}" Foreground="{DynamicResource PrimaryText}"/>
                                             <TextBlock FontSize="16" Text=" min" Foreground="{DynamicResource PrimaryText}"/>
@@ -310,6 +295,34 @@
             <views:DebugView />
         </DataTemplate>
         <!--
+            SoilDataTemplate:
+            Displays a simple bar chart of soil moisture by hour and day.
+        -->
+        <DataTemplate x:Key="SoilDataTemplate">
+            <StackPanel DataContext="{Binding DataContext.SoilDataVM, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                <TextBlock Text="Soil Data" FontWeight="Bold" FontSize="24" Margin="0,0,0,16"/>
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" Height="320">
+                    <ItemsControl ItemsSource="{Binding Bars}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="2,0" VerticalAlignment="Bottom">
+                                    <Border Background="DodgerBlue" Width="18" Height="{Binding MoisturePercent, Converter={StaticResource PercentToHeightConverter}}" VerticalAlignment="Bottom"/>
+                                    <TextBlock Text="{Binding Hour}" FontSize="10" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding Label}" FontSize="10" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+                <TextBlock Text="{Binding Error}" Foreground="Red" FontSize="14"/>
+            </StackPanel>
+        </DataTemplate>
+        <!--
             SectionTemplateSelector:
             Custom template selector that chooses which DataTemplate to use based on SelectedSection.
         -->
@@ -318,7 +331,8 @@
             ScheduleTemplate="{StaticResource ScheduleTemplate}"
             HistoryTemplate="{StaticResource HistoryTemplate}"
             SettingsTemplate="{StaticResource SettingsTemplate}"
-            DebugTemplate="{StaticResource DebugViewTemplate}"/>
+            DebugTemplate="{StaticResource DebugViewTemplate}"
+            SoilDataTemplate="{StaticResource SoilDataTemplate}"/>
     </UserControl.Resources>
 
     <Grid>
@@ -327,14 +341,37 @@
                 Side Navigation:
                 Vertical stack of navigation buttons for each section.
             -->
-            <StackPanel DockPanel.Dock="Left" Width="120" Background="{DynamicResource BoiseStateBlue}">
-                <Image Source="/Assets/BoiseStateLogo.png" Height="64" Margin="16"/>
-                <Button Style="{StaticResource NavButtonStyle}" Content="Overview" Margin="8" Command="{Binding SelectSectionCommand}" CommandParameter="Overview"/>
+            <Grid DockPanel.Dock="Left" Width="120" Background="{DynamicResource BoiseStateBlue}">
+                <Grid.RowDefinitions>
+                    <RowDefinition/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <StackPanel>
+        <Image Source="pack://application:,,,/Assets/logos/BoiseStateLogoBlack.png" Height="75" Width="Auto" Stretch="Uniform" Opacity="0.75"/>
+                    <Button Style="{StaticResource NavButtonStyle}" Content="Overview" Margin="8" Command="{Binding SelectSectionCommand}" CommandParameter="Overview"/>
                 <Button Style="{StaticResource NavButtonStyle}" Content="Schedule" Margin="8" Command="{Binding SelectSectionCommand}" CommandParameter="Schedule"/>
                 <Button Style="{StaticResource NavButtonStyle}" Content="History" Margin="8" Command="{Binding SelectSectionCommand}" CommandParameter="History"/>
-                <Button Style="{StaticResource NavButtonStyle}" Content="Settings" Margin="8" Command="{Binding SelectSectionCommand}" CommandParameter="Settings"/>
+                <Button Style="{StaticResource NavButtonStyle}" Content="Misters" Margin="8" Command="{Binding SelectSectionCommand}" CommandParameter="Settings"/>
                 <Button Style="{StaticResource NavButtonStyle}" Content="Debug" Margin="8" Command="{Binding SelectSectionCommand}" CommandParameter="Debug"/>
-            </StackPanel>
+                <Button Style="{StaticResource NavButtonStyle}" Content="Soil Data" Margin="8" Command="{Binding SelectSectionCommand}" CommandParameter="Soil Data"/>
+                </StackPanel>
+                <StackPanel Grid.Row="1">
+                <!-- Manual Run Button -->
+                <Button Content="Manual Run"
+                                        Command="{Binding RunOnceCommand}"
+                                        Margin="16,20,0,12"
+                                        Height="40"
+                                        FontSize="18"/>
+                <!-- Stop All Button -->
+                <Button Content="Stop All"
+                                        Command="{Binding StopAllCommand}"
+                                        Margin="16,0,0,12"
+                                        Height="40"
+                                        FontSize="18"
+                                        Background="Red"
+                                        Foreground="White"/>
+                </StackPanel>
+            </Grid>
 
             <!--
                 Main Content Area:
@@ -352,11 +389,22 @@
                             <ColumnDefinition Width="4*"/>
                             <ColumnDefinition Width="3*"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="{Binding CurrentTime}" FontSize="18" Foreground="White" Margin="24,0,0,0"/>
-                        <TextBlock Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Top" Text="Sprinkler Control Panel" FontSize="28" FontWeight="Bold" Foreground="White"/>
-                        <StackPanel Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" Orientation="Horizontal">
+                        <StackPanel Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock HorizontalAlignment="Center"  Text="Sprinkler Control Panel" FontSize="28" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock HorizontalAlignment="Center" Text="{Binding CurrentTime}" FontSize="18" Foreground="White"/>
+                        </StackPanel>
+                        <StackPanel 
+                            HorizontalAlignment="Center"
+                            Grid.Column="2"
+                            VerticalAlignment="Center" 
+                            Orientation="Vertical">
+                            <TextBlock Text="{Binding CurrentRunDisplay, FallbackValue=Idle}"
+                                       FontSize="14"
+                                       HorizontalAlignment="Center"
+                                       Foreground="Lime"
+                                       FontWeight="Bold"
+                                       Margin="0"/>
                             <Image Source="{Binding StatusIconPath}" Width="50" Height="50" HorizontalAlignment="Center" />
-                            <TextBlock Text="{Binding CurrentRunDisplay, FallbackValue=Idle}" Foreground="Lime" FontWeight="Bold" Margin="24,0,0,0"/>
                         </StackPanel>
                     </Grid>
                 </Border>

@@ -1,6 +1,13 @@
 ﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
+    <DropShadowEffect x:Key="BoiseStateOrangeShadow"
+                  Color="#FFEA6A1A"
+                  BlurRadius="0"
+                  ShadowDepth="2"
+                  Direction="315"
+                  Opacity="0.9"/>
+
     <!-- Button Style -->
     <Style TargetType="Button">
         <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
@@ -373,7 +380,9 @@
         <Setter Property="Cursor" Value="Hand"/>
     </Style>
 
-    <!-- NavButtonStyle: Large, touch-friendly, Boise State themed -->
+    
+    <!-- 
+    NavButtonStyle: Large, touch-friendly, Boise State themed -->
     <Style x:Key="NavButtonStyle" TargetType="Button">
         <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
         <Setter Property="Foreground" Value="White" />
@@ -387,7 +396,13 @@
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
                     <Border Background="{TemplateBinding Background}" CornerRadius="12">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <TextBlock Text="{TemplateBinding Content}"
+                               Foreground="{TemplateBinding Foreground}"
+                               FontSize="{TemplateBinding FontSize}"
+                               FontWeight="{TemplateBinding FontWeight}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Effect="{StaticResource BoiseStateOrangeShadow}"/>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
@@ -404,5 +419,4 @@
             </Setter.Value>
         </Setter>
     </Style>
-
 </ResourceDictionary>

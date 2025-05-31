@@ -13,6 +13,7 @@ namespace BackyardBoss.Views
         {
             get; private set;
         }
+        public event EventHandler Cancelled;
 
         public NumericKeypadWindow(string initialValue = "")
         {
@@ -77,7 +78,7 @@ namespace BackyardBoss.Views
 
         private void Cancel_Click(object sender, RoutedEventArgs e)
         {
-            DialogResult = false;
+            Cancelled?.Invoke(this, EventArgs.Empty);
             Close(); // ✅ needed here too
         }
 

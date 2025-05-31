@@ -3,7 +3,7 @@ using System.ComponentModel;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
-using System.Timers;
+using System.Windows.Threading;
 
 public class WeatherViewModel : INotifyPropertyChanged
 {
@@ -109,18 +109,23 @@ public class WeatherViewModel : INotifyPropertyChanged
         }
     }
 
-    private Timer _refreshTimer;
+    private readonly DispatcherTimer _weatherTimer;
 
     public WeatherViewModel()
     {
         Console.WriteLine("[DEBUG] WeatherViewModel constructor fired"); // Confirm this appears
-        _refreshTimer = new Timer(600000); // Refresh every 10 minutes
-        _refreshTimer.Elapsed += async (_, _) => await LoadWeatherAsync();
-        _refreshTimer.Start();
 
-        _ = LoadWeatherAsync(); // This must run here to load immediately
+        // Set the interval (e.g., every 10 minutes)
+        _weatherTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMinutes(10)
+        };
+        _weatherTimer.Tick += async (s, e) => await LoadWeatherAsync();
+        _weatherTimer.Start();
+
+        // Initial load
+        _ = LoadWeatherAsync();
     }
-
 
     public async Task LoadWeatherAsync()
     {

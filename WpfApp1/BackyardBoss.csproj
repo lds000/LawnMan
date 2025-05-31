@@ -15,6 +15,8 @@
 	  <None Remove="Assets\Icons\running.PNG" />
 	  <None Remove="Assets\Icons\unknown.PNG" />
 	  <None Remove="Assets\Icons\watering-can.png" />
+	  <None Remove="Assets\logos\BoiseStateLogo.png" />
+	  <None Remove="Assets\logos\BoiseStateLogoBlack.png" />
 	  <None Remove="sprinkler_schedule.json" />
 	</ItemGroup>
 
@@ -35,6 +37,8 @@
 	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Assets\Icons\watering-can.png" />
+	  <Resource Include="Assets\logos\BoiseStateLogo.png" />
+	  <Resource Include="Assets\logos\BoiseStateLogoBlack.png" />
 	  <Content Include="sprinkler_schedule.json">
 	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 	  </Content>
