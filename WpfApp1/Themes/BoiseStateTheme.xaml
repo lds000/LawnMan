@@ -2,36 +2,44 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!-- Boise State Primary Colors -->
-    <Color x:Key="BSUBlue">#FF0033A0</Color>
-    <Color x:Key="BSUOrange">#FFFF6600</Color>
-    <Color x:Key="DarkBackground">#FF121212</Color>
-    <Color x:Key="LightText">#FFF0F0F0</Color>
-    <Color x:Key="SecondaryText">#FFAAAAAA</Color>
-    <Color x:Key="InputDark">#FF222222</Color>
-    <Color x:Key="BorderGray">#FF555555</Color>
-    
-    
+    <Color x:Key="BSUBlueColor">#FF0033A0</Color>
+    <Color x:Key="BSUOrangeColor">#FFFF6600</Color>
+    <Color x:Key="DarkBackgroundColor">#FF121212</Color>
+    <Color x:Key="LightTextColor">#FFF0F0F0</Color>
+    <Color x:Key="SecondaryTextColor">#FFAAAAAA</Color>
+    <Color x:Key="InputDarkColor">#FF222222</Color>
+    <Color x:Key="BorderGrayColor">#FF555555</Color>
+    <Color x:Key="PrimaryBackgroundColor">#0D1117</Color>
+    <Color x:Key="CardBackgroundColor">#161B22</Color>
+    <Color x:Key="BoiseStateBlueColor">#0033A0</Color>
+    <Color x:Key="BoiseStateOrangeColor">#FF6600</Color>
+    <Color x:Key="PrimaryTextColor">#E6EDF3</Color>
+    <Color x:Key="SuccessGreenColor">#00FF6E</Color>
+    <Color x:Key="ErrorRedColor">#FF4C4C</Color>
+    <Color x:Key="WarningYellowColor">#FFC107</Color>
 
     <!-- Themed Brushes -->
-    <SolidColorBrush x:Key="PrimaryBackground" Color="{StaticResource DarkBackground}" />
-    <SolidColorBrush x:Key="PrimaryText" Color="{StaticResource LightText}" />
-    <SolidColorBrush x:Key="SecondaryTextBrush" Color="{StaticResource SecondaryText}" />
-    <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource BSUBlue}" />
-    <SolidColorBrush x:Key="HighlightBrush" Color="{StaticResource BSUOrange}" />
-    <SolidColorBrush x:Key="CardBackground" Color="#FF1E1E1E" />
-    <SolidColorBrush x:Key="InputBackground" Color="{StaticResource InputDark}" />
-    <SolidColorBrush x:Key="InputText" Color="{StaticResource LightText}" />
-    <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource BorderGray}" />
+    <SolidColorBrush x:Key="PrimaryBackground" Color="{StaticResource PrimaryBackgroundColor}" />
+    <SolidColorBrush x:Key="PrimaryText" Color="{StaticResource PrimaryTextColor}" />
+    <SolidColorBrush x:Key="SecondaryTextBrush" Color="{StaticResource SecondaryTextColor}" />
+    <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource BoiseStateBlueColor}" />
+    <SolidColorBrush x:Key="HighlightBrush" Color="{StaticResource BoiseStateOrangeColor}" />
+    <SolidColorBrush x:Key="CardBackgroundBrush" Color="{StaticResource CardBackgroundColor}" />
+    <SolidColorBrush x:Key="CardBackground" Color="{StaticResource CardBackgroundColor}" />
+    <SolidColorBrush x:Key="InputBackground" Color="{StaticResource InputDarkColor}" />
+    <SolidColorBrush x:Key="InputText" Color="{StaticResource LightTextColor}" />
+    <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource BorderGrayColor}" />
+    <SolidColorBrush x:Key="SuccessGreen" Color="{StaticResource SuccessGreenColor}" />
+    <SolidColorBrush x:Key="ErrorRed" Color="{StaticResource ErrorRedColor}" />
+    <SolidColorBrush x:Key="WarningYellow" Color="{StaticResource WarningYellowColor}" />
 
     <SolidColorBrush x:Key="ButtonTodayIndex" Color="Green" />
-    <SolidColorBrush x:Key="ButtonBackground" Color="{StaticResource BSUOrange}" />
-    
-    <SolidColorBrush x:Key="ButtonUncheckedColor" Color="{StaticResource BSUBlue}" />
-    <SolidColorBrush x:Key="ButtonCheckedColor" Color="{StaticResource BSUOrange}" />
+    <SolidColorBrush x:Key="ButtonBackground" Color="{StaticResource BoiseStateOrangeColor}" />
+    <SolidColorBrush x:Key="ButtonUncheckedColor" Color="{StaticResource BoiseStateBlueColor}" />
+    <SolidColorBrush x:Key="ButtonCheckedColor" Color="{StaticResource BoiseStateOrangeColor}" />
 
-
-    <SolidColorBrush x:Key="SliderTrackBrush" Color="#FFFFFF" />
-    <SolidColorBrush x:Key="SliderThumbFill" Color="#FFFFFF" />
-    <SolidColorBrush x:Key="SliderThumbStroke" Color="#0033A0" />
+    <SolidColorBrush x:Key="SliderTrackBrush" Color="#FF6600" /> <!-- Boise Orange -->
+    <SolidColorBrush x:Key="SliderThumbFill" Color="#E6EDF3" /> <!-- PrimaryText -->
+    <SolidColorBrush x:Key="SliderThumbStroke" Color="#0033A0" /> <!-- Boise Blue -->
 
 </ResourceDictionary>

@@ -17,6 +17,17 @@
 	  <None Remove="Assets\Icons\watering-can.png" />
 	  <None Remove="Assets\logos\BoiseStateLogo.png" />
 	  <None Remove="Assets\logos\BoiseStateLogoBlack.png" />
+	  <None Remove="Assets\logos\BoiseStateLogoDarkBlue.png" />
+	  <None Remove="Assets\WeatherIcons\01d.png" />
+	  <None Remove="Assets\WeatherIcons\02d.png" />
+	  <None Remove="Assets\WeatherIcons\03d.png" />
+	  <None Remove="Assets\WeatherIcons\04d.png" />
+	  <None Remove="Assets\WeatherIcons\09d.png" />
+	  <None Remove="Assets\WeatherIcons\10d.png" />
+	  <None Remove="Assets\WeatherIcons\11d.png" />
+	  <None Remove="Assets\WeatherIcons\13d.png" />
+	  <None Remove="Assets\WeatherIcons\50d.png" />
+	  <None Remove="Assets\WeatherIcons\hot.png" />
 	  <None Remove="sprinkler_schedule.json" />
 	</ItemGroup>
 
@@ -39,6 +50,37 @@
 	  <Resource Include="Assets\Icons\watering-can.png" />
 	  <Resource Include="Assets\logos\BoiseStateLogo.png" />
 	  <Resource Include="Assets\logos\BoiseStateLogoBlack.png" />
+	  <Resource Include="Assets\logos\BoiseStateLogoDarkBlue.png" />
+	  <Resource Include="Assets\WeatherIcons\01d.png">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\WeatherIcons\02d.png">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\WeatherIcons\03d.png">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\WeatherIcons\04d.png">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\WeatherIcons\09d.png">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\WeatherIcons\10d.png">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\WeatherIcons\11d.png">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\WeatherIcons\13d.png">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\WeatherIcons\50d.png">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\WeatherIcons\hot.png">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Resource>
 	  <Content Include="sprinkler_schedule.json">
 	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 	  </Content>

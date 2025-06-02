@@ -10,6 +10,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.editorconfig = .editorconfig
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SprinklerMapper", "..\SprinklerMapper\SprinklerMapper\SprinklerMapper.csproj", "{F73F8DCF-6DBF-E373-D0A9-306E0B54EF9D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -20,9 +22,16 @@ Global
 		{E6517272-8452-4E15-905E-4B94BAB3AE71}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E6517272-8452-4E15-905E-4B94BAB3AE71}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E6517272-8452-4E15-905E-4B94BAB3AE71}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F73F8DCF-6DBF-E373-D0A9-306E0B54EF9D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F73F8DCF-6DBF-E373-D0A9-306E0B54EF9D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F73F8DCF-6DBF-E373-D0A9-306E0B54EF9D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F73F8DCF-6DBF-E373-D0A9-306E0B54EF9D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{F73F8DCF-6DBF-E373-D0A9-306E0B54EF9D} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {928F01A1-B4AA-46E3-B3AF-83DD0B30F030}

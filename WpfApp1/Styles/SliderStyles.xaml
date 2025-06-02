@@ -11,22 +11,23 @@
         <Setter Property="FontWeight" Value="Bold"/>
         <Setter Property="Margin" Value="0,0,0,10"/>
     </Style>
-    <!-- Touch-friendly vertical slider style with custom track and thumb -->
+    <!-- Touch-friendly horizontal slider style with custom track and thumb -->
     <Style x:Key="TouchSliderStyle" TargetType="Slider">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderBrush" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Height" Value="40" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Slider">
-                    <Grid Background="Transparent">
+                    <Grid Background="Transparent" Height="40">
                         <!-- Track line -->
-                        <Rectangle Height="3"
+                        <Rectangle x:Name="PART_TrackBackground" Height="6"
                                Fill="{DynamicResource SliderTrackBrush}"
                                VerticalAlignment="Center"
                                HorizontalAlignment="Stretch"
+                               RadiusX="3" RadiusY="3"
                                Margin="20,0" />
-
                         <!-- Track with Thumb -->
                         <Track x:Name="PART_Track"
                            VerticalAlignment="Center"
@@ -36,20 +37,18 @@
                                           Width="0" Height="0"
                                           Template="{StaticResource EmptyButtonTemplate}" />
                             </Track.DecreaseRepeatButton>
-
                             <Track.Thumb>
-                                <Thumb Width="40" Height="40">
+                                <Thumb Width="32" Height="32">
                                     <Thumb.Template>
                                         <ControlTemplate TargetType="Thumb">
-                                            <Ellipse Width="40" Height="40"
+                                            <Ellipse Width="32" Height="32"
                                                  Fill="{DynamicResource SliderThumbFill}"
                                                  Stroke="{DynamicResource SliderThumbStroke}"
-                                                 StrokeThickness="2" />
+                                                 StrokeThickness="3" />
                                         </ControlTemplate>
                                     </Thumb.Template>
                                 </Thumb>
                             </Track.Thumb>
-
                             <Track.IncreaseRepeatButton>
                                 <RepeatButton IsEnabled="False"
                                           Width="0" Height="0"

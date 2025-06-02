@@ -10,12 +10,12 @@ using System.Windows;
 
 namespace BackyardBoss.ViewModels
 {
-    public class WeatherViewModel : INotifyPropertyChanged
+    public class OldWeatherViewModel : INotifyPropertyChanged
     {
         private string _temperature;
         private string _condition;
         private BitmapImage _weatherIcon;
-        public WeatherViewModel()
+        public OldWeatherViewModel()
         {
             _ = LoadWeatherAsync(); // fire-and-forget async load on startup
         }

@@ -5,6 +5,7 @@
         Title="Backyard Boss" Height="600" Width="1024"
          WindowStyle="None"
         ResizeMode="NoResize"
+        
         >
     <!--for publish
     WindowState="Maximized">

@@ -446,6 +446,7 @@ namespace BackyardBoss.ViewModels
         public ICommand StopAllCommand { get; }
         public ICommand ExitCommand { get; }
         public ICommand SelectSectionCommand { get; }
+        public ICommand ReloadCommand { get; }
         #endregion
 
         #region Constructor
@@ -518,6 +519,7 @@ namespace BackyardBoss.ViewModels
                     MessageBox.Show("Mist set not found in program.", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
             });
+            ReloadCommand = new RelayCommand(_ => ReloadApp());
             var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             timer.Tick += async (s, e) => await LoadPiStatusAsync();
             timer.Start();
@@ -687,7 +689,7 @@ namespace BackyardBoss.ViewModels
             MarkDirty();
             Save(SaveTarget.LocalOnly);
         }
-        private void DebouncedSaveAndSendToPi()
+        public void DebouncedSaveAndSendToPi()
         {
             if (_suppressExport)
             {
@@ -1227,6 +1229,28 @@ namespace BackyardBoss.ViewModels
                 };
             }
             catch { /* ignore errors for now */ }
+        }
+
+        private void ReloadApp()
+        {
+            try
+            {
+                string exePath = System.Reflection.Assembly.GetEntryAssembly()?.Location;
+                if (string.IsNullOrEmpty(exePath))
+                {
+                    MessageBox.Show("Could not determine executable path.", "Reload Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+                string publishDir = System.IO.Path.GetDirectoryName(exePath);
+                string exeName = System.IO.Path.GetFileName(exePath);
+                string fullExePath = System.IO.Path.Combine(publishDir, exeName);
+                System.Diagnostics.Process.Start(fullExePath);
+                Application.Current.Shutdown();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to reload: {ex.Message}", "Reload Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
         #endregion
     }

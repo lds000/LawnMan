@@ -9,6 +9,7 @@
              mc:Ignorable="d"
              
              Background="{DynamicResource PrimaryBackground}"
+             FontFamily="Inter,Segoe UI,Roboto,sans-serif"
              FontSize="24">
 
     <!--
@@ -274,17 +275,10 @@
         -->
         <DataTemplate x:Key="SettingsTemplate">
             <Grid DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=UserControl}}">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="2*"/>
-                    <ColumnDefinition Width="1*"/>
-                </Grid.ColumnDefinitions>
                 <StackPanel>
                     <usercontrols:MistSettings Margin="10"/>
                 </StackPanel>
-                <StackPanel Grid.Column="1">
-                    <usercontrols:StatusPanel Margin="10"/>
 
-                </StackPanel>
             </Grid>
         </DataTemplate>
         <!--
@@ -335,8 +329,17 @@
             SoilDataTemplate="{StaticResource SoilDataTemplate}"/>
     </UserControl.Resources>
 
-    <Grid>
-        <DockPanel>
+    <Grid Background="#002548">
+        <Border Margin="20" CornerRadius="20" Padding="10" Background="#010C1A">
+            <Border.Effect>
+                <DropShadowEffect 
+            Color="#6600CCFF"     
+                    BlurRadius="16"
+                    ShadowDepth="5"
+                    Direction="315"
+                    Opacity="0.6"/>
+            </Border.Effect>
+            <DockPanel >
             <!--
                 Side Navigation:
                 Vertical stack of navigation buttons for each section.
@@ -347,29 +350,27 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 <StackPanel>
-        <Image Source="pack://application:,,,/Assets/logos/BoiseStateLogoBlack.png" Height="75" Width="Auto" Stretch="Uniform" Opacity="0.75"/>
-                    <Button Style="{StaticResource NavButtonStyle}" Content="Overview" Margin="8" Command="{Binding SelectSectionCommand}" CommandParameter="Overview"/>
-                <Button Style="{StaticResource NavButtonStyle}" Content="Schedule" Margin="8" Command="{Binding SelectSectionCommand}" CommandParameter="Schedule"/>
-                <Button Style="{StaticResource NavButtonStyle}" Content="History" Margin="8" Command="{Binding SelectSectionCommand}" CommandParameter="History"/>
-                <Button Style="{StaticResource NavButtonStyle}" Content="Misters" Margin="8" Command="{Binding SelectSectionCommand}" CommandParameter="Settings"/>
-                <Button Style="{StaticResource NavButtonStyle}" Content="Debug" Margin="8" Command="{Binding SelectSectionCommand}" CommandParameter="Debug"/>
-                <Button Style="{StaticResource NavButtonStyle}" Content="Soil Data" Margin="8" Command="{Binding SelectSectionCommand}" CommandParameter="Soil Data"/>
+                    <Image HorizontalAlignment="Center" Source="pack://application:,,,/Assets/logos/BoiseStateLogoDarkBlue.png" Height="75" Width="Auto" Stretch="Uniform" Opacity="0.75"/>
+                    <Button Style="{StaticResource NavButtonStyle}" Content="Overview" Command="{Binding SelectSectionCommand}" CommandParameter="Overview" ToolTip="View dashboard overview"/>
+                    <Button Style="{StaticResource NavButtonStyle}" Content="Schedule" Command="{Binding SelectSectionCommand}" CommandParameter="Schedule" ToolTip="Edit watering schedule"/>
+                    <Button Style="{StaticResource NavButtonStyle}" Content="History" Command="{Binding SelectSectionCommand}" CommandParameter="History" ToolTip="View watering history"/>
+                    <Button Style="{StaticResource NavButtonStyle}" Content="Misters" Command="{Binding SelectSectionCommand}" CommandParameter="Settings" ToolTip="Configure misters"/>
+                    <Button Style="{StaticResource NavButtonStyle}" Content="Debug" Command="{Binding SelectSectionCommand}" CommandParameter="Debug" ToolTip="Debug and logs"/>
+                    <Button Style="{StaticResource NavButtonStyle}" Content="Soil Data" Command="{Binding SelectSectionCommand}" CommandParameter="Soil Data" ToolTip="View soil moisture data"/>
                 </StackPanel>
                 <StackPanel Grid.Row="1">
-                <!-- Manual Run Button -->
-                <Button Content="Manual Run"
-                                        Command="{Binding RunOnceCommand}"
-                                        Margin="16,20,0,12"
-                                        Height="40"
-                                        FontSize="18"/>
-                <!-- Stop All Button -->
-                <Button Content="Stop All"
-                                        Command="{Binding StopAllCommand}"
-                                        Margin="16,0,0,12"
-                                        Height="40"
-                                        FontSize="18"
-                                        Background="Red"
-                                        Foreground="White"/>
+
+                        <Button Style="{StaticResource ManualRunButtonStyle}"
+                                Content="Reload"
+                            Command="{Binding ReloadCommand}"
+                            ToolTip="Close and restart program"/>
+
+                        <Button Style="{StaticResource ManualRunButtonStyle}" Content="Manual"
+                            Command="{Binding RunOnceCommand}"
+                            ToolTip="Start a manual watering run"/>
+                    <Button Style="{StaticResource StopAllButtonStyle}" Content="Stop All"
+                            Command="{Binding StopAllCommand}"
+                            ToolTip="Stop all watering immediately"/>
                 </StackPanel>
             </Grid>
 
@@ -418,5 +419,6 @@
                                 ContentTemplateSelector="{StaticResource SectionTemplateSelector}"/>
             </Grid>
         </DockPanel>
+        </Border>
     </Grid>
 </UserControl>

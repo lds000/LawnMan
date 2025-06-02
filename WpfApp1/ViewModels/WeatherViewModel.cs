@@ -150,7 +150,17 @@ public class WeatherViewModel : INotifyPropertyChanged
             var iconCode = root.GetProperty("weather")[0].GetProperty("icon").GetString();
 
             Condition = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(condition);
-            WeatherIcon = $"https://openweathermap.org/img/wn/{iconCode}@2x.png";
+
+            // Custom icon logic
+            var tempF = root.GetProperty("main").GetProperty("temp").GetDecimal();
+            if (tempF > 90)
+            {
+                WeatherIcon = "pack://application:,,,/Assets/WeatherIcons/hot.png";
+            }
+            else
+            {
+                WeatherIcon = $"pack://application:,,,/Assets/WeatherIcons/{iconCode}.png";
+            }
 
             // New: Feels Like
             if (root.GetProperty("main").TryGetProperty("feels_like", out var feelsLikeProp))
@@ -194,7 +204,7 @@ public class WeatherViewModel : INotifyPropertyChanged
             Temperature = "N/A";
             Humidity = WindSpeed = Pressure = "";
             Condition = "Unavailable";
-            WeatherIcon = "Assets/Weather/default.png";
+            WeatherIcon = "Assets/WeatherIcons/default.png";
             _feelsLike = _visibility = _sunrise = _sunset = "-";
             OnPropertyChanged(nameof(FeelsLike));
             OnPropertyChanged(nameof(Visibility));

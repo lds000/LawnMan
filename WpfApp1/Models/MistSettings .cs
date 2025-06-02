@@ -31,7 +31,7 @@ namespace BackyardBoss.Models
             get => _interval;
             set { if (_interval != value) { _interval = value; OnPropertyChanged();
                 if (BackyardBoss.ViewModels.ProgramEditorViewModel.Current != null)
-                    BackyardBoss.ViewModels.ProgramEditorViewModel.Current.AutoSave();
+                    BackyardBoss.ViewModels.ProgramEditorViewModel.Current.DebouncedSaveAndSendToPi();
             } }
         }
 
@@ -41,14 +41,17 @@ namespace BackyardBoss.Models
             get => _duration;
             set { if (_duration != value) { _duration = value; OnPropertyChanged();
                 if (BackyardBoss.ViewModels.ProgramEditorViewModel.Current != null)
-                    BackyardBoss.ViewModels.ProgramEditorViewModel.Current.AutoSave();
+                    BackyardBoss.ViewModels.ProgramEditorViewModel.Current.DebouncedSaveAndSendToPi();
             } }
         }
 
         public bool MistEnabled
         {
             get => _mistEnabled;
-            set { if (_mistEnabled != value) { _mistEnabled = value; OnPropertyChanged(); } }
+            set { if (_mistEnabled != value) { _mistEnabled = value; OnPropertyChanged();
+                if (BackyardBoss.ViewModels.ProgramEditorViewModel.Current != null)
+                    BackyardBoss.ViewModels.ProgramEditorViewModel.Current.DebouncedSaveAndSendToPi();
+            } }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
