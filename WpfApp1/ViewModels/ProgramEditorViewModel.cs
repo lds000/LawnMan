@@ -24,6 +24,8 @@ using WpfApp1;
 using BackyardBoss.ViewModels;
 using System.Windows.Media;
 using System.Text.Json.Serialization;
+using System.Windows.Media.Imaging;
+using BackyardBoss.UserControls;
 
 namespace BackyardBoss.ViewModels
 {
@@ -137,6 +139,10 @@ namespace BackyardBoss.ViewModels
         private ObservableCollection<UpcomingRunInfo> _upcomingRuns = new();
         private BackyardBoss.Models.MistStatus _mistStatus;
         private readonly DispatcherTimer _timeTimer;
+        private ImageSource _mapImageSource;
+        private ObservableCollection<SprinklerLineModel> _sharedSprinklerLines = new();
+        private ObservableCollection<SprinklerSet> _visibleSets = new();
+        private SprinklerLineModel? _selectedMapLine;
         #endregion
 
         #region Properties
@@ -144,11 +150,8 @@ namespace BackyardBoss.ViewModels
         
         public ObservableCollection<SprinklerSet> VisibleSets
         {
-            get
-            {
-
-               return new ObservableCollection<SprinklerSet>(Sets.Where(s => !s.SetName.Equals("Misters", StringComparison.OrdinalIgnoreCase)));
-            }
+            get => _visibleSets;
+            set { _visibleSets = value; OnPropertyChanged(); }
         }
 
         public string SystemLedColor => LedColors != null && LedColors.TryGetValue("system", out var color) ? color : null;
@@ -239,6 +242,16 @@ namespace BackyardBoss.ViewModels
                 _selectedSet = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(IsSetSelected));
+                // Update SelectedMapLine when SelectedSet changes
+                if (_selectedSet != null)
+                {
+                    SelectedMapLine = SharedSprinklerLines.FirstOrDefault(
+                        line => line.SprinklerLineTitle == _selectedSet.SetName);
+                }
+                else
+                {
+                    SelectedMapLine = null;
+                }
             }
         }
         public string SelectedStartTime
@@ -368,7 +381,7 @@ namespace BackyardBoss.ViewModels
             set { _lastWeekHistory = value; OnPropertyChanged(); }
         }
 
-        public ObservableCollection<MistSettingViewModel> MistSettingsCollection => Schedule.Mist.TemperatureSettings;
+        public ObservableCollection<BackyardBoss.Models.MistSettingViewModel> MistSettingsCollection => Schedule.Mist.TemperatureSettings;
         public Dictionary<string, string> LedColors
         {
             get => _ledColors;
@@ -425,6 +438,21 @@ namespace BackyardBoss.ViewModels
         {
             get => _mistStatus;
             set { _mistStatus = value; OnPropertyChanged(); }
+        }
+        public ImageSource MapImageSource
+        {
+            get => _mapImageSource;
+            set { _mapImageSource = value; OnPropertyChanged(); }
+        }
+        public ObservableCollection<SprinklerLineModel> SharedSprinklerLines
+        {
+            get => _sharedSprinklerLines;
+            set { _sharedSprinklerLines = value; OnPropertyChanged(); }
+        }
+        public SprinklerLineModel? SelectedMapLine
+        {
+            get => _selectedMapLine;
+            set { _selectedMapLine = value; OnPropertyChanged(); }
         }
         #endregion
 
@@ -553,14 +581,14 @@ namespace BackyardBoss.ViewModels
             });
 
             if (Schedule.Mist == null)
-                Schedule.Mist = new MistSettings();
+                Schedule.Mist = new BackyardBoss.Models.MistSettings();
             if (Schedule.Mist.TemperatureSettings == null || Schedule.Mist.TemperatureSettings.Count == 0)
             {
-                Schedule.Mist.TemperatureSettings = new System.Collections.ObjectModel.ObservableCollection<MistSettingViewModel>
+                Schedule.Mist.TemperatureSettings = new System.Collections.ObjectModel.ObservableCollection<BackyardBoss.Models.MistSettingViewModel>
                 {
-                    new MistSettingViewModel { Temperature = 90, Interval = 20, Duration = 2 },
-                    new MistSettingViewModel { Temperature = 95, Interval = 20, Duration = 2 },
-                    new MistSettingViewModel { Temperature = 100, Interval = 20, Duration = 2 }
+                    new BackyardBoss.Models.MistSettingViewModel { Temperature = 90, Interval = 20, Duration = 2 },
+                    new BackyardBoss.Models.MistSettingViewModel { Temperature = 95, Interval = 20, Duration = 2 },
+                    new BackyardBoss.Models.MistSettingViewModel { Temperature = 100, Interval = 20, Duration = 2 }
                 };
             }
 
@@ -579,6 +607,57 @@ namespace BackyardBoss.ViewModels
 
             _timeTimer.Start();
 
+            // Example: Load a default map image and demo lines
+            MapImageSource = new BitmapImage(new Uri("pack://application:,,,/Assets/Map/default_map.png"));
+            SharedSprinklerLines = new ObservableCollection<BackyardBoss.UserControls.SprinklerLineModel>
+            {
+                new BackyardBoss.UserControls.SprinklerLineModel
+                {
+                    SprinklerLineTitle = "Front Lawn",
+                    DefaultColor = (Color)ColorConverter.ConvertFromString("#0033A0"),
+                    IsWatering = true,
+                    Points = new ObservableCollection<BackyardBoss.UserControls.SprinklerLinePoint>
+                    {
+                        new BackyardBoss.UserControls.SprinklerLinePoint { X = 100, Y = 100, Type = BackyardBoss.UserControls.PointType.Sprinkler },
+                        new BackyardBoss.UserControls.SprinklerLinePoint { X = 200, Y = 200, Type = BackyardBoss.UserControls.PointType.TConnection }
+                    },
+                    Connections = new ObservableCollection<BackyardBoss.UserControls.SprinklerLineConnection>
+                    {
+                        new BackyardBoss.UserControls.SprinklerLineConnection { FromPointId = Guid.Empty, ToPointId = Guid.Empty } // will set below
+                    }
+                },
+                new BackyardBoss.UserControls.SprinklerLineModel
+                {
+                    SprinklerLineTitle = "Backyard",
+                    DefaultColor = (Color)ColorConverter.ConvertFromString("#FF6200"),
+                    IsWatering = false,
+                    Points = new ObservableCollection<BackyardBoss.UserControls.SprinklerLinePoint>
+                    {
+                        new BackyardBoss.UserControls.SprinklerLinePoint { X = 300, Y = 100, Type = BackyardBoss.UserControls.PointType.Mister },
+                        new BackyardBoss.UserControls.SprinklerLinePoint { X = 400, Y = 200, Type = BackyardBoss.UserControls.PointType.Dripper }
+                    },
+                    Connections = new ObservableCollection<BackyardBoss.UserControls.SprinklerLineConnection>
+                    {
+                        new BackyardBoss.UserControls.SprinklerLineConnection { FromPointId = Guid.Empty, ToPointId = Guid.Empty } // will set below
+                    }
+                }
+            };
+            // Fix up connection IDs to match the actual point Guids
+            foreach (var line in SharedSprinklerLines)
+            {
+                if (line.Points.Count > 1 && line.Connections.Count > 0)
+                {
+                    line.Connections[0].FromPointId = line.Points[0].Id;
+                    line.Connections[0].ToPointId = line.Points[1].Id;
+                }
+            }
+
+            // After initializing Sets:
+            UpdateVisibleSets();
+            Sets.CollectionChanged += (s, e) => UpdateVisibleSets();
+
+            // Load map from JSON
+            LoadMapFromJson();
         }
         #endregion
 
@@ -627,16 +706,16 @@ namespace BackyardBoss.ViewModels
                 if (loaded.Mist == null)
                 {
                     DebugLogger.LogFileIO("Mist section missing — initializing defaults.");
-                    loaded.Mist = new MistSettings();
+                    loaded.Mist = new BackyardBoss.Models.MistSettings();
                 }
                 if (loaded.Mist.TemperatureSettings == null || loaded.Mist.TemperatureSettings.Count == 0)
                 {
                     DebugLogger.LogFileIO("TemperatureSettings missing — initializing defaults.");
-                    loaded.Mist.TemperatureSettings = new ObservableCollection<MistSettingViewModel>
+                    loaded.Mist.TemperatureSettings = new System.Collections.ObjectModel.ObservableCollection<BackyardBoss.Models.MistSettingViewModel>
                     {
-                        new MistSettingViewModel { Temperature = 90, Interval = 20, Duration = 2 },
-                        new MistSettingViewModel { Temperature = 95, Interval = 20, Duration = 2 },
-                        new MistSettingViewModel { Temperature = 100, Interval = 20, Duration = 2 }
+                        new BackyardBoss.Models.MistSettingViewModel { Temperature = 90, Interval = 20, Duration = 2 },
+                        new BackyardBoss.Models.MistSettingViewModel { Temperature = 95, Interval = 20, Duration = 2 },
+                        new BackyardBoss.Models.MistSettingViewModel { Temperature = 100, Interval = 20, Duration = 2 }
                     };
                 }
                 if (loaded.StartTimes == null || loaded.StartTimes.Count == 0)
@@ -652,7 +731,7 @@ namespace BackyardBoss.ViewModels
                 OnPropertyChanged(nameof(StartTimes));
                 OnPropertyChanged(nameof(SeasonalAdjustment));
                 OnPropertyChanged(nameof(SeasonalAdjustmentPercent));
-                OnPropertyChanged(nameof(VisibleSets));
+                UpdateVisibleSets();
                 OnPropertyChanged(nameof(Week1Sunday));
                 OnPropertyChanged(nameof(Week1Monday));
                 OnPropertyChanged(nameof(Week1Tuesday));
@@ -708,6 +787,7 @@ namespace BackyardBoss.ViewModels
             DebugLogger.LogVariableStatus($"Set added: {newSet.SetName}, {newSet.RunDurationMinutes} min.");
             DebouncedSaveAndSendToPi();
             UpdateUpcomingRunsPreview();
+            UpdateVisibleSets();
         }
         private void RemoveSet()
         {
@@ -718,6 +798,7 @@ namespace BackyardBoss.ViewModels
                 SelectedSet = null;
                 DebouncedSaveAndSendToPi();
                 UpdateUpcomingRunsPreview();
+                UpdateVisibleSets();
             }
             else
             {
@@ -794,6 +875,13 @@ namespace BackyardBoss.ViewModels
         {
             DebugLogger.LogAutoSave("MarkDirty called.");
             _isDirty = true;
+        }
+        private void UpdateVisibleSets()
+        {
+            var filtered = Sets.Where(s => !s.SetName.Equals("Misters", StringComparison.OrdinalIgnoreCase)).ToList();
+            VisibleSets.Clear();
+            foreach (var set in filtered)
+                VisibleSets.Add(set);
         }
         #endregion
 
@@ -1250,6 +1338,33 @@ namespace BackyardBoss.ViewModels
             catch (Exception ex)
             {
                 MessageBox.Show($"Failed to reload: {ex.Message}", "Reload Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void LoadMapFromJson()
+        {
+            try
+            {
+                var jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "myMap.json");
+                if (!File.Exists(jsonPath)) return;
+                var json = File.ReadAllText(jsonPath);
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var lines = JsonSerializer.Deserialize<ObservableCollection<SprinklerLineModel>>(json, options);
+                if (lines != null)
+                {
+                    foreach (var line in lines)
+                    {
+                        if (line.DefaultColor == default)
+                            line.DefaultColor = Colors.Blue;
+                    }
+                    SharedSprinklerLines = lines;
+                    // Default to first line selected
+                    SelectedMapLine = SharedSprinklerLines.FirstOrDefault();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to load map: {ex.Message}");
             }
         }
         #endregion
