@@ -13,6 +13,7 @@ namespace BackyardBoss.Views
         public DataTemplate SettingsTemplate { get; set; }
         public DataTemplate DebugTemplate { get; set; } // Renamed from ErrorTemplate for debug info
         public DataTemplate SoilDataTemplate { get; set; }
+        public DataTemplate MapTemplate { get; set; }
 
         public override DataTemplate SelectTemplate(object item, DependencyObject container)
         {
@@ -26,6 +27,7 @@ namespace BackyardBoss.Views
                 "Settings" => SettingsTemplate,
                 "Soil Data" => SoilDataTemplate,
                 "Debug" => DebugTemplate, // Renamed from Error
+                "Map" => MapTemplate,
                 _ => OverviewTemplate
             };
         }

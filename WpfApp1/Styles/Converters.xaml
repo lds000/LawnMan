@@ -8,4 +8,5 @@
     <conv:TagToColorConverter x:Key="TagToColorConverter"/>
     <conv:ColorStringToBrushConverter x:Key="ColorStringToBrushConverter"/>
     <conv:PercentToHeightConverter x:Key="PercentToHeightConverter"/>
+    <conv:SingleToCollectionConverter x:Key="SingleToCollectionConverter"/>
 </ResourceDictionary>

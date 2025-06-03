@@ -1,0 +1,18 @@
+﻿<UserControl x:Class="BackyardBoss.UserControls.MyMapDisplayControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:BackyardBoss.UserControls"
+             x:Name="Root">
+    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+        <Grid HorizontalAlignment="Left" VerticalAlignment="Top">
+            <Image x:Name="MapImage" Source="{Binding MapImageSource, ElementName=Root}" Stretch="None" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+            <Canvas x:Name="OverlayCanvas"
+                    Width="{Binding ActualWidth, ElementName=MapImage}"
+                    Height="{Binding ActualHeight, ElementName=MapImage}"
+                    IsHitTestVisible="False"
+                    Background="Transparent"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Top"/>
+        </Grid>
+    </ScrollViewer>
+</UserControl>

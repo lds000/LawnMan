@@ -317,6 +317,39 @@
             </StackPanel>
         </DataTemplate>
         <!--
+            MapTemplate:
+            Displays the map view user control with a set list and set details/icons.
+        -->
+        <DataTemplate x:Key="MapTemplate">
+            <Grid Margin="16" DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="250"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <!-- List of Sets -->
+                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                    <TextBlock Text="Zones/Sets" FontWeight="Bold" FontSize="18" Margin="0,0,0,8"/>
+                    <ListBox ItemsSource="{Binding Sets}"
+                             SelectedItem="{Binding SelectedSet, Mode=TwoWay}"
+                             DisplayMemberPath="SetName"
+                             Height="300"/>
+                    <!-- Set details and icon -->
+                    <StackPanel Margin="0,16,0,0" DataContext="{Binding SelectedSet}">
+                        <TextBlock Text="{Binding SetName}" FontWeight="Bold" FontSize="16"/>
+                        <Image Source="{Binding IconPath}" Height="48" Width="48" Margin="0,8"/>
+                        <TextBlock Text="{Binding RunDurationMinutes, StringFormat=Duration: {0} min}" FontSize="14"/>
+                        <!-- Add more set details as needed -->
+                    </StackPanel>
+                </StackPanel>
+                <!-- Map Display -->
+                <usercontrols:MyMapDisplayControl 
+                    Grid.Column="1"
+                    MapImageSource="{Binding MapImageSource}" 
+                    SprinklerLines="{Binding SharedSprinklerLines}" 
+                    SelectedLine="{Binding SelectedMapLine, Mode=OneWay}" />
+            </Grid>
+        </DataTemplate>
+        <!--
             SectionTemplateSelector:
             Custom template selector that chooses which DataTemplate to use based on SelectedSection.
         -->
@@ -326,7 +359,8 @@
             HistoryTemplate="{StaticResource HistoryTemplate}"
             SettingsTemplate="{StaticResource SettingsTemplate}"
             DebugTemplate="{StaticResource DebugViewTemplate}"
-            SoilDataTemplate="{StaticResource SoilDataTemplate}"/>
+            SoilDataTemplate="{StaticResource SoilDataTemplate}"
+            MapTemplate="{StaticResource MapTemplate}"/>
     </UserControl.Resources>
 
     <Grid Background="#002548">
@@ -357,6 +391,7 @@
                     <Button Style="{StaticResource NavButtonStyle}" Content="Misters" Command="{Binding SelectSectionCommand}" CommandParameter="Settings" ToolTip="Configure misters"/>
                     <Button Style="{StaticResource NavButtonStyle}" Content="Debug" Command="{Binding SelectSectionCommand}" CommandParameter="Debug" ToolTip="Debug and logs"/>
                     <Button Style="{StaticResource NavButtonStyle}" Content="Soil Data" Command="{Binding SelectSectionCommand}" CommandParameter="Soil Data" ToolTip="View soil moisture data"/>
+                    <Button Style="{StaticResource NavButtonStyle}" Content="Map" Command="{Binding SelectSectionCommand}" CommandParameter="Map" ToolTip="View map"/>
                 </StackPanel>
                 <StackPanel Grid.Row="1">
 
