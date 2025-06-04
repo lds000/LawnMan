@@ -353,22 +353,35 @@
             </Setter.Value>
         </Setter>
     </Style>
-
     <Style x:Key="CircleCheckboxStyle" TargetType="CheckBox">
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="CheckBox">
-                    <Grid Width="24" Height="24">
+                    <Grid Width="24" Height="24" VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <!-- Outer circle -->
                         <Ellipse x:Name="Circle"
-                                     Stroke="{DynamicResource CheckboxBorder}"
-                                     StrokeThickness="2"
-                                     Fill="{DynamicResource CheckboxBackground}"
-                                     Width="24"
-                                     Height="24" />
+                             Stroke="{DynamicResource ButtonCheckedColor}" 
+                             StrokeThickness="2"
+                             Fill="#01FFFFFF" 
+                            Width="24"
+                             Height="24" />
+                            
+                            <Path x:Name="CheckMark"
+                          Data="M 6 12 L 11 17 L 18 7"
+                          Stroke="{DynamicResource ButtonUncheckedColor}"
+                          StrokeThickness="2.5"
+                          StrokeEndLineCap="Round"
+                          StrokeStartLineCap="Round"
+                          Visibility="Collapsed"/>
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="Circle" Property="Fill" Value="{DynamicResource CheckboxCheckedBackground}" />
+                            <Setter TargetName="Circle" Property="Fill" Value="{DynamicResource ButtonCheckedColor}" />
+                            <Setter TargetName="CheckMark" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="False">
+                            <Setter TargetName="Circle" Property="Fill" Value="#01FFFFFF"/>
+                            <Setter TargetName="CheckMark" Property="Visibility" Value="Collapsed"/>
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Circle" Property="StrokeThickness" Value="3"/>
@@ -379,8 +392,6 @@
         </Setter>
         <Setter Property="Cursor" Value="Hand"/>
     </Style>
-
-    
     <!-- 
     NavButtonStyle: Large, touch-friendly, Boise State themed -->
     <Style x:Key="NavButtonStyle" TargetType="Button">

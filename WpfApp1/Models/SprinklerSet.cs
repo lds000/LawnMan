@@ -43,7 +43,7 @@ public class SprinklerSet : INotifyPropertyChanged
             {
                 _pulseDurationMinutes = value;
                 OnPropertyChanged();
-                ProgramEditorViewModel.Current?.AutoSave();
+                ProgramEditorViewModel.Current?.DebouncedSaveAndSendToPi();
             }
         }
     }
@@ -59,7 +59,7 @@ public class SprinklerSet : INotifyPropertyChanged
             {
                 _soakDurationMinutes = value;
                 OnPropertyChanged();
-                ProgramEditorViewModel.Current?.AutoSave();
+                ProgramEditorViewModel.Current?.DebouncedSaveAndSendToPi();
             }
         }
     }
@@ -104,7 +104,7 @@ public class SprinklerSet : INotifyPropertyChanged
             {
                 _mode = value;
                 OnPropertyChanged();
-                ProgramEditorViewModel.Current?.AutoSave();
+                ProgramEditorViewModel.Current?.DebouncedSaveAndSendToPi();
             }
         }
     }

@@ -15,7 +15,7 @@ public class StartTimeViewModel : INotifyPropertyChanged
         {
             if (args.PropertyName == nameof(IsEnabled) || args.PropertyName == nameof(Time))
             {
-                ProgramEditorViewModel.Current?.AutoSave();
+                ProgramEditorViewModel.Current?.DebouncedSaveAndSendToPi();
             }
         };
     }

@@ -175,19 +175,16 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                         <StackPanel Orientation="Horizontal" Margin="0,2">
+                                            <CheckBox Margin="10,0,20,0"
+                                                  IsChecked="{Binding IsEnabled, Mode=TwoWay}" 
+                                            VerticalAlignment="Center"
+                                            Style="{StaticResource CircleCheckboxStyle}"/>
                                             <Button 
                                             Content="{Binding Time}" Command="{Binding DataContext.OpenTimePickerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" 
                                             CommandParameter="{Binding}" 
                                             Width="80" 
                                             VerticalAlignment="Center"
                                             Margin="0,0,8,0"/>
-                                            <StackPanel Orientation="Horizontal"></StackPanel>
-                                            <CheckBox 
-                                            Content="Enabled" 
-                                                  IsChecked="{Binding IsEnabled, Mode=TwoWay}" 
-                                            VerticalAlignment="Center"
-                                            Style="{StaticResource CircleCheckboxStyle}"/>
-                                            <TextBlock Margin="5,0,0,0" VerticalAlignment="Center" Text="Enabled"/>
                                             <!-- <Button Content="Remove" Command="{Binding DataContext.RemoveStartTimeCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" Width="60" Margin="8,0,0,0"/> -->
                                     </StackPanel>
                                 </DataTemplate>

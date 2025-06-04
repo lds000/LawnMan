@@ -664,7 +664,8 @@ namespace BackyardBoss.ViewModels
         #region Schedule Management
         private void CalculateTodayScheduleIndex()
         {
-            var baseDate = new DateTime(2024, 1, 1);
+            //var baseDate = new DateTime(2024, 1, 1);
+            var baseDate = new DateTime(2023, 12, 31); // Sunday
             var today = DateTime.Today;
             var deltaDays = (today - baseDate).Days;
             TodayScheduleIndex = deltaDays % 14;
@@ -1169,15 +1170,46 @@ namespace BackyardBoss.ViewModels
         #region UI Helpers
         private void UpdateStatusIcon(string status)
         {
-            if (CurrentRun != null && CurrentRun.Phase != null)
+            // Show "running" if a run is in progress
+            if (CurrentRun != null && !string.IsNullOrEmpty(CurrentRun.Phase))
             {
                 StatusIconPath = "pack://application:,,,/Assets/Icons/running.png";
+                return;
             }
-            else if (status.Contains("Offline"))
+
+            // Show "offline" if system is offline
+            if (!string.IsNullOrEmpty(status) && status.Contains("Offline", StringComparison.OrdinalIgnoreCase))
             {
                 StatusIconPath = "pack://application:,,,/Assets/Icons/offline.png";
+                return;
             }
-            // ... rest of logic
+
+            // Show "test mode" if in test mode
+            if (PiReportedTestMode)
+            {
+                StatusIconPath = "pack://application:,,,/Assets/Icons/testmode.png";
+                return;
+            }
+
+            // Show "error" if system status contains error
+            if (!string.IsNullOrEmpty(status) && status.Contains("Error", StringComparison.OrdinalIgnoreCase))
+            {
+                StatusIconPath = "pack://application:,,,/Assets/Icons/error.png";
+                return;
+            }
+
+            // Show "idle" if system is nominal or idle
+            if (!string.IsNullOrEmpty(status) &&
+                (status.Contains("Nominal", StringComparison.OrdinalIgnoreCase) ||
+                 status.Contains("Idle", StringComparison.OrdinalIgnoreCase) ||
+                 status.Contains("Ready", StringComparison.OrdinalIgnoreCase)))
+            {
+                StatusIconPath = "pack://application:,,,/Assets/Icons/idle.png";
+                return;
+            }
+
+            // Fallback: unknown status
+            StatusIconPath = "pack://application:,,,/Assets/Icons/unknown.png";
         }
         private void ToggleTestMode()
         {
