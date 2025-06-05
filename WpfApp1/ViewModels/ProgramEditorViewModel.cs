@@ -26,6 +26,7 @@ using System.Windows.Media;
 using System.Text.Json.Serialization;
 using System.Windows.Media.Imaging;
 using BackyardBoss.UserControls;
+using System.Windows.Media.Media3D;
 
 namespace BackyardBoss.ViewModels
 {
@@ -143,6 +144,8 @@ namespace BackyardBoss.ViewModels
         private ObservableCollection<SprinklerLineModel> _sharedSprinklerLines = new();
         private ObservableCollection<SprinklerSet> _visibleSets = new();
         private SprinklerLineModel? _selectedMapLine;
+        private bool _isWindy;
+
         #endregion
 
         #region Properties
@@ -168,6 +171,39 @@ namespace BackyardBoss.ViewModels
         public ObservableCollection<SprinklerSet> Sets => Schedule.Sets;
         public static ProgramEditorViewModel Current { get; private set; }
         public bool HasUnsavedChanges => _isDirty;
+
+        /// <summary>
+        /// True if wind speed is greater than 5 mph.
+        /// </summary>
+        public bool IsWindy
+        {
+            get => _isWindy;
+            private set
+            {
+                if (_isWindy != value)
+                {
+                    _isWindy = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged("IsWindyVisible");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the visibility status indicating whether it is windy, greater than 5 mph wind.
+        /// </summary>
+        public Visibility IsWindyVisible
+        {  
+            get
+            {
+                
+                if (IsWindy)
+                {
+                    return Visibility.Visible;
+                }
+                return Visibility.Collapsed;
+            }
+        }
         public bool IsSetSelected => SelectedSet != null;
         public bool IsStartTimeSelected => !string.IsNullOrEmpty(SelectedStartTime);
         public int TodayScheduleIndex
@@ -483,7 +519,9 @@ namespace BackyardBoss.ViewModels
             DebugLogger.LogVariableStatus("Constructor initialized.");
             Current = this;
             WeatherVM = new WeatherViewModel();
+            WeatherVM.PropertyChanged += WeatherVM_PropertyChanged;
             _ = WeatherVM.LoadWeatherAsync();
+            UpdateIsWindy(); // Initial check
             CalculateTodayScheduleIndex();
             LoadSchedule(); // <-- Enable real data loading
             // Debounce timer for saving and uploading schedule
@@ -660,6 +698,22 @@ namespace BackyardBoss.ViewModels
             LoadMapFromJson();
         }
         #endregion
+        private void WeatherVM_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(WeatherViewModel.WindSpeed))
+            {
+                UpdateIsWindy();
+            }
+        }
+
+        private void UpdateIsWindy()
+        {
+            // Try to parse wind speed as double (mph)
+            if (double.TryParse(WeatherVM.WindSpeed, out var windMph))
+                IsWindy = windMph > 5.0;
+            else
+                IsWindy = false;
+        }
 
         #region Schedule Management
         private void CalculateTodayScheduleIndex()

@@ -437,8 +437,11 @@
                                        Foreground="Lime"
                                        FontWeight="Bold"
                                        Margin="0"/>
+                                <StackPanel Orientation="Horizontal">
                             <Image Source="{Binding StatusIconPath}" Width="50" Height="50" HorizontalAlignment="Center" />
-                        </StackPanel>
+                                    <Image Visibility="{Binding IsWindyVisible}" Source="pack://application:,,,/Assets/Icons/windy.PNG" Width="50" Height="50"/>
+                                </StackPanel>
+                            </StackPanel>
                     </Grid>
                 </Border>
 
