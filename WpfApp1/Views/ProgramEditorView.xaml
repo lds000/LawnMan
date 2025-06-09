@@ -291,7 +291,7 @@
         -->
         <DataTemplate x:Key="SoilDataTemplate">
             <StackPanel DataContext="{Binding DataContext.SoilDataVM, RelativeSource={RelativeSource AncestorType=UserControl}}">
-                <TextBlock Text="Soil Data" FontWeight="Bold" FontSize="24" Margin="0,0,0,16"/>
+                <TextBlock Text="Soil Data" FontWeight="Bold" FontSize="24" Margin="0,0,0,0"/>
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" Height="320">
                     <ItemsControl ItemsSource="{Binding Bars}">
                         <ItemsControl.ItemsPanel>
@@ -301,10 +301,19 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <StackPanel Margin="2,0" VerticalAlignment="Bottom">
-                                    <Border Background="DodgerBlue" Width="18" Height="{Binding MoisturePercent, Converter={StaticResource PercentToHeightConverter}}" VerticalAlignment="Bottom"/>
-                                    <TextBlock Text="{Binding Hour}" FontSize="10" HorizontalAlignment="Center"/>
-                                    <TextBlock Text="{Binding Label}" FontSize="10" HorizontalAlignment="Center"/>
+                                <StackPanel Orientation="Vertical" Margin="2,0" VerticalAlignment="Bottom">
+                                    <TextBlock Text="{Binding Label}"
+           FontSize="10"
+           HorizontalAlignment="Center"
+           VerticalAlignment="Bottom"
+           TextWrapping="NoWrap"
+           Padding="0"
+           Margin="0">
+                                        <TextBlock.LayoutTransform>
+                                            <RotateTransform Angle="-90"/>
+                                        </TextBlock.LayoutTransform>
+                                    </TextBlock>
+                                    <Border ToolTip="{Binding Label}" Background="DodgerBlue" Width="18" Height="{Binding MoisturePercent, Converter={StaticResource PercentToHeightConverter}}" VerticalAlignment="Bottom"/>
                                 </StackPanel>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>

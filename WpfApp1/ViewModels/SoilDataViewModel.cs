@@ -27,30 +27,21 @@ namespace BackyardBoss.ViewModels
                 var json = await client.GetStringAsync("http://100.116.147.6:5000/soil-history");
                 var readings = JsonSerializer.Deserialize<MoistureSensorReading[]>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                 if (readings == null) return;
-                // Group by day/4-hour block, average wetness_percent, up to 10 days
-                var grouped = readings
-                    .Select(r => new
+
+                var bars = readings
+                    .Select(r =>
                     {
-                        Date = DateTime.Parse(r.Timestamp),
-                        Wetness = r.WetnessPercent
-                    })
-                    .GroupBy(x => new { x.Date.Date, Block = x.Date.Hour / 4 })
-                    .OrderByDescending(g => g.Key.Date)
-                    .ThenBy(g => g.Key.Block)
-                    .Take(10 * 6) // up to 10 days, 6 blocks per day
-                    .ToList();
-                var bars = grouped
-                    .GroupBy(g => g.Key.Date)
-                    .Take(10)
-                    .SelectMany(dayGroup =>
-                        dayGroup.OrderBy(g => g.Key.Block).Select(g => new SoilBarData
+                        var dt = DateTime.Parse(r.Timestamp);
+                        return new SoilBarData
                         {
-                            Day = g.Key.Date,
-                            Hour = g.Key.Block * 4,
-                            Label = $"{g.Key.Date:ddd} {g.Key.Block * 4:00}:00",
-                            MoisturePercent = (int)Math.Round(g.Average(x => x.Wetness) * 100)
-                        })
-                    ).ToList();
+                            Day = dt.Date,
+                            Hour = dt.Hour,
+                            Label = $"{dt:ddd} {dt:HH}:{dt:mm} {dt:ss}" ,
+                            MoisturePercent = r.Moisture
+                        };
+                    })
+                    .ToList();
+
                 Bars = new ObservableCollection<SoilBarData>(bars);
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Bars)));
             }
@@ -72,6 +63,6 @@ namespace BackyardBoss.ViewModels
         public DateTime Day { get; set; }
         public int Hour { get; set; }
         public string Label { get; set; } // e.g. "Mon"
-        public int MoisturePercent { get; set; } // 0-100
+        public double MoisturePercent { get; set; } // 0-100, now double for precision
     }
 }

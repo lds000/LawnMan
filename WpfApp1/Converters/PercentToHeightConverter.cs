@@ -8,12 +8,12 @@ namespace BackyardBoss.Converters
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            if (value is int percent)
+            if (value is double doubleValue)
             {
-                // Max bar height 200px for 100%
-                return percent * 2;
+                return (int)Math.Round(doubleValue * 2);
             }
-            return 0;
+            throw new InvalidCastException("Expected a double value.");
+
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
