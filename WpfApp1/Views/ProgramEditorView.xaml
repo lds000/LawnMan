@@ -6,6 +6,7 @@
              xmlns:views="clr-namespace:BackyardBoss.Views"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:oxy="http://oxyplot.org/wpf"
              mc:Ignorable="d"
              
              Background="{DynamicResource PrimaryBackground}"
@@ -323,6 +324,24 @@
             </StackPanel>
         </DataTemplate>
         <!--
+            SensorDataTemplate:
+            Displays sensor data in a DataGrid.
+        -->
+        <DataTemplate x:Key="SensorDataTemplate">
+            <StackPanel DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                <TextBlock Text="Sensor Data (Pressure &amp; Flow)" FontWeight="Bold" FontSize="24" Margin="0,0,0,8"/>
+                <StackPanel Orientation="Horizontal">
+                    <!-- Zone selection list -->
+                    <ListBox ItemsSource="{Binding AvailableZones}"
+                             Style="{StaticResource BoiseStateListBoxStyle}"
+                             SelectedItem="{Binding SelectedZone, Mode=TwoWay}"
+                            Margin="0,0,16,0"/>
+                    <!-- OxyPlot chart -->
+                    <oxy:PlotView Model="{Binding SensorPlotModel}" Height="400" Width="700" />
+                </StackPanel>
+            </StackPanel>
+        </DataTemplate>
+        <!--
             MapTemplate:
             Displays the map view user control with a set list and set details/icons.
         -->
@@ -337,6 +356,7 @@
                     <TextBlock Text="Zones/Sets" FontWeight="Bold" FontSize="18" Margin="0,0,0,8"/>
                     <ListBox ItemsSource="{Binding Sets}"
                              SelectedItem="{Binding SelectedSet, Mode=TwoWay}"
+                             Style="{StaticResource BoiseStateListBoxStyle}"
                              DisplayMemberPath="SetName"
                              Height="300"/>
                     <!-- Set details and icon -->
@@ -366,6 +386,7 @@
             SettingsTemplate="{StaticResource SettingsTemplate}"
             DebugTemplate="{StaticResource DebugViewTemplate}"
             SoilDataTemplate="{StaticResource SoilDataTemplate}"
+            SensorDataTemplate="{StaticResource SensorDataTemplate}"
             MapTemplate="{StaticResource MapTemplate}"/>
     </UserControl.Resources>
 
@@ -395,8 +416,11 @@
                     <Button Style="{StaticResource NavButtonStyle}" Content="Schedule" Command="{Binding SelectSectionCommand}" CommandParameter="Schedule" ToolTip="Edit watering schedule"/>
                     <Button Style="{StaticResource NavButtonStyle}" Content="History" Command="{Binding SelectSectionCommand}" CommandParameter="History" ToolTip="View watering history"/>
                     <Button Style="{StaticResource NavButtonStyle}" Content="Misters" Command="{Binding SelectSectionCommand}" CommandParameter="Settings" ToolTip="Configure misters"/>
+                    <!--
                     <Button Style="{StaticResource NavButtonStyle}" Content="Debug" Command="{Binding SelectSectionCommand}" CommandParameter="Debug" ToolTip="Debug and logs"/>
+                    -->
                     <Button Style="{StaticResource NavButtonStyle}" Content="Soil Data" Command="{Binding SelectSectionCommand}" CommandParameter="Soil Data" ToolTip="View soil moisture data"/>
+                    <Button Style="{StaticResource NavButtonStyle}" Content="Sensor Data" Command="{Binding SelectSectionCommand}" CommandParameter="Sensor Data" ToolTip="View sensor pressure/flow data"/>
                     <Button Style="{StaticResource NavButtonStyle}" Content="Map" Command="{Binding SelectSectionCommand}" CommandParameter="Map" ToolTip="View map"/>
                 </StackPanel>
                 <StackPanel Grid.Row="1">
@@ -447,8 +471,18 @@
                                        FontWeight="Bold"
                                        Margin="0"/>
                                 <StackPanel Orientation="Horizontal">
-                            <Image Source="{Binding StatusIconPath}" Width="50" Height="50" HorizontalAlignment="Center" />
+                                    <Image Source="{Binding StatusIconPath}" Width="50" Height="50" HorizontalAlignment="Center" />
                                     <Image Visibility="{Binding IsWindyVisible}" Source="pack://application:,,,/Assets/Icons/windy.PNG" Width="50" Height="50"/>
+                                    <Border 
+                                        Visibility="{Binding IsWateringOrMistingVisible}"
+                                        Width="48"
+                                        Height="48"
+                                        CornerRadius="5" Background="{StaticResource HighlightBrush}">
+                                        <StackPanel HorizontalAlignment="Center">
+                                            <TextBlock Foreground="Black" FontWeight="Bold" FontSize="15" Text="43 psi"/>
+                                            <TextBlock Foreground="Black" FontWeight="Bold" FontSize="15" Text="4 gpm"/>
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
                             </StackPanel>
                     </Grid>

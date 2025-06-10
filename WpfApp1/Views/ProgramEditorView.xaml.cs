@@ -12,6 +12,8 @@ namespace BackyardBoss.Views
             InitializeComponent();
             this.DataContext = new ProgramEditorViewModel();
             DebugLogger.LogFileIO("Test FileIO message from ProgramEditorView");
+
+
         }
     }
 }

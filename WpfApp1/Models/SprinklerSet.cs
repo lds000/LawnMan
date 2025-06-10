@@ -32,6 +32,9 @@ public class SprinklerSet : INotifyPropertyChanged
         }
     }
 
+    [JsonPropertyName("zone_id")]
+    public int ZoneId { get; set; }
+
     private int? _pulseDurationMinutes;
     [JsonPropertyName("pulse_duration_minutes")]
     public int? PulseDurationMinutes

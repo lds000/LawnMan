@@ -12,6 +12,7 @@
   "sets": [
     {
       "set_name": "Hanging Pots",
+      "zone_id": 1,
       "run_duration_minutes": 7,
       "seasonallyAdjustedMinutes": 7,
       "mode": true,
@@ -20,6 +21,7 @@
     },
     {
       "set_name": "Garden",
+      "zone_id": 2,
       "run_duration_minutes": 10,
       "seasonallyAdjustedMinutes": 10,
       "mode": true,
@@ -28,6 +30,7 @@
     },
     {
       "set_name": "Misters",
+      "zone_id": 3,
       "mode": false
     }
   ],

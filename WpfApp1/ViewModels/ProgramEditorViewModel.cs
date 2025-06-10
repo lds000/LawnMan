@@ -1,4 +1,17 @@
 ﻿// ProgramEditorViewModel with verbose auto-save logging
+using BackyardBoss.Commands;
+using BackyardBoss.Data;
+using BackyardBoss.Dialogs;
+using BackyardBoss.Models;
+using BackyardBoss.Services;
+using BackyardBoss.UserControls;
+using BackyardBoss.ViewModels;
+using BackyardBoss.Views;
+using OxyPlot;
+using OxyPlot.Axes;
+using OxyPlot.Legends;
+using OxyPlot.Series;
+using Renci.SshNet;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -10,23 +23,15 @@ using System.Net.Http;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
-using System.Windows.Threading;
-using BackyardBoss.Commands;
-using BackyardBoss.Dialogs;
-using BackyardBoss.Models;
-using BackyardBoss.Services;
-using BackyardBoss.Views;
-using Renci.SshNet;
-using WpfApp1;
-using BackyardBoss.ViewModels;
 using System.Windows.Media;
-using System.Text.Json.Serialization;
 using System.Windows.Media.Imaging;
-using BackyardBoss.UserControls;
 using System.Windows.Media.Media3D;
+using System.Windows.Threading;
+using WpfApp1;
 
 namespace BackyardBoss.ViewModels
 {
@@ -145,6 +150,10 @@ namespace BackyardBoss.ViewModels
         private ObservableCollection<SprinklerSet> _visibleSets = new();
         private SprinklerLineModel? _selectedMapLine;
         private bool _isWindy;
+        private ObservableCollection<SensorReading> _sensorReadings = new();
+        private PlotModel _sensorPlotModel;
+        private List<string> _availableZones = new();
+        private string _selectedZone;
 
         #endregion
 
@@ -156,6 +165,37 @@ namespace BackyardBoss.ViewModels
             get => _visibleSets;
             set { _visibleSets = value; OnPropertyChanged(); }
         }
+
+        /// <summary>
+        /// Bool property indicating if the system is watering or misting
+        /// </summary>
+        private bool _isWateringOrMisting;
+        public bool IsWateringOrMisting
+        {
+            get => _isWateringOrMisting;
+            set
+            {
+                if (_isWateringOrMisting != value)
+                {
+                    _isWateringOrMisting = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(IsWateringOrMistingVisible));
+                }
+            }
+        }
+
+        public Visibility IsWateringOrMistingVisible
+        {
+            get
+            {
+                if (IsWateringOrMisting)
+                {
+                    return Visibility.Visible;
+                }
+                return Visibility.Collapsed;
+            }
+        }
+
 
         public string SystemLedColor => LedColors != null && LedColors.TryGetValue("system", out var color) ? color : null;
         public ObservableCollection<ScheduledRunPreview> UpcomingRunsPreview { get; private set; } = new();
@@ -366,6 +406,28 @@ namespace BackyardBoss.ViewModels
                 }
             }
         }
+
+        /*
+# Possible values and structure for "system_status" in the API response:
+#
+# "system_status": "All Systems Nominal"
+#   - This is the default/normal status indicating the controller is running without detected errors.
+#
+# Other possible values (if you implement or extend error/status reporting):
+#   - "Manual Mode Active"         # If a manual run is in progress
+#   - "Test Mode Enabled"          # If test mode is active (test_mode.txt == "1")
+#   - "Error: <description>"       # If a critical error is detected (e.g., failed to load schedule)
+#   - "Maintenance Mode"           # If you add a maintenance flag/feature
+#   - "Startup"                    # During initial boot or startup sequence
+#
+# The "system_status" field is a string and is included in the JSON response from the /status endpoint.
+# Example:
+# {
+#   "system_status": "All Systems Nominal",
+#   ...
+# }
+        */
+
         public string SystemStatus
         {
             get => _systemStatus;
@@ -489,6 +551,26 @@ namespace BackyardBoss.ViewModels
         {
             get => _selectedMapLine;
             set { _selectedMapLine = value; OnPropertyChanged(); }
+        }
+        public ObservableCollection<SensorReading> SensorReadings
+        {
+            get => _sensorReadings;
+            set { _sensorReadings = value; OnPropertyChanged(); }
+        }
+        public PlotModel SensorPlotModel
+        {
+            get => _sensorPlotModel;
+            set { _sensorPlotModel = value; OnPropertyChanged(); }
+        }
+        public List<string> AvailableZones
+        {
+            get => _availableZones;
+            set { _availableZones = value; OnPropertyChanged(); }
+        }
+        public string SelectedZone
+        {
+            get => _selectedZone;
+            set { _selectedZone = value; OnPropertyChanged(); UpdateSensorPlot(); }
         }
         #endregion
 
@@ -615,6 +697,8 @@ namespace BackyardBoss.ViewModels
                     SelectedSection = section;
                     if (section == "Soil Data")
                         _ = SoilDataVM.LoadSoilDataAsync();
+                    else if (section == "Sensor Data")
+                        _ = LoadSensorReadingsAsync();
                 }
             });
 
@@ -957,7 +1041,20 @@ namespace BackyardBoss.ViewModels
                     PiReportedTestMode = parsed.TestMode;
                     LedColors = parsed.LedColors ?? new Dictionary<string, string>();
                     if (parsed.Zones != null && parsed.Zones.Count > 0)
+                    {
                         App.Current.Dispatcher.Invoke(() => { ZoneStatuses = new ObservableCollection<ZoneStatus>(parsed.Zones); });
+
+                        //if any zone is running / misting show PSI/Flow
+                        if (ZoneStatuses.Any(z => z.Status.Equals("Watering", StringComparison.OrdinalIgnoreCase) || z.Status.Equals("Misting", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            IsWateringOrMisting = true;
+                        }
+                        else
+                        {
+                            IsWateringOrMisting = false;
+                        }
+
+                    }
                     CurrentRun = parsed.CurrentRun;
                     NextRun = parsed.NextRun;
                     LastCompletedRun = parsed.LastCompletedRun;
@@ -1452,6 +1549,63 @@ namespace BackyardBoss.ViewModels
             {
                 System.Diagnostics.Debug.WriteLine($"Failed to load map: {ex.Message}");
             }
+        }
+
+        public async Task LoadSensorReadingsAsync()
+        {
+            var repo = new SqliteSensorDataRepository("sample_sensors.db");
+            var readings = await repo.GetAllReadingsAsync();
+            SensorReadings = new ObservableCollection<SensorReading>(readings);
+            // Map ZoneId to set names for display
+            var zoneIdToName = Sets.ToDictionary(s => s.ZoneId, s => s.SetName);
+            AvailableZones = SensorReadings.Select(r => zoneIdToName.ContainsKey(r.ZoneId) ? zoneIdToName[r.ZoneId] : $"Zone {r.ZoneId}").Distinct().OrderBy(z => z).ToList();
+            if (AvailableZones.Count > 0 && string.IsNullOrEmpty(SelectedZone))
+                SelectedZone = AvailableZones[0];
+            UpdateSensorPlot();
+        }
+
+        private void UpdateSensorPlot()
+        {
+            if (SensorReadings == null || string.IsNullOrEmpty(SelectedZone))
+            {
+                SensorPlotModel = new PlotModel { Title = "No Data" };
+                return;
+            }
+            // Map ZoneId to set names for display
+            var zoneIdToName = Sets.ToDictionary(s => s.ZoneId, s => s.SetName);
+            var filtered = SensorReadings.Where(r => zoneIdToName.ContainsKey(r.ZoneId) && zoneIdToName[r.ZoneId] == SelectedZone).OrderBy(r => r.Timestamp).ToList();
+            var model = new PlotModel { Title = $"{SelectedZone} Pressure & Flow" };
+            model.Axes.Add(new DateTimeAxis { Position = AxisPosition.Bottom, StringFormat = "MM-dd HH:mm", Title = "Time" });
+            model.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Title = "Pressure (psi)", TitleFontSize = 20, TitleColor = OxyPlot.OxyColors.DodgerBlue, Key = "PressureAxis", Minimum = 0, Maximum = 100 });
+            model.Axes.Add(new LinearAxis { Position = AxisPosition.Right, Title = "Flow (L/min)", TitleFontSize = 20, TitleColor = OxyPlot.OxyColors.Orange, Key = "FlowAxis", Minimum = 0, Maximum = 10 });
+            model.IsLegendVisible = true;
+            // The following properties are not available in your OxyPlot version:
+            // model.LegendPosition = ...
+            // model.LegendPlacement = ...
+            // model.LegendOrientation = ...
+            // The legend will still show, but position/orientation must be set via XAML or not at all in this version.
+            var pressureSeries = new LineSeries {
+                Title = "Pressure",
+                MarkerType = MarkerType.Circle,
+                YAxisKey = "PressureAxis",
+                Color = OxyPlot.OxyColors.DodgerBlue // Boise blue
+            };
+            var flowSeries = new LineSeries {
+                Title = "Flow",
+                MarkerType = MarkerType.Square,
+                YAxisKey = "FlowAxis",
+                Color = OxyPlot.OxyColors.Orange // Boise orange
+            };
+
+            foreach (var r in filtered)
+            {
+                var x = DateTimeAxis.ToDouble(r.Timestamp);
+                pressureSeries.Points.Add(new DataPoint(x, r.PressurePsi));
+                flowSeries.Points.Add(new DataPoint(x, r.FlowLpm));
+            }
+            model.Series.Add(pressureSeries);
+            model.Series.Add(flowSeries);
+            SensorPlotModel = model;
         }
         #endregion
     }
