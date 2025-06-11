@@ -2,7 +2,7 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!-- Boise State Primary Colors -->
-    <Color x:Key="BSUBlueColor">#FF0033A0</Color>
+    <Color x:Key="BSUBlueColor">    </Color>
     <Color x:Key="BSUOrangeColor">#FFFF6600</Color>
     <Color x:Key="DarkBackgroundColor">#FF121212</Color>
     <Color x:Key="LightTextColor">#FFF0F0F0</Color>

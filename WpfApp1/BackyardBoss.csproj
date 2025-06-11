@@ -20,6 +20,13 @@
 	  <None Remove="Assets\logos\BoiseStateLogoBlack.png" />
 	  <None Remove="Assets\logos\BoiseStateLogoDarkBlue.png" />
 	  <None Remove="Assets\Map\default_map.png" />
+	  <None Remove="Assets\SetIcons\DriveWay.png" />
+	  <None Remove="Assets\SetIcons\FrontYard.png" />
+	  <None Remove="Assets\SetIcons\Garden.png" />
+	  <None Remove="Assets\SetIcons\GolfCourse.png" />
+	  <None Remove="Assets\SetIcons\HangingPots.png" />
+	  <None Remove="Assets\SetIcons\LandScape.png" />
+	  <None Remove="Assets\SetIcons\Misters.png" />
 	  <None Remove="Assets\WeatherIcons\01d.png" />
 	  <None Remove="Assets\WeatherIcons\02d.png" />
 	  <None Remove="Assets\WeatherIcons\03d.png" />
@@ -56,6 +63,13 @@
 	  <Resource Include="Assets\logos\BoiseStateLogoBlack.png" />
 	  <Resource Include="Assets\logos\BoiseStateLogoDarkBlue.png" />
 	  <Resource Include="Assets\Map\default_map.png" />
+	  <Resource Include="Assets\SetIcons\DriveWay.png" />
+	  <Resource Include="Assets\SetIcons\FrontYard.png" />
+	  <Resource Include="Assets\SetIcons\Garden.png" />
+	  <Resource Include="Assets\SetIcons\GolfCourse.png" />
+	  <Resource Include="Assets\SetIcons\HangingPots.png" />
+	  <Resource Include="Assets\SetIcons\LandScape.png" />
+	  <Resource Include="Assets\SetIcons\Misters.png" />
 	  <Resource Include="Assets\WeatherIcons\01d.png">
 	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 	  </Resource>

@@ -485,8 +485,8 @@
 
     <!-- Boise State Themed ListBox Style -->
     <Style x:Key="BoiseStateListBoxStyle" TargetType="ListBox">
-        <Setter Property="Background" Value="{DynamicResource CardBackground}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ErrorRed}" />
         <Setter Property="BorderThickness" Value="2" />
         <Setter Property="Foreground" Value="{DynamicResource PrimaryText}" />
         <Setter Property="FontSize" Value="18" />

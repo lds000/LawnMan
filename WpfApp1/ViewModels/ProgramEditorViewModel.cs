@@ -154,6 +154,9 @@ namespace BackyardBoss.ViewModels
         private PlotModel _sensorPlotModel;
         private List<string> _availableZones = new();
         private string _selectedZone;
+        private DispatcherTimer _envPollTimer;
+        private TimeSpan _envPollIntervalRunning = TimeSpan.FromSeconds(1);
+        private TimeSpan _envPollIntervalIdle = TimeSpan.FromMinutes(1);
 
         #endregion
 
@@ -780,6 +783,8 @@ namespace BackyardBoss.ViewModels
 
             // Load map from JSON
             LoadMapFromJson();
+
+            InitEnvPolling();
         }
         #endregion
         private void WeatherVM_PropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -1553,15 +1558,53 @@ namespace BackyardBoss.ViewModels
 
         public async Task LoadSensorReadingsAsync()
         {
-            var repo = new SqliteSensorDataRepository("sample_sensors.db");
-            var readings = await repo.GetAllReadingsAsync();
-            SensorReadings = new ObservableCollection<SensorReading>(readings);
-            // Map ZoneId to set names for display
-            var zoneIdToName = Sets.ToDictionary(s => s.ZoneId, s => s.SetName);
-            AvailableZones = SensorReadings.Select(r => zoneIdToName.ContainsKey(r.ZoneId) ? zoneIdToName[r.ZoneId] : $"Zone {r.ZoneId}").Distinct().OrderBy(z => z).ToList();
-            if (AvailableZones.Count > 0 && string.IsNullOrEmpty(SelectedZone))
-                SelectedZone = AvailableZones[0];
-            UpdateSensorPlot();
+            // Fetch from Flask API instead of local sample DB
+            try
+            {
+                using var client = new HttpClient();
+                // Get last 100 readings for all sets
+                var response = await client.GetAsync("http://100.116.147.6:5000/env-history?n=100");
+                response.EnsureSuccessStatusCode();
+                var json = await response.Content.ReadAsStringAsync();
+                var doc = JsonDocument.Parse(json);
+                var readings = new List<SensorReading>();
+                foreach (var item in doc.RootElement.EnumerateArray())
+                {
+                    double pressure = item.TryGetProperty("pressure", out var p) && p.ValueKind == JsonValueKind.Number ? p.GetDouble() : 0;
+                    double flow = item.TryGetProperty("flow", out var f) && f.ValueKind == JsonValueKind.Number ? f.GetDouble() : 0;
+                    string setName = item.TryGetProperty("set_name", out var sn) && sn.ValueKind == JsonValueKind.String ? sn.GetString() : null;
+                    DateTime timestamp = item.TryGetProperty("timestamp", out var ts) && ts.ValueKind == JsonValueKind.String && DateTime.TryParse(ts.GetString(), out var dt) ? dt : DateTime.MinValue;
+                    var reading = new SensorReading
+                    {
+                        Timestamp = timestamp,
+                        // Map set_name to ZoneId if possible, else use 0
+                        ZoneId = Sets.FirstOrDefault(s => s.SetName == setName)?.ZoneId ?? 0,
+                        PressurePsi = pressure,
+                        FlowLpm = flow,
+                        FlowTotalLiters = 0 // Not provided by API
+                    };
+                    readings.Add(reading);
+                }
+                SensorReadings = new ObservableCollection<SensorReading>(readings);
+                // Map ZoneId to set names for display
+                var zoneIdToName = Sets.ToDictionary(s => s.ZoneId, s => s.SetName);
+                AvailableZones = SensorReadings
+                    .Select(r =>
+                        r.ZoneId == 0
+                            ? "City Water PSI"
+                            : (zoneIdToName.ContainsKey(r.ZoneId) ? zoneIdToName[r.ZoneId] : $"Zone {r.ZoneId}")
+                    )
+                    .Distinct()
+                    .OrderBy(z => z)
+                    .ToList();
+                if (AvailableZones.Count > 0 && string.IsNullOrEmpty(SelectedZone))
+                    SelectedZone = AvailableZones[0];
+                UpdateSensorPlot();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to load sensor readings from API: {ex.Message}");
+            }
         }
 
         private void UpdateSensorPlot()
@@ -1573,7 +1616,9 @@ namespace BackyardBoss.ViewModels
             }
             // Map ZoneId to set names for display
             var zoneIdToName = Sets.ToDictionary(s => s.ZoneId, s => s.SetName);
-            var filtered = SensorReadings.Where(r => zoneIdToName.ContainsKey(r.ZoneId) && zoneIdToName[r.ZoneId] == SelectedZone).OrderBy(r => r.Timestamp).ToList();
+            var filtered = SelectedZone == "City Water PSI"
+                ? SensorReadings.Where(r => r.ZoneId == 0).OrderBy(r => r.Timestamp).ToList()
+                : SensorReadings.Where(r => zoneIdToName.ContainsKey(r.ZoneId) && zoneIdToName[r.ZoneId] == SelectedZone).OrderBy(r => r.Timestamp).ToList();
             var model = new PlotModel { Title = $"{SelectedZone} Pressure & Flow" };
             model.Axes.Add(new DateTimeAxis { Position = AxisPosition.Bottom, StringFormat = "MM-dd HH:mm", Title = "Time" });
             model.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Title = "Pressure (psi)", TitleFontSize = 20, TitleColor = OxyPlot.OxyColors.DodgerBlue, Key = "PressureAxis", Minimum = 0, Maximum = 100 });
@@ -1607,6 +1652,58 @@ namespace BackyardBoss.ViewModels
             model.Series.Add(flowSeries);
             SensorPlotModel = model;
         }
+
+        private void InitEnvPolling()
+        {
+            _envPollTimer = new DispatcherTimer();
+            _envPollTimer.Interval = _envPollIntervalIdle;
+            _envPollTimer.Tick += async (s, e) => await PollEnvDataAsync();
+            _envPollTimer.Start();
+        }
+
+        private async Task PollEnvDataAsync()
+        {
+            try
+            {
+                using var client = new HttpClient();
+                var response = await client.GetAsync("http://100.116.147.6:5000/env-latest");
+                response.EnsureSuccessStatusCode();
+                var json = await response.Content.ReadAsStringAsync();
+                var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+                // Example: update properties or collections as needed
+                double pressure = root.TryGetProperty("pressure", out var p) && p.ValueKind == JsonValueKind.Number ? p.GetDouble() : 0;
+                double flow = root.TryGetProperty("flow", out var f) && f.ValueKind == JsonValueKind.Number ? f.GetDouble() : 0;
+                double moisture = root.TryGetProperty("moisture_b", out var m) && m.ValueKind == JsonValueKind.Number ? m.GetDouble() : 0;
+                string setName = root.TryGetProperty("set_name", out var sn) && sn.ValueKind == JsonValueKind.String ? sn.GetString() : null;
+                DateTime timestamp = root.TryGetProperty("timestamp", out var ts) && ts.ValueKind == JsonValueKind.String && DateTime.TryParse(ts.GetString(), out var dt) ? dt : DateTime.MinValue;
+                // You can update a property or collection here, e.g.:
+                // LastEnvReading = new EnvReading { ... };
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to poll env data: {ex.Message}");
+            }
+            UpdateEnvPollInterval();
+        }
+
+        private void UpdateEnvPollInterval()
+        {
+            // If any set/mister is running, poll every second; else every minute
+            bool isRunning = CurrentRun != null && !string.IsNullOrEmpty(CurrentRun.Phase);
+            var desired = isRunning ? _envPollIntervalRunning : _envPollIntervalIdle;
+            if (_envPollTimer.Interval != desired)
+                _envPollTimer.Interval = desired;
+        }
         #endregion
+
+        public class EnvReading
+        {
+            public DateTime Timestamp { get; set; }
+            public string SetName { get; set; }
+            public double Pressure { get; set; }
+            public double Flow { get; set; }
+            public double MoistureB { get; set; }
+        }
     }
 }

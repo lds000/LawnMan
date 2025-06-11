@@ -6,6 +6,8 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 public class SprinklerSet : INotifyPropertyChanged
 {
@@ -111,6 +113,34 @@ public class SprinklerSet : INotifyPropertyChanged
             }
         }
     }
+
+    //create an image source from the Resources by title SetName.png (remove space in title)
+    [JsonIgnore]
+    public ImageSource SetIcon
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(SetName))
+                return null;
+
+            // Remove spaces from SetName
+            string iconName = SetName.Replace(" ", string.Empty);
+
+            // Adjust the path as needed to match your project structure
+            string uri = $"pack://application:,,,/Assets/SetIcons/{iconName}.png";
+
+            try
+            {
+                return new BitmapImage(new Uri(uri, UriKind.Absolute));
+            }
+            catch
+            {
+                return null; // Optionally, return a default/fallback image here
+            }
+        }
+    }
+
+
 
 
     public int SeasonallyAdjustedMinutes
