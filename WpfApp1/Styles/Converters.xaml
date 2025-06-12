@@ -9,4 +9,5 @@
     <conv:ColorStringToBrushConverter x:Key="ColorStringToBrushConverter"/>
     <conv:PercentToHeightConverter x:Key="PercentToHeightConverter"/>
     <conv:SingleToCollectionConverter x:Key="SingleToCollectionConverter"/>
+    <conv:EnumToBooleanConverter x:Key="EnumToBooleanConverter"/>
 </ResourceDictionary>

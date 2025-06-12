@@ -329,7 +329,22 @@
         -->
         <DataTemplate x:Key="SensorDataTemplate">
             <StackPanel DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=UserControl}}">
-                <TextBlock Text="Sensor Data (Pressure &amp; Flow)" FontWeight="Bold" FontSize="24" Margin="0,0,0,8"/>
+                <StackPanel Orientation="Horizontal">
+                    <RadioButton
+                        GroupName="DataToDisplay"
+                        Content="Pressure &amp; Flow"
+                        FontWeight="Bold"
+                        FontSize="24"
+                        Margin="0,0,0,8"
+                        IsChecked="{Binding SelectedSensorDataMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=PressureAndFlow, Mode=TwoWay}"/>
+                    <RadioButton
+                        GroupName="DataToDisplay"
+                        Content="Temperature &amp; Humidity"
+                        FontWeight="Bold"
+                        FontSize="24"
+                        Margin="0,0,0,8"
+                        IsChecked="{Binding SelectedSensorDataMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=TemperatureAndHumidity, Mode=TwoWay}"/>
+                </StackPanel>
                 <StackPanel Orientation="Horizontal">
                     <!-- Zone selection list -->
                     <ListBox ItemsSource="{Binding AvailableZones}"

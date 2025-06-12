@@ -157,6 +157,7 @@ namespace BackyardBoss.ViewModels
         private DispatcherTimer _envPollTimer;
         private TimeSpan _envPollIntervalRunning = TimeSpan.FromSeconds(1);
         private TimeSpan _envPollIntervalIdle = TimeSpan.FromMinutes(1);
+        private SensorDataMode _selectedSensorDataMode = SensorDataMode.PressureAndFlow;
 
         #endregion
 
@@ -575,6 +576,23 @@ namespace BackyardBoss.ViewModels
             get => _selectedZone;
             set { _selectedZone = value; OnPropertyChanged(); UpdateSensorPlot(); }
         }
+        public SensorDataMode SelectedSensorDataMode
+        {
+            get => _selectedSensorDataMode;
+            set
+            {
+                if (_selectedSensorDataMode != value)
+                {
+                    _selectedSensorDataMode = value;
+                    OnPropertyChanged();
+                    UpdateSensorPlot();
+                }
+            }
+        }
+
+        public ObservableCollection<EnvironmentData> EnvironmentReadings { get; set; } = new();
+        public ObservableCollection<PlantData> PlantReadings { get; set; } = new();
+        public ObservableCollection<SetsData> SetsReadings { get; set; } = new();
         #endregion
 
         #region Commands
@@ -1242,6 +1260,54 @@ namespace BackyardBoss.ViewModels
                 Debug.WriteLine($"Failed to load mist status: {ex.Message}");
             }
         }
+
+        public async Task LoadEnvironmentDataAsync()
+        {
+            try
+            {
+                using var client = new HttpClient();
+                var json = await client.GetStringAsync("http://100.116.147.6:5000/environment-history?n=100");
+                var readings = JsonSerializer.Deserialize<List<EnvironmentData>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                EnvironmentReadings = new ObservableCollection<EnvironmentData>(readings ?? new List<EnvironmentData>());
+                OnPropertyChanged(nameof(EnvironmentReadings));
+            }
+            catch (Exception ex)
+            {
+                // Optionally log or handle error
+            }
+        }
+
+        public async Task LoadPlantDataAsync()
+        {
+            try
+            {
+                using var client = new HttpClient();
+                var json = await client.GetStringAsync("http://100.116.147.6:5000/plant-history?n=100");
+                var readings = JsonSerializer.Deserialize<List<PlantData>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                PlantReadings = new ObservableCollection<PlantData>(readings ?? new List<PlantData>());
+                OnPropertyChanged(nameof(PlantReadings));
+            }
+            catch (Exception ex)
+            {
+                // Optionally log or handle error
+            }
+        }
+
+        public async Task LoadSetsDataAsync()
+        {
+            try
+            {
+                using var client = new HttpClient();
+                var json = await client.GetStringAsync("http://100.116.147.6:5000/sets-history?n=100");
+                var readings = JsonSerializer.Deserialize<List<SetsData>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                SetsReadings = new ObservableCollection<SetsData>(readings ?? new List<SetsData>());
+                OnPropertyChanged(nameof(SetsReadings));
+            }
+            catch (Exception ex)
+            {
+                // Optionally log or handle error
+            }
+        }
         #endregion
 
         #region Run Management
@@ -1467,6 +1533,11 @@ namespace BackyardBoss.ViewModels
         #endregion
 
         #region Nested Types
+        public enum SensorDataMode
+        {
+            PressureAndFlow,
+            TemperatureAndHumidity
+        }
         #endregion
 
         #region New Methods
@@ -1577,7 +1648,6 @@ namespace BackyardBoss.ViewModels
                     var reading = new SensorReading
                     {
                         Timestamp = timestamp,
-                        // Map set_name to ZoneId if possible, else use 0
                         ZoneId = Sets.FirstOrDefault(s => s.SetName == setName)?.ZoneId ?? 0,
                         PressurePsi = pressure,
                         FlowLpm = flow,
@@ -1609,48 +1679,82 @@ namespace BackyardBoss.ViewModels
 
         private void UpdateSensorPlot()
         {
-            if (SensorReadings == null || string.IsNullOrEmpty(SelectedZone))
+            if (SelectedSensorDataMode == SensorDataMode.PressureAndFlow)
             {
-                SensorPlotModel = new PlotModel { Title = "No Data" };
-                return;
+                // Use SensorReadings for Pressure & Flow
+                if (SensorReadings == null || string.IsNullOrEmpty(SelectedZone))
+                {
+                    SensorPlotModel = new PlotModel { Title = "No Data" };
+                    return;
+                }
+                var zoneIdToName = Sets.ToDictionary(s => s.ZoneId, s => s.SetName);
+                var filtered = SelectedZone == "City Water PSI"
+                    ? SensorReadings.Where(r => r.ZoneId == 0).OrderBy(r => r.Timestamp).ToList()
+                    : SensorReadings.Where(r => zoneIdToName.ContainsKey(r.ZoneId) && zoneIdToName[r.ZoneId] == SelectedZone).OrderBy(r => r.Timestamp).ToList();
+                var model = new PlotModel { Title = $"{SelectedZone} Pressure & Flow" };
+                model.Axes.Add(new DateTimeAxis { Position = AxisPosition.Bottom, StringFormat = "MM-dd HH:mm", Title = "Time" });
+                model.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Title = "Pressure (psi)", TitleFontSize = 20, TitleColor = OxyPlot.OxyColors.DodgerBlue, Key = "PressureAxis", Minimum = 0, Maximum = 100 });
+                model.Axes.Add(new LinearAxis { Position = AxisPosition.Right, Title = "Flow (L/min)", TitleFontSize = 20, TitleColor = OxyPlot.OxyColors.Orange, Key = "FlowAxis", Minimum = 0, Maximum = 10 });
+                model.IsLegendVisible = true;
+                var pressureSeries = new LineSeries {
+                    Title = "Pressure",
+                    MarkerType = MarkerType.Circle,
+                    YAxisKey = "PressureAxis",
+                    Color = OxyPlot.OxyColors.DodgerBlue
+                };
+                var flowSeries = new LineSeries {
+                    Title = "Flow",
+                    MarkerType = MarkerType.Square,
+                    YAxisKey = "FlowAxis",
+                    Color = OxyPlot.OxyColors.Orange
+                };
+                foreach (var r in filtered)
+                {
+                    var x = DateTimeAxis.ToDouble(r.Timestamp);
+                    pressureSeries.Points.Add(new DataPoint(x, r.PressurePsi));
+                    flowSeries.Points.Add(new DataPoint(x, r.FlowLpm));
+                }
+                model.Series.Add(pressureSeries);
+                model.Series.Add(flowSeries);
+                SensorPlotModel = model;
             }
-            // Map ZoneId to set names for display
-            var zoneIdToName = Sets.ToDictionary(s => s.ZoneId, s => s.SetName);
-            var filtered = SelectedZone == "City Water PSI"
-                ? SensorReadings.Where(r => r.ZoneId == 0).OrderBy(r => r.Timestamp).ToList()
-                : SensorReadings.Where(r => zoneIdToName.ContainsKey(r.ZoneId) && zoneIdToName[r.ZoneId] == SelectedZone).OrderBy(r => r.Timestamp).ToList();
-            var model = new PlotModel { Title = $"{SelectedZone} Pressure & Flow" };
-            model.Axes.Add(new DateTimeAxis { Position = AxisPosition.Bottom, StringFormat = "MM-dd HH:mm", Title = "Time" });
-            model.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Title = "Pressure (psi)", TitleFontSize = 20, TitleColor = OxyPlot.OxyColors.DodgerBlue, Key = "PressureAxis", Minimum = 0, Maximum = 100 });
-            model.Axes.Add(new LinearAxis { Position = AxisPosition.Right, Title = "Flow (L/min)", TitleFontSize = 20, TitleColor = OxyPlot.OxyColors.Orange, Key = "FlowAxis", Minimum = 0, Maximum = 10 });
-            model.IsLegendVisible = true;
-            // The following properties are not available in your OxyPlot version:
-            // model.LegendPosition = ...
-            // model.LegendPlacement = ...
-            // model.LegendOrientation = ...
-            // The legend will still show, but position/orientation must be set via XAML or not at all in this version.
-            var pressureSeries = new LineSeries {
-                Title = "Pressure",
-                MarkerType = MarkerType.Circle,
-                YAxisKey = "PressureAxis",
-                Color = OxyPlot.OxyColors.DodgerBlue // Boise blue
-            };
-            var flowSeries = new LineSeries {
-                Title = "Flow",
-                MarkerType = MarkerType.Square,
-                YAxisKey = "FlowAxis",
-                Color = OxyPlot.OxyColors.Orange // Boise orange
-            };
-
-            foreach (var r in filtered)
+            else // TemperatureAndHumidity
             {
-                var x = DateTimeAxis.ToDouble(r.Timestamp);
-                pressureSeries.Points.Add(new DataPoint(x, r.PressurePsi));
-                flowSeries.Points.Add(new DataPoint(x, r.FlowLpm));
+                // Use EnvironmentReadings for Temperature & Humidity
+                if (EnvironmentReadings == null || string.IsNullOrEmpty(SelectedZone))
+                {
+                    SensorPlotModel = new PlotModel { Title = "No Data" };
+                    return;
+                }
+                // If you want to filter by zone, you can add logic here. For now, plot all.
+                var filtered = EnvironmentReadings.OrderBy(r => r.Timestamp).ToList();
+                var model = new PlotModel { Title = $"{SelectedZone} Temperature & Humidity" };
+                model.Axes.Add(new DateTimeAxis { Position = AxisPosition.Bottom, StringFormat = "MM-dd HH:mm", Title = "Time" });
+                model.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Title = "Temperature (°C)", TitleFontSize = 20, TitleColor = OxyPlot.OxyColors.Red, Key = "TempAxis", Minimum = 0, Maximum = 50 });
+                model.Axes.Add(new LinearAxis { Position = AxisPosition.Right, Title = "Humidity (%)", TitleFontSize = 20, TitleColor = OxyPlot.OxyColors.Blue, Key = "HumidityAxis", Minimum = 0, Maximum = 100 });
+                model.IsLegendVisible = true;
+                var tempSeries = new LineSeries {
+                    Title = "Temperature",
+                    MarkerType = MarkerType.Circle,
+                    YAxisKey = "TempAxis",
+                    Color = OxyPlot.OxyColors.Red
+                };
+                var humiditySeries = new LineSeries {
+                    Title = "Humidity",
+                    MarkerType = MarkerType.Square,
+                    YAxisKey = "HumidityAxis",
+                    Color = OxyPlot.OxyColors.Blue
+                };
+                foreach (var r in filtered)
+                {
+                    var x = DateTimeAxis.ToDouble(r.Timestamp);
+                    tempSeries.Points.Add(new DataPoint(x, r.Temperature));
+                    humiditySeries.Points.Add(new DataPoint(x, r.Humidity));
+                }
+                model.Series.Add(tempSeries);
+                model.Series.Add(humiditySeries);
+                SensorPlotModel = model;
             }
-            model.Series.Add(pressureSeries);
-            model.Series.Add(flowSeries);
-            SensorPlotModel = model;
         }
 
         private void InitEnvPolling()
@@ -1674,7 +1778,6 @@ namespace BackyardBoss.ViewModels
                 // Example: update properties or collections as needed
                 double pressure = root.TryGetProperty("pressure", out var p) && p.ValueKind == JsonValueKind.Number ? p.GetDouble() : 0;
                 double flow = root.TryGetProperty("flow", out var f) && f.ValueKind == JsonValueKind.Number ? f.GetDouble() : 0;
-                double moisture = root.TryGetProperty("moisture_b", out var m) && m.ValueKind == JsonValueKind.Number ? m.GetDouble() : 0;
                 string setName = root.TryGetProperty("set_name", out var sn) && sn.ValueKind == JsonValueKind.String ? sn.GetString() : null;
                 DateTime timestamp = root.TryGetProperty("timestamp", out var ts) && ts.ValueKind == JsonValueKind.String && DateTime.TryParse(ts.GetString(), out var dt) ? dt : DateTime.MinValue;
                 // You can update a property or collection here, e.g.:
