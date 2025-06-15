@@ -1,0 +1,1 @@
+// Duplicate file removed to resolve type redefinition errors. See 'MistSettings .cs' for the correct implementation.

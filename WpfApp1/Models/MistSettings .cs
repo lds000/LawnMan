@@ -45,6 +45,7 @@ namespace BackyardBoss.Models
             } }
         }
 
+        [JsonPropertyName("mist_enabled")]
         public bool MistEnabled
         {
             get => _mistEnabled;

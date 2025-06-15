@@ -12,7 +12,7 @@ public class WeatherViewModel : INotifyPropertyChanged
     private string _windSpeed = "";
     private string _pressure = "";
     private string _condition = "";
-    private string _weatherIcon = "Assets/Weather/default.png";
+    private string _weatherIcon = "pack://application:,,,/Assets/WeatherIcons/default.png";
     private string _feelsLike = "";
     private string _visibility = "";
     private string _sunrise = "";
@@ -204,7 +204,8 @@ public class WeatherViewModel : INotifyPropertyChanged
             Temperature = "N/A";
             Humidity = WindSpeed = Pressure = "";
             Condition = "Unavailable";
-            WeatherIcon = "Assets/WeatherIcons/default.png";
+            // Use a pack URI for the fallback icon so WPF can resolve it as a resource
+            WeatherIcon = "pack://application:,,,/Assets/WeatherIcons/default.png";
             _feelsLike = _visibility = _sunrise = _sunset = "-";
             OnPropertyChanged(nameof(FeelsLike));
             OnPropertyChanged(nameof(Visibility));

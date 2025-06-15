@@ -1,0 +1,55 @@
+Authentication & Security
+
+- The WPF client does not require authentication (username/password) to connect to the MQTT broker by default. If authentication is added, credentials should be stored securely (e.g., encrypted or in user secrets), but current code does not show secure storage.
+- The WPF client does not use TLS/SSL for MQTT or SFTP connections by default. MQTT and SFTP connections are made in plaintext unless you explicitly configure them for encryption.
+
+MQTT Topics & Subscriptions
+
+- The WPF client subscribes to these MQTT topics for real-time updates:
+  - sensors/environment
+  - sensors/plant
+  - sensors/sets
+  - status/watering
+- The client is strictly a subscriber for sensor and status topics. It does not publish to MQTT topics for control or schedule updates; those are handled via SFTP.
+
+SFTP/SSH Usage
+
+- Files transferred via SFTP include:
+  - sprinkler_schedule.json (watering schedule uploads)
+  - manual_command.json (manual run commands)
+- Password authentication is used for SFTP/SSH (not SSH keys) as seen in the code.
+
+User Roles & Permissions
+
+- The WPF client is single-user/admin only. There are no user roles, permissions, or multi-user logic.
+
+Error Handling & Logging
+
+- Connection failures, timeouts, or invalid data are caught and may show a MessageBox or be silently ignored. Some errors are logged using DebugLogger, but logs are not stored in a persistent file by default.
+- Logging is mostly for debugging and troubleshooting, not for audit or compliance.
+
+UI/UX
+
+- Main UI features:
+  - Live sensor dashboard
+  - Manual control (run once)
+  - Schedule editor
+  - History viewer (watering logs)
+- No explicit accessibility or localization features are implemented.
+
+Extensibility
+
+- The WPF client can be extended to support new sensor types or MQTT topics by updating the code.
+- The architecture is monolithic, not plugin-based.
+
+Update/Deployment
+
+- The WPF client is updated/deployed manually (e.g., via installer or copying files). There is no auto-update or version checking built in.
+
+Network Topology
+
+- The WPF client is designed for use on the same LAN as the Pis. Remote/VPN/cloud access is not explicitly supported but could be added with network configuration.
+
+Data Retention & History
+
+- The WPF client does not store historical data locally by default. It fetches data from the Pi/server as needed.

@@ -70,6 +70,9 @@
 	  <Resource Include="Assets\SetIcons\HangingPots.png" />
 	  <Resource Include="Assets\SetIcons\LandScape.png" />
 	  <Resource Include="Assets\SetIcons\Misters.png" />
+	  <Resource Include="Assets\WeatherIcons\default.png">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Assets\WeatherIcons\01d.png">
 	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 	  </Resource>
@@ -112,6 +115,7 @@
 	  <PackageReference Include="FontAwesome.WPF" Version="4.7.0.9" />
 	  <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.5" />
 	  <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3240.44" />
+	  <PackageReference Include="MQTTnet" Version="3.1.5" />
 	  <PackageReference Include="MySqlConnector" Version="2.4.0" />
 	  <PackageReference Include="OxyPlot.Wpf" Version="2.2.0" />
 	  <PackageReference Include="SSH.NET" Version="2025.0.0" />

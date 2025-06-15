@@ -1,0 +1,68 @@
+Sensor Pi / WPF Client Integration Details
+
+Model Schemas
+
+- EnvironmentData, PlantData, SetsData:
+  - C# classes with properties matching the expected JSON fields.
+  - Example (EnvironmentData):
+    public class EnvironmentData {
+        public string Timestamp { get; set; }
+        public double Temperature { get; set; }
+        public double Humidity { get; set; }
+        // ...other fields as needed
+    }
+  - PlantData and SetsData follow a similar pattern, with fields relevant to plant or set sensors.
+
+- PiStatusResponse:
+    public class PiStatusResponse {
+        public string SystemStatus { get; set; }
+        public bool TestMode { get; set; }
+        public double TestModeTimestamp { get; set; }
+        public Dictionary<string, string> LedColors { get; set; }
+        public List<ZoneStatus> Zones { get; set; }
+        public PiRunInfo CurrentRun { get; set; }
+        public PiRunInfo NextRun { get; set; }
+        public LastCompletedRunInfo LastCompletedRun { get; set; }
+        public List<UpcomingRunInfo> UpcomingRuns { get; set; }
+        public bool TodayIsWateringDay { get; set; }
+    }
+
+- Custom deserialization/error handling:
+  - Uses System.Text.Json for deserialization. Malformed messages are caught in a try/catch and ignored (optionally logged), so a bad message will not crash the app.
+
+UI/UX Details
+
+- MQTT broker address/port/topic:
+  - Hardcoded in code (e.g., "localhost", port 1883). No user-configurable settings in the UI for MQTT connection or topic subscriptions.
+
+- Connection errors/lost MQTT:
+  - Connection errors are caught and ignored or optionally logged. No explicit status bar or popup for MQTT connection loss; the UI will simply stop updating if disconnected.
+
+Schedule Upload Format
+
+- sprinkler_schedule.json:
+  - Serialized SprinklerSchedule object, which includes sets, start times, mist settings, and schedule days.
+  - Example:
+    {
+      "sets": [ { "setName": "Front Lawn", "runDurationMinutes": 10 }, ... ],
+      "startTimes": [ { "time": "06:00", "isEnabled": true }, ... ],
+      "mist": { "temperatureSettings": [ { "temperature": 90, "interval": 20, "duration": 2 }, ... ] },
+      "scheduleDays": [ true, false, ... ]
+    }
+
+- manual_command.json:
+  - Example:
+    {
+      "manual_run": {
+        "sets": ["Front Lawn"],
+        "duration_minutes": 10
+      }
+    }
+
+Security/Authentication
+
+- MQTT authentication is not enabled by default. If enabled, credentials would need to be added to the code/config. There is no UI or secure storage for credentials in the current implementation.
+
+Extensibility
+
+- No plugin or extension points in the WPF client. To add new sensor types or dashboard widgets, you must update the codebase directly (monolithic architecture).

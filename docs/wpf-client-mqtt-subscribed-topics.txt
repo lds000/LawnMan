@@ -1,0 +1,43 @@
+MQTT Topics Subscribed by the WPF Client
+
+1. sensors/environment
+   - Message Format: JSON object matching the EnvironmentData model (e.g., temperature, humidity, etc.)
+   - Processing: Deserialized into an EnvironmentData object and added to the EnvironmentReadings collection.
+   - UI Display: Shown in the live sensor dashboard as real-time environment sensor readings.
+
+2. sensors/plant
+   - Message Format: JSON object matching the PlantData model (e.g., plant-specific sensor data)
+   - Processing: Deserialized into a PlantData object and added to the PlantReadings collection.
+   - UI Display: Shown in the live sensor dashboard as plant health or status indicators.
+
+3. sensors/sets
+   - Message Format: JSON object matching the SetsData model (e.g., set-specific sensor data)
+   - Processing: Deserialized into a SetsData object and added to the SetsReadings collection.
+   - UI Display: Shown in the live sensor dashboard, often as per-zone or per-set sensor data.
+
+4. status/watering
+   - Message Format: JSON object matching the PiStatusResponse model, which includes:
+     - system_status (string)
+     - test_mode (bool)
+     - led_colors (dictionary)
+     - zones (list of zone statuses)
+     - current_run, next_run, last_completed_run (run info objects)
+     - upcoming_runs (list)
+   - Processing: Deserialized into a PiStatusResponse object. Updates multiple properties:
+     - SystemStatus
+     - PiReportedTestMode
+     - LedColors
+     - ZoneStatuses
+     - CurrentRun, NextRun, LastCompletedRun
+     - UpcomingRuns
+   - UI Display: Updates the main dashboard, including system status, test mode, LED indicators, zone statuses, current/next/last run info, and upcoming runs.
+
+General Processing Flow:
+- All MQTT messages are received as JSON payloads.
+- The WPF client deserializes each message according to the topic and updates the corresponding ObservableCollection or property.
+- The UI is data-bound to these collections/properties, so updates are reflected in real time (e.g., sensor dashboards, status panels, run history, etc.).
+
+Note:
+- The WPF client does not publish to MQTT topics; it is strictly a subscriber for the above topics.
+
+If you need the exact JSON schema for each model, let me know!

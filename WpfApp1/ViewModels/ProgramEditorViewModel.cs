@@ -154,10 +154,7 @@ namespace BackyardBoss.ViewModels
         private PlotModel _sensorPlotModel;
         private List<string> _availableZones = new();
         private string _selectedZone;
-        private DispatcherTimer _envPollTimer;
-        private TimeSpan _envPollIntervalRunning = TimeSpan.FromSeconds(1);
-        private TimeSpan _envPollIntervalIdle = TimeSpan.FromMinutes(1);
-        private SensorDataMode _selectedSensorDataMode = SensorDataMode.PressureAndFlow;
+        private MqttService _mqttService;
 
         #endregion
 
@@ -167,7 +164,7 @@ namespace BackyardBoss.ViewModels
         public ObservableCollection<SprinklerSet> VisibleSets
         {
             get => _visibleSets;
-            set { _visibleSets = value; OnPropertyChanged(); }
+            set { _visibleSets = value; }
         }
 
         /// <summary>
@@ -182,8 +179,7 @@ namespace BackyardBoss.ViewModels
                 if (_isWateringOrMisting != value)
                 {
                     _isWateringOrMisting = value;
-                    OnPropertyChanged();
-                    OnPropertyChanged(nameof(IsWateringOrMistingVisible));
+                    OnPropertyChanged(nameof(IsWateringOrMisting));
                 }
             }
         }
@@ -200,13 +196,15 @@ namespace BackyardBoss.ViewModels
             }
         }
 
+        // Returns the current local time as a formatted string for UI binding
+        public string CurrentTime => DateTime.Now.ToString("hh:mm:ss tt");
 
         public string SystemLedColor => LedColors != null && LedColors.TryGetValue("system", out var color) ? color : null;
         public ObservableCollection<ScheduledRunPreview> UpcomingRunsPreview { get; private set; } = new();
         public ObservableCollection<UpcomingRunInfo> UpcomingRuns
         {
             get => _upcomingRuns;
-            set { _upcomingRuns = value; OnPropertyChanged(); }
+            set { _upcomingRuns = value; }
         }
         public ObservableCollection<string> PiStatusLog { get; private set; } = new();
         public WeatherViewModel WeatherVM { get; } = new WeatherViewModel();
@@ -228,7 +226,7 @@ namespace BackyardBoss.ViewModels
                 {
                     _isWindy = value;
                     OnPropertyChanged();
-                    OnPropertyChanged("IsWindyVisible");
+                    OnPropertyChanged(nameof(IsWindyVisible));
                 }
             }
         }
@@ -277,12 +275,12 @@ namespace BackyardBoss.ViewModels
                 }
             }
         }
-        public bool IsSet1On { get => _isSet1On; set { _isSet1On = value; OnPropertyChanged(); } }
-        public bool IsSet2On { get => _isSet2On; set { _isSet2On = value; OnPropertyChanged(); } }
-        public bool IsSet3On { get => _isSet3On; set { _isSet3On = value; OnPropertyChanged(); } }
-        public Brush Set1Color { get => _set1Color; set { _set1Color = value; OnPropertyChanged(); } }
-        public Brush Set2Color { get => _set2Color; set { _set2Color = value; OnPropertyChanged(); } }
-        public Brush Set3Color { get => _set3Color; set { _set3Color = value; OnPropertyChanged(); } }
+        public bool IsSet1On { get => _isSet1On; set { _isSet1On = value; } }
+        public bool IsSet2On { get => _isSet2On; set { _isSet2On = value; } }
+        public bool IsSet3On { get => _isSet3On; set { _isSet3On = value; } }
+        public Brush Set1Color { get => _set1Color; set { _set1Color = value; } }
+        public Brush Set2Color { get => _set2Color; set { _set2Color = value; } }
+        public Brush Set3Color { get => _set3Color; set { _set3Color = value; } }
         public bool IsTestMode
         {
             get => _isTestMode;
@@ -294,7 +292,6 @@ namespace BackyardBoss.ViewModels
                     _isTestMode = value;
                     _lastManualTestModeChange = DateTime.Now;
                     OnPropertyChanged();
-                    SetEnvironmentVariable("TEST_MODE", value ? "1" : "0");
                 }
                 else
                 {
@@ -320,8 +317,6 @@ namespace BackyardBoss.ViewModels
             set
             {
                 _selectedSet = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(IsSetSelected));
                 // Update SelectedMapLine when SelectedSet changes
                 if (_selectedSet != null)
                 {
@@ -332,6 +327,8 @@ namespace BackyardBoss.ViewModels
                 {
                     SelectedMapLine = null;
                 }
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(IsSetSelected));
             }
         }
         public string SelectedStartTime
@@ -352,15 +349,14 @@ namespace BackyardBoss.ViewModels
                 if (Schedule.SeasonalAdjustment != value)
                 {
                     Schedule.SeasonalAdjustment = value;
-                    OnPropertyChanged();
-                    OnPropertyChanged(nameof(SeasonalAdjustment));
-                    OnPropertyChanged(nameof(SeasonalAdjustmentPercent));
                     foreach (var set in Sets)
                     {
                         set.OnPropertyChanged(nameof(set.SeasonallyAdjustedMinutes));
                     }
                     UpdateUpcomingRunsPreview();
                     DebouncedSaveAndSendToPi();
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(SeasonalAdjustmentPercent));
                 }
             }
         }
@@ -370,26 +366,25 @@ namespace BackyardBoss.ViewModels
             set
             {
                 SeasonalAdjustment = value / 100.0;
-                OnPropertyChanged();
             }
         }
 
         // Week 1
-        public bool Week1Sunday { get => Schedule.ScheduleDays[0]; set { Schedule.ScheduleDays[0] = value; OnPropertyChanged(); DebouncedSaveAndSendToPi(); } }
-        public bool Week1Monday { get => Schedule.ScheduleDays[1]; set { Schedule.ScheduleDays[1] = value; OnPropertyChanged(); DebouncedSaveAndSendToPi(); } }
-        public bool Week1Tuesday { get => Schedule.ScheduleDays[2]; set { Schedule.ScheduleDays[2] = value; OnPropertyChanged(); DebouncedSaveAndSendToPi(); } }
-        public bool Week1Wednesday { get => Schedule.ScheduleDays[3]; set { Schedule.ScheduleDays[3] = value; OnPropertyChanged(); DebouncedSaveAndSendToPi(); } }
-        public bool Week1Thursday { get => Schedule.ScheduleDays[4]; set { Schedule.ScheduleDays[4] = value; OnPropertyChanged(); DebouncedSaveAndSendToPi(); } }
-        public bool Week1Friday { get => Schedule.ScheduleDays[5]; set { Schedule.ScheduleDays[5] = value; OnPropertyChanged(); DebouncedSaveAndSendToPi(); } }
-        public bool Week1Saturday { get => Schedule.ScheduleDays[6]; set { Schedule.ScheduleDays[6] = value; OnPropertyChanged(); DebouncedSaveAndSendToPi(); } }
+        public bool Week1Sunday { get => Schedule.ScheduleDays[0]; set { Schedule.ScheduleDays[0] = value; DebouncedSaveAndSendToPi(); } }
+        public bool Week1Monday { get => Schedule.ScheduleDays[1]; set { Schedule.ScheduleDays[1] = value; DebouncedSaveAndSendToPi(); } }
+        public bool Week1Tuesday { get => Schedule.ScheduleDays[2]; set { Schedule.ScheduleDays[2] = value; DebouncedSaveAndSendToPi(); } }
+        public bool Week1Wednesday { get => Schedule.ScheduleDays[3]; set { Schedule.ScheduleDays[3] = value; DebouncedSaveAndSendToPi(); } }
+        public bool Week1Thursday { get => Schedule.ScheduleDays[4]; set { Schedule.ScheduleDays[4] = value; DebouncedSaveAndSendToPi(); } }
+        public bool Week1Friday { get => Schedule.ScheduleDays[5]; set { Schedule.ScheduleDays[5] = value; DebouncedSaveAndSendToPi(); } }
+        public bool Week1Saturday { get => Schedule.ScheduleDays[6]; set { Schedule.ScheduleDays[6] = value; DebouncedSaveAndSendToPi(); } }
         // Week 2
-        public bool Week2Sunday { get => Schedule.ScheduleDays[7]; set { Schedule.ScheduleDays[7] = value; OnPropertyChanged(); DebouncedSaveAndSendToPi(); } }
-        public bool Week2Monday { get => Schedule.ScheduleDays[8]; set { Schedule.ScheduleDays[8] = value; OnPropertyChanged(); DebouncedSaveAndSendToPi(); } }
-        public bool Week2Tuesday { get => Schedule.ScheduleDays[9]; set { Schedule.ScheduleDays[9] = value; OnPropertyChanged(); DebouncedSaveAndSendToPi(); } }
-        public bool Week2Wednesday { get => Schedule.ScheduleDays[10]; set { Schedule.ScheduleDays[10] = value; OnPropertyChanged(); DebouncedSaveAndSendToPi(); } }
-        public bool Week2Thursday { get => Schedule.ScheduleDays[11]; set { Schedule.ScheduleDays[11] = value; OnPropertyChanged(); DebouncedSaveAndSendToPi(); } }
-        public bool Week2Friday { get => Schedule.ScheduleDays[12]; set { Schedule.ScheduleDays[12] = value; OnPropertyChanged(); DebouncedSaveAndSendToPi(); } }
-        public bool Week2Saturday { get => Schedule.ScheduleDays[13]; set { Schedule.ScheduleDays[13] = value; OnPropertyChanged(); DebouncedSaveAndSendToPi(); } }
+        public bool Week2Sunday { get => Schedule.ScheduleDays[7]; set { Schedule.ScheduleDays[7] = value; DebouncedSaveAndSendToPi(); } }
+        public bool Week2Monday { get => Schedule.ScheduleDays[8]; set { Schedule.ScheduleDays[8] = value; DebouncedSaveAndSendToPi(); } }
+        public bool Week2Tuesday { get => Schedule.ScheduleDays[9]; set { Schedule.ScheduleDays[9] = value; DebouncedSaveAndSendToPi(); } }
+        public bool Week2Wednesday { get => Schedule.ScheduleDays[10]; set { Schedule.ScheduleDays[10] = value; DebouncedSaveAndSendToPi(); } }
+        public bool Week2Thursday { get => Schedule.ScheduleDays[11]; set { Schedule.ScheduleDays[11] = value; DebouncedSaveAndSendToPi(); } }
+        public bool Week2Friday { get => Schedule.ScheduleDays[12]; set { Schedule.ScheduleDays[12] = value; DebouncedSaveAndSendToPi(); } }
+        public bool Week2Saturday { get => Schedule.ScheduleDays[13]; set { Schedule.ScheduleDays[13] = value; DebouncedSaveAndSendToPi(); } }
         public string CurrentStation { get => _currentStation; set { if (_currentStation != value) { _currentStation = value; OnPropertyChanged(); } } }
         public string Countdown { get => _countdown; set { if (_countdown != value) { _countdown = value; OnPropertyChanged(); } } }
         public int? PiScheduleIndex { get => _piScheduleIndex; set { _piScheduleIndex = value; OnPropertyChanged(); OnPropertyChanged(nameof(ScheduleIndexMismatch)); } }
@@ -401,12 +396,10 @@ namespace BackyardBoss.ViewModels
             get => _selectedSection;
             set
             {
-                _selectedSection = value;
-                OnPropertyChanged();
-                if (value == "History")
+                if (_selectedSection != value)
                 {
-                    // Fetch latest history from Pi when switching to History section
-                    _ = LoadHistoryFromPiAsync();
+                    _selectedSection = value;
+                    OnPropertyChanged(nameof(SelectedSection));
                 }
             }
         }
@@ -438,8 +431,8 @@ namespace BackyardBoss.ViewModels
             set
             {
                 _systemStatus = value;
-                OnPropertyChanged();
                 UpdateStatusIcon(_systemStatus);
+                OnPropertyChanged();
             }
         }
         public ObservableCollection<ZoneStatus> ZoneStatuses
@@ -487,7 +480,7 @@ namespace BackyardBoss.ViewModels
         public Dictionary<string, string> LedColors
         {
             get => _ledColors;
-            set { _ledColors = value; OnPropertyChanged(); }
+            set { _ledColors = value; OnPropertyChanged(); OnPropertyChanged(nameof(SystemLedColor)); }
         }
         public PiRunInfo CurrentRun
         {
@@ -495,15 +488,15 @@ namespace BackyardBoss.ViewModels
             set
             {
                 _currentRun = value;
+                UpdateStatusIcon(SystemStatus);
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(CurrentRunDisplay));
-                UpdateStatusIcon(SystemStatus);
             }
         }
         public PiRunInfo NextRun
         {
             get => _nextRun;
-            set { _nextRun = value; OnPropertyChanged(); OnPropertyChanged(nameof(NextRunDisplay)); UpdateStatusIcon(SystemStatus); }
+            set { _nextRun = value; UpdateStatusIcon(SystemStatus); OnPropertyChanged(); OnPropertyChanged(nameof(NextRunDisplay)); }
         }
         public LastCompletedRunInfo LastCompletedRun
         {
@@ -554,7 +547,14 @@ namespace BackyardBoss.ViewModels
         public SprinklerLineModel? SelectedMapLine
         {
             get => _selectedMapLine;
-            set { _selectedMapLine = value; OnPropertyChanged(); }
+            set
+            {
+                if (_selectedMapLine != value)
+                {
+                    _selectedMapLine = value;
+                    OnPropertyChanged(nameof(SelectedMapLine));
+                }
+            }
         }
         public ObservableCollection<SensorReading> SensorReadings
         {
@@ -574,20 +574,7 @@ namespace BackyardBoss.ViewModels
         public string SelectedZone
         {
             get => _selectedZone;
-            set { _selectedZone = value; OnPropertyChanged(); UpdateSensorPlot(); }
-        }
-        public SensorDataMode SelectedSensorDataMode
-        {
-            get => _selectedSensorDataMode;
-            set
-            {
-                if (_selectedSensorDataMode != value)
-                {
-                    _selectedSensorDataMode = value;
-                    OnPropertyChanged();
-                    UpdateSensorPlot();
-                }
-            }
+            set { _selectedZone = value; OnPropertyChanged(); }
         }
 
         public ObservableCollection<EnvironmentData> EnvironmentReadings { get; set; } = new();
@@ -636,7 +623,6 @@ namespace BackyardBoss.ViewModels
             };
             // Populate mock data for dashboard demo
             SystemStatus = "All Systems Nominal";
-            // Use set names for mock ZoneStatuses if available, otherwise fallback to generic names
             var demoSetNames = new[] { "Front Lawn", "Backyard", "Garden" };
             ZoneStatuses = new ObservableCollection<ZoneStatus>
             {
@@ -656,100 +642,12 @@ namespace BackyardBoss.ViewModels
                 new WateringLogEntry { Date = DateTime.Today.AddDays(-2), SetName = demoSetNames[1], DurationMinutes = 12, Status = "Completed" },
                 new WateringLogEntry { Date = DateTime.Today.AddDays(-3), SetName = demoSetNames[2], DurationMinutes = 15, Status = "Error" }
             };
-            // Call UpdateNextRunFromJson to populate NextRun from JSON
-            UpdateNextRunFromJson();
-            var piScheduleTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-            piScheduleTimer.Tick += async (s, e) => await UpdatePiScheduleInfoAsync();
-            piScheduleTimer.Start();
-            Application.Current.Dispatcher.InvokeAsync(async () => { await UpdatePiScheduleInfoAsync(); });
-            AddSetCommand = new RelayCommand(_ => AddSet());
-            RemoveSetCommand = new RelayCommand(_ => RemoveSet());
-            AddStartTimeCommand = new RelayCommand(_ => AddStartTime());
-            RemoveStartTimeCommand = new RelayCommand(_ => RemoveStartTime());
-            SaveScheduleCommand = new RelayCommand(_ => Save(SaveTarget.LocalOnly));
-            SaveAndSendCommand = new RelayCommand(_ => Save(SaveTarget.LocalAndSendToPi));
-            RunOnceCommand = new RelayCommand(_ => RunOnce());
-            CopyProject = new RelayCommand(_ => CopyProject2Clip());
-            RefreshPiStatusCommand = new RelayCommand(async _ => await LoadPiStatusAsync());
-            ShowPiLogCommand = new RelayCommand(_ => ShowPiLog());
-            ShowPlotsCommand = new RelayCommand(_ => OpenPlotWindow());
-            ToggleTestModeCommand = new RelayCommand(_ => ToggleTestMode());
-            StopAllCommand = new RelayCommand(async _ => await StopAllAsync());
-            ExitCommand = new RelayCommand(_ => Application.Current.Shutdown());
-            QuickMistCommand = new RelayCommand(_ =>
-            {
-                var mistSet = Sets.FirstOrDefault(s => s.SetName.Equals("Misters", StringComparison.OrdinalIgnoreCase));
-                if (mistSet != null)
-                {
-                    SendManualRun(mistSet.SetName, 2);
-                }
-                else
-                {
-                    MessageBox.Show("Mist set not found in program.", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-                }
-            });
-            ReloadCommand = new RelayCommand(_ => ReloadApp());
-            var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-            timer.Tick += async (s, e) => await LoadPiStatusAsync();
-            timer.Start();
-
-            //update CurrentTime every second
-            var timeTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-
-            OpenTimePickerCommand = new RelayCommand<StartTimeViewModel>(entry =>
-            {
-                if (entry == null)
-                {
-                    DebugLogger.LogVariableStatus("Entry is null. Cannot open time picker.");
-                    return;
-                }
-                var dialog = new RadialTimePickerDialog { Owner = Application.Current.MainWindow };
-                dialog.SetTime(entry.ParsedTime);
-                if (dialog.ShowDialog() == true)
-                {
-                    entry.ParsedTime = dialog.SelectedTime;
-                    DebouncedSaveAndSendToPi();
-                }
-            });
-            SelectSectionCommand = new RelayCommand(param =>
-            {
-                if (param is string section)
-                {
-                    SelectedSection = section;
-                    if (section == "Soil Data")
-                        _ = SoilDataVM.LoadSoilDataAsync();
-                    else if (section == "Sensor Data")
-                        _ = LoadSensorReadingsAsync();
-                }
-            });
-
-            if (Schedule.Mist == null)
-                Schedule.Mist = new BackyardBoss.Models.MistSettings();
-            if (Schedule.Mist.TemperatureSettings == null || Schedule.Mist.TemperatureSettings.Count == 0)
-            {
-                Schedule.Mist.TemperatureSettings = new System.Collections.ObjectModel.ObservableCollection<BackyardBoss.Models.MistSettingViewModel>
-                {
-                    new BackyardBoss.Models.MistSettingViewModel { Temperature = 90, Interval = 20, Duration = 2 },
-                    new BackyardBoss.Models.MistSettingViewModel { Temperature = 95, Interval = 20, Duration = 2 },
-                    new BackyardBoss.Models.MistSettingViewModel { Temperature = 100, Interval = 20, Duration = 2 }
-                };
-            }
-
-            // Add mist status polling
-            var mistStatusTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
-            mistStatusTimer.Tick += async (s, e) => await LoadMistStatusAsync();
-            mistStatusTimer.Start();
-            // Initial load for mist status
-            _ = LoadMistStatusAsync();
-
+            // Only keep time display update
             _timeTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromSeconds(1)
             };
-            _timeTimer.Tick += (s, e) => CurrentTime = DateTime.Now.ToString("dd MMM yyyy HH:mm:ss");
-
             _timeTimer.Start();
-
             // Example: Load a default map image and demo lines
             MapImageSource = new BitmapImage(new Uri("pack://application:,,,/Assets/Map/default_map.png"));
             SharedSprinklerLines = new ObservableCollection<BackyardBoss.UserControls.SprinklerLineModel>
@@ -794,17 +692,72 @@ namespace BackyardBoss.ViewModels
                     line.Connections[0].ToPointId = line.Points[1].Id;
                 }
             }
-
-            // After initializing Sets:
             UpdateVisibleSets();
             Sets.CollectionChanged += (s, e) => UpdateVisibleSets();
-
             // Load map from JSON
             LoadMapFromJson();
+            // MQTT initialization and data handling
+            _mqttService = new MqttService();
+            _mqttService.MessageReceived += (topic, json) =>
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    try
+                    {
+                        Console.WriteLine($"Received MQTT message on topic: {topic}");
+                        if (topic == "sensors/environment")
+                        {
+                            var data = JsonSerializer.Deserialize<EnvironmentData>(json.GetRawText());
+                            if (data != null) EnvironmentReadings.Add(data);
+                        }
+                        else if (topic == "sensors/plant")
+                        {
+                            var data = JsonSerializer.Deserialize<PlantData>(json.GetRawText());
+                            if (data != null) PlantReadings.Add(data);
+                        }
+                        else if (topic == "sensors/sets")
+                        {
+                            var data = JsonSerializer.Deserialize<SetsData>(json.GetRawText());
+                            if (data != null) SetsReadings.Add(data);
+                        }
+                        else if (topic == "status/watering")
+                        {
+                            var status = JsonSerializer.Deserialize<PiStatusResponse>(json.GetRawText());
+                            if (status != null)
+                            {
+                                SystemStatus = status.SystemStatus;
+                                PiReportedTestMode = status.TestMode;
+                                LedColors = status.LedColors ?? new Dictionary<string, string>();
+                                ZoneStatuses = new ObservableCollection<ZoneStatus>(status.Zones ?? new List<ZoneStatus>());
+                                CurrentRun = status.CurrentRun;
+                                NextRun = status.NextRun;
+                                LastCompletedRun = status.LastCompletedRun;
+                                UpcomingRuns = new ObservableCollection<UpcomingRunInfo>(status.UpcomingRuns ?? new List<UpcomingRunInfo>());
+                            }
+                        }
+                    }
+                    catch { /* Optionally log/handle error */ }
+                });
+            };
+            _ = _mqttService.ConnectAsync("localhost"); // Change broker address as needed
 
-            InitEnvPolling();
+            // Initialize SelectSectionCommand
+            SelectSectionCommand = new RelayCommand(param =>
+            {
+                if (param is string section && !string.IsNullOrWhiteSpace(section))
+                {
+                    SelectedSection = section;
+                }
+            });
         }
         #endregion
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+        protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
         private void WeatherVM_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
             if (e.PropertyName == nameof(WeatherViewModel.WindSpeed))
@@ -889,26 +842,7 @@ namespace BackyardBoss.ViewModels
                         new StartTimeViewModel { Time = "17:00", IsEnabled = true }
                     };
                 }
-                OnPropertyChanged(nameof(Sets));
-                OnPropertyChanged(nameof(StartTimes));
-                OnPropertyChanged(nameof(SeasonalAdjustment));
-                OnPropertyChanged(nameof(SeasonalAdjustmentPercent));
                 UpdateVisibleSets();
-                OnPropertyChanged(nameof(Week1Sunday));
-                OnPropertyChanged(nameof(Week1Monday));
-                OnPropertyChanged(nameof(Week1Tuesday));
-                OnPropertyChanged(nameof(Week1Wednesday));
-                OnPropertyChanged(nameof(Week1Thursday));
-                OnPropertyChanged(nameof(Week1Friday));
-                OnPropertyChanged(nameof(Week1Saturday));
-                OnPropertyChanged(nameof(Week2Sunday));
-                OnPropertyChanged(nameof(Week2Monday));
-                OnPropertyChanged(nameof(Week2Tuesday));
-                OnPropertyChanged(nameof(Week2Wednesday));
-                OnPropertyChanged(nameof(Week2Thursday));
-                OnPropertyChanged(nameof(Week2Friday));
-                OnPropertyChanged(nameof(Week2Saturday));
-                OnPropertyChanged(nameof(MistSettingsCollection));
                 _isDirty = false;
                 DebugLogger.LogFileIO("Schedule loaded successfully.");
                 UpdateUpcomingRunsPreview();
@@ -1047,269 +981,6 @@ namespace BackyardBoss.ViewModels
         }
         #endregion
 
-        #region Pi Management
-        private async Task LoadPiStatusAsync()
-        {
-            try
-            {
-                using var client = new HttpClient();
-                var response = await client.GetAsync("http://100.116.147.6:5000/status");
-                response.EnsureSuccessStatusCode();
-                var json = await response.Content.ReadAsStringAsync();
-                DebugLogger.LogVariableStatus("RAW JSON from PiStatus:", json);
-                var parsed = JsonSerializer.Deserialize<PiStatusResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                if (parsed != null)
-                {
-                    SystemStatus = parsed.SystemStatus;
-                    PiReportedTestMode = parsed.TestMode;
-                    LedColors = parsed.LedColors ?? new Dictionary<string, string>();
-                    if (parsed.Zones != null && parsed.Zones.Count > 0)
-                    {
-                        App.Current.Dispatcher.Invoke(() => { ZoneStatuses = new ObservableCollection<ZoneStatus>(parsed.Zones); });
-
-                        //if any zone is running / misting show PSI/Flow
-                        if (ZoneStatuses.Any(z => z.Status.Equals("Watering", StringComparison.OrdinalIgnoreCase) || z.Status.Equals("Misting", StringComparison.OrdinalIgnoreCase)))
-                        {
-                            IsWateringOrMisting = true;
-                        }
-                        else
-                        {
-                            IsWateringOrMisting = false;
-                        }
-
-                    }
-                    CurrentRun = parsed.CurrentRun;
-                    NextRun = parsed.NextRun;
-                    LastCompletedRun = parsed.LastCompletedRun;
-                    // Update UpcomingRuns from Pi
-                    if (parsed.UpcomingRuns != null)
-                        UpcomingRuns = new ObservableCollection<UpcomingRunInfo>(parsed.UpcomingRuns);
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Failed to load Pi status: {ex.Message}");
-                App.Current.Dispatcher.Invoke(() =>
-                {
-                    CurrentRun = null;
-                    SystemStatus = "Offline"; // <-- Add this line
-                });
-            }
-            //update PiScheduleIndex
-            OnPropertyChanged(nameof(PiScheduleIndex));
-            OnPropertyChanged(nameof(PiLocalTime));
-            OnPropertyChanged(nameof(PiTimezone));
-            OnPropertyChanged(nameof(ScheduleIndexMismatch));
-        }
-
-        /// <summary>
-        /// Current time string, binds to PiStatusViewModel.
-        /// </summary>
-        /// <returns></returns>
-        private string _currentTime = DateTime.Now.ToString("dd MMM yyyy HH:mm:ss");
-        public string CurrentTime
-        {
-            get => _currentTime;
-            set
-            {
-                if (_currentTime != value)
-                {
-                    _currentTime = value;
-                    OnPropertyChanged();
-                }
-            }
-        }
-        private async Task StopAllAsync()
-        {
-            try
-            {
-                using var client = new HttpClient();
-                var result = await client.PostAsync("http://100.116.147.6:5000/stop-all", null);
-                if (result.IsSuccessStatusCode)
-                    MessageBox.Show("All zones stopped.", "Stopped", MessageBoxButton.OK, MessageBoxImage.Information);
-                else
-                    MessageBox.Show("Failed to stop. Check connection.", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error: {ex.Message}", "Stop Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-        private async void SetEnvironmentVariable(string variableName, string value)
-        {
-            DebugLogger.LogVariableStatus($"SetEnvironmentVariable called: {variableName}={value}");
-            if (variableName == "TEST_MODE")
-            {
-                try
-                {
-                    using var client = new HttpClient();
-                    var url = "http://100.116.147.6:5000/set-test-mode";
-                    var payload = new { test_mode = value == "1" };
-                    DebugLogger.LogVariableStatus($"Sending to Pi: test_mode={(value == "1")}" );
-                    var content = new StringContent(System.Text.Json.JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
-                    var response = await client.PostAsync(url, content);
-                    if (response.IsSuccessStatusCode)
-                    {
-                        DebugLogger.LogVariableStatus($"TEST_MODE updated via API to {value}");
-                    }
-                    else
-                    {
-                        DebugLogger.LogVariableStatus($"Failed to update TEST_MODE via API: {response.StatusCode}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    DebugLogger.LogVariableStatus($"Failed to update TEST_MODE via API: {ex.Message}");
-                }
-            }
-        }
-        private async Task UpdatePiScheduleInfoAsync()
-        {
-            try
-            {
-                using var client = new HttpClient();
-                var json = await client.GetStringAsync("http://100.116.147.6:5000/schedule-index");
-                var doc = JsonDocument.Parse(json);
-                var root = doc.RootElement;
-                PiScheduleIndex = root.GetProperty("schedule_index").GetInt32();
-                PiLocalTime = root.TryGetProperty("local_time", out var timeProp) ? timeProp.GetString() : "Unavailable";
-                PiTimezone = root.TryGetProperty("timezone", out var zoneProp) ? zoneProp.GetString() : "Unavailable";
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[ERROR] Failed to fetch Pi schedule index: {ex.Message}");
-                PiScheduleIndex = null;
-                PiLocalTime = "Unavailable";
-                PiTimezone = "Unavailable";
-            }
-            //update properties
-            OnPropertyChanged(nameof(PiScheduleIndex));
-            OnPropertyChanged(nameof(PiLocalTime));
-            OnPropertyChanged(nameof(PiTimezone));
-            OnPropertyChanged(nameof(ScheduleIndexMismatch));
-        }
-        public async Task LoadLastWeekHistoryAsync()
-        {
-            // TODO: Implement logic to fetch and parse last week history from Pi (e.g., HTTP or SFTP)
-            // For now, add mock data:
-            var tempList = new List<WateringLogEntry>();
-            for (int i = 0; i < 7; i++)
-            {
-                tempList.Add(new WateringLogEntry
-                {
-                    Date = DateTime.Today.AddDays(-i),
-                    SetName = $"Zone {i + 1}",
-                    DurationMinutes = 10 + i,
-                    Status = "Completed"
-                });
-            }
-            var sorted = tempList.OrderByDescending(x => x.Date).ToList();
-            LastWeekHistory.Clear();
-            foreach (var entry in sorted)
-                LastWeekHistory.Add(entry);
-        }
-
-        public async Task LoadHistoryFromPiAsync()
-        {
-            try
-            {
-                using var client = new HttpClient();
-                var response = await client.GetAsync("http://100.116.147.6:5000/history");
-                response.EnsureSuccessStatusCode();
-                var json = await response.Content.ReadAsStringAsync();
-                using var doc = JsonDocument.Parse(json);
-                if (doc.RootElement.TryGetProperty("watering_history", out var historyArray))
-                {
-                    var newHistory = new List<WateringLogEntry>();
-                    foreach (var entry in historyArray.EnumerateArray())
-                    {
-                        var logEntry = new WateringLogEntry
-                        {
-                            Date = DateTime.TryParse(entry.GetProperty("date").GetString(), out var dt) ? dt : DateTime.MinValue,
-                            SetName = entry.GetProperty("set").GetString(),
-                            DurationMinutes = entry.GetProperty("duration_minutes").GetInt32(),
-                            Status = entry.GetProperty("status").GetString()
-                        };
-                        newHistory.Add(logEntry);
-                    }
-                    var sorted = newHistory.OrderByDescending(x => x.Date).ToList();
-                    App.Current.Dispatcher.Invoke(() =>
-                    {
-                        LastWeekHistory.Clear();
-                        foreach (var entry in sorted)
-                            LastWeekHistory.Add(entry);
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Failed to load watering history: {ex.Message}");
-            }
-        }
-
-        public async Task LoadMistStatusAsync()
-        {
-            try
-            {
-                using var client = new HttpClient();
-                var json = await client.GetStringAsync("http://100.116.147.6:5000/mist-status");
-                MistStatus = System.Text.Json.JsonSerializer.Deserialize<BackyardBoss.Models.MistStatus>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Failed to load mist status: {ex.Message}");
-            }
-        }
-
-        public async Task LoadEnvironmentDataAsync()
-        {
-            try
-            {
-                using var client = new HttpClient();
-                var json = await client.GetStringAsync("http://100.116.147.6:5000/environment-history?n=100");
-                var readings = JsonSerializer.Deserialize<List<EnvironmentData>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                EnvironmentReadings = new ObservableCollection<EnvironmentData>(readings ?? new List<EnvironmentData>());
-                OnPropertyChanged(nameof(EnvironmentReadings));
-            }
-            catch (Exception ex)
-            {
-                // Optionally log or handle error
-            }
-        }
-
-        public async Task LoadPlantDataAsync()
-        {
-            try
-            {
-                using var client = new HttpClient();
-                var json = await client.GetStringAsync("http://100.116.147.6:5000/plant-history?n=100");
-                var readings = JsonSerializer.Deserialize<List<PlantData>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                PlantReadings = new ObservableCollection<PlantData>(readings ?? new List<PlantData>());
-                OnPropertyChanged(nameof(PlantReadings));
-            }
-            catch (Exception ex)
-            {
-                // Optionally log or handle error
-            }
-        }
-
-        public async Task LoadSetsDataAsync()
-        {
-            try
-            {
-                using var client = new HttpClient();
-                var json = await client.GetStringAsync("http://100.116.147.6:5000/sets-history?n=100");
-                var readings = JsonSerializer.Deserialize<List<SetsData>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                SetsReadings = new ObservableCollection<SetsData>(readings ?? new List<SetsData>());
-                OnPropertyChanged(nameof(SetsReadings));
-            }
-            catch (Exception ex)
-            {
-                // Optionally log or handle error
-            }
-        }
-        #endregion
-
         #region Run Management
         private void RunOnce()
         {
@@ -1437,25 +1108,11 @@ namespace BackyardBoss.ViewModels
         {
             bool newValue = !PiReportedTestMode;
             DebugLogger.LogVariableStatus($"ToggleTestMode called. PiReportedTestMode={PiReportedTestMode}, sending newValue={newValue}");
-            SetEnvironmentVariable("TEST_MODE", newValue ? "1" : "0");
-            // Do not set PiReportedTestMode here; rely on Pi status polling
         }
         private void OpenPlotWindow()
         {
             var window = new WateringHistoryView();
             window.Show();
-        }
-        private async void ShowPiLog()
-        {
-            await LoadPiStatusAsync();
-            if (PiStatusLog.Count == 0)
-            {
-                MessageBox.Show("Log is empty.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-            var window = new PiLogWindow(PiStatusLog);
-            window.Owner = Application.Current.MainWindow;
-            window.ShowDialog();
         }
         private void CopyProject2Clip()
         {
@@ -1519,87 +1176,7 @@ namespace BackyardBoss.ViewModels
         }
         #endregion
 
-        #region INotifyPropertyChanged
-        public event PropertyChangedEventHandler? PropertyChanged;
-        public void OnPropertyChanged([CallerMemberName] string propertyName = "")
-        {
-            DebugLogger.LogPropertyChange($"PropertyChanged: {propertyName}");
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
-        #endregion
-
-        #region Debug
-        // DebugLog method replaced by DebugLogger usage throughout the class.
-        #endregion
-
-        #region Nested Types
-        public enum SensorDataMode
-        {
-            PressureAndFlow,
-            TemperatureAndHumidity
-        }
-        #endregion
-
-        #region New Methods
-        public void UpdateNextRunFromJson()
-        {
-            try
-            {
-                var jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sprinkler_schedule.json");
-                if (!File.Exists(jsonPath)) return;
-                var json = File.ReadAllText(jsonPath);
-                using var doc = JsonDocument.Parse(json);
-                var root = doc.RootElement;
-                var startTimes = root.GetProperty("start_times").EnumerateArray()
-                    .Where(st => st.GetProperty("isEnabled").GetBoolean())
-                    .Select(st => TimeSpan.Parse(st.GetProperty("time").GetString()))
-                    .OrderBy(t => t)
-                    .ToList();
-                if (startTimes.Count == 0) return;
-                var now = DateTime.Now.TimeOfDay;
-                var nextTime = startTimes.FirstOrDefault(t => t > now);
-                if (nextTime == default) nextTime = startTimes.First();
-                var sets = root.GetProperty("sets").EnumerateArray()
-                    .Where(s => s.TryGetProperty("run_duration_minutes", out _))
-                    .Select(s => new
-                    {
-                        Name = s.GetProperty("set_name").GetString(),
-                        Duration = s.GetProperty("run_duration_minutes").GetInt32()
-                    })
-                    .ToList();
-                if (sets.Count == 0) return;
-                var nextSet = sets.First();
-                NextRun = new PiRunInfo {
-                    Set = nextSet.Name,
-                    StartTime = nextTime.ToString(@"hh\:mm"),
-                    DurationMinutes = nextSet.Duration
-                };
-            }
-            catch { /* ignore errors for now */ }
-        }
-
-        private void ReloadApp()
-        {
-            try
-            {
-                string exePath = System.Reflection.Assembly.GetEntryAssembly()?.Location;
-                if (string.IsNullOrEmpty(exePath))
-                {
-                    MessageBox.Show("Could not determine executable path.", "Reload Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    return;
-                }
-                string publishDir = System.IO.Path.GetDirectoryName(exePath);
-                string exeName = System.IO.Path.GetFileName(exePath);
-                string fullExePath = System.IO.Path.Combine(publishDir, exeName);
-                System.Diagnostics.Process.Start(fullExePath);
-                Application.Current.Shutdown();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Failed to reload: {ex.Message}", "Reload Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
+        #region Map Management
         private void LoadMapFromJson()
         {
             try
@@ -1626,187 +1203,6 @@ namespace BackyardBoss.ViewModels
                 System.Diagnostics.Debug.WriteLine($"Failed to load map: {ex.Message}");
             }
         }
-
-        public async Task LoadSensorReadingsAsync()
-        {
-            // Fetch from Flask API instead of local sample DB
-            try
-            {
-                using var client = new HttpClient();
-                // Get last 100 readings for all sets
-                var response = await client.GetAsync("http://100.116.147.6:5000/env-history?n=100");
-                response.EnsureSuccessStatusCode();
-                var json = await response.Content.ReadAsStringAsync();
-                var doc = JsonDocument.Parse(json);
-                var readings = new List<SensorReading>();
-                foreach (var item in doc.RootElement.EnumerateArray())
-                {
-                    double pressure = item.TryGetProperty("pressure", out var p) && p.ValueKind == JsonValueKind.Number ? p.GetDouble() : 0;
-                    double flow = item.TryGetProperty("flow", out var f) && f.ValueKind == JsonValueKind.Number ? f.GetDouble() : 0;
-                    string setName = item.TryGetProperty("set_name", out var sn) && sn.ValueKind == JsonValueKind.String ? sn.GetString() : null;
-                    DateTime timestamp = item.TryGetProperty("timestamp", out var ts) && ts.ValueKind == JsonValueKind.String && DateTime.TryParse(ts.GetString(), out var dt) ? dt : DateTime.MinValue;
-                    var reading = new SensorReading
-                    {
-                        Timestamp = timestamp,
-                        ZoneId = Sets.FirstOrDefault(s => s.SetName == setName)?.ZoneId ?? 0,
-                        PressurePsi = pressure,
-                        FlowLpm = flow,
-                        FlowTotalLiters = 0 // Not provided by API
-                    };
-                    readings.Add(reading);
-                }
-                SensorReadings = new ObservableCollection<SensorReading>(readings);
-                // Map ZoneId to set names for display
-                var zoneIdToName = Sets.ToDictionary(s => s.ZoneId, s => s.SetName);
-                AvailableZones = SensorReadings
-                    .Select(r =>
-                        r.ZoneId == 0
-                            ? "City Water PSI"
-                            : (zoneIdToName.ContainsKey(r.ZoneId) ? zoneIdToName[r.ZoneId] : $"Zone {r.ZoneId}")
-                    )
-                    .Distinct()
-                    .OrderBy(z => z)
-                    .ToList();
-                if (AvailableZones.Count > 0 && string.IsNullOrEmpty(SelectedZone))
-                    SelectedZone = AvailableZones[0];
-                UpdateSensorPlot();
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Failed to load sensor readings from API: {ex.Message}");
-            }
-        }
-
-        private void UpdateSensorPlot()
-        {
-            if (SelectedSensorDataMode == SensorDataMode.PressureAndFlow)
-            {
-                // Use SensorReadings for Pressure & Flow
-                if (SensorReadings == null || string.IsNullOrEmpty(SelectedZone))
-                {
-                    SensorPlotModel = new PlotModel { Title = "No Data" };
-                    return;
-                }
-                var zoneIdToName = Sets.ToDictionary(s => s.ZoneId, s => s.SetName);
-                var filtered = SelectedZone == "City Water PSI"
-                    ? SensorReadings.Where(r => r.ZoneId == 0).OrderBy(r => r.Timestamp).ToList()
-                    : SensorReadings.Where(r => zoneIdToName.ContainsKey(r.ZoneId) && zoneIdToName[r.ZoneId] == SelectedZone).OrderBy(r => r.Timestamp).ToList();
-                var model = new PlotModel { Title = $"{SelectedZone} Pressure & Flow" };
-                model.Axes.Add(new DateTimeAxis { Position = AxisPosition.Bottom, StringFormat = "MM-dd HH:mm", Title = "Time" });
-                model.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Title = "Pressure (psi)", TitleFontSize = 20, TitleColor = OxyPlot.OxyColors.DodgerBlue, Key = "PressureAxis", Minimum = 0, Maximum = 100 });
-                model.Axes.Add(new LinearAxis { Position = AxisPosition.Right, Title = "Flow (L/min)", TitleFontSize = 20, TitleColor = OxyPlot.OxyColors.Orange, Key = "FlowAxis", Minimum = 0, Maximum = 10 });
-                model.IsLegendVisible = true;
-                var pressureSeries = new LineSeries {
-                    Title = "Pressure",
-                    MarkerType = MarkerType.Circle,
-                    YAxisKey = "PressureAxis",
-                    Color = OxyPlot.OxyColors.DodgerBlue
-                };
-                var flowSeries = new LineSeries {
-                    Title = "Flow",
-                    MarkerType = MarkerType.Square,
-                    YAxisKey = "FlowAxis",
-                    Color = OxyPlot.OxyColors.Orange
-                };
-                foreach (var r in filtered)
-                {
-                    var x = DateTimeAxis.ToDouble(r.Timestamp);
-                    pressureSeries.Points.Add(new DataPoint(x, r.PressurePsi));
-                    flowSeries.Points.Add(new DataPoint(x, r.FlowLpm));
-                }
-                model.Series.Add(pressureSeries);
-                model.Series.Add(flowSeries);
-                SensorPlotModel = model;
-            }
-            else // TemperatureAndHumidity
-            {
-                // Use EnvironmentReadings for Temperature & Humidity
-                if (EnvironmentReadings == null || string.IsNullOrEmpty(SelectedZone))
-                {
-                    SensorPlotModel = new PlotModel { Title = "No Data" };
-                    return;
-                }
-                // If you want to filter by zone, you can add logic here. For now, plot all.
-                var filtered = EnvironmentReadings.OrderBy(r => r.Timestamp).ToList();
-                var model = new PlotModel { Title = $"{SelectedZone} Temperature & Humidity" };
-                model.Axes.Add(new DateTimeAxis { Position = AxisPosition.Bottom, StringFormat = "MM-dd HH:mm", Title = "Time" });
-                model.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Title = "Temperature (°C)", TitleFontSize = 20, TitleColor = OxyPlot.OxyColors.Red, Key = "TempAxis", Minimum = 0, Maximum = 50 });
-                model.Axes.Add(new LinearAxis { Position = AxisPosition.Right, Title = "Humidity (%)", TitleFontSize = 20, TitleColor = OxyPlot.OxyColors.Blue, Key = "HumidityAxis", Minimum = 0, Maximum = 100 });
-                model.IsLegendVisible = true;
-                var tempSeries = new LineSeries {
-                    Title = "Temperature",
-                    MarkerType = MarkerType.Circle,
-                    YAxisKey = "TempAxis",
-                    Color = OxyPlot.OxyColors.Red
-                };
-                var humiditySeries = new LineSeries {
-                    Title = "Humidity",
-                    MarkerType = MarkerType.Square,
-                    YAxisKey = "HumidityAxis",
-                    Color = OxyPlot.OxyColors.Blue
-                };
-                foreach (var r in filtered)
-                {
-                    var x = DateTimeAxis.ToDouble(r.Timestamp);
-                    tempSeries.Points.Add(new DataPoint(x, r.Temperature));
-                    humiditySeries.Points.Add(new DataPoint(x, r.Humidity));
-                }
-                model.Series.Add(tempSeries);
-                model.Series.Add(humiditySeries);
-                SensorPlotModel = model;
-            }
-        }
-
-        private void InitEnvPolling()
-        {
-            _envPollTimer = new DispatcherTimer();
-            _envPollTimer.Interval = _envPollIntervalIdle;
-            _envPollTimer.Tick += async (s, e) => await PollEnvDataAsync();
-            _envPollTimer.Start();
-        }
-
-        private async Task PollEnvDataAsync()
-        {
-            try
-            {
-                using var client = new HttpClient();
-                var response = await client.GetAsync("http://100.116.147.6:5000/env-latest");
-                response.EnsureSuccessStatusCode();
-                var json = await response.Content.ReadAsStringAsync();
-                var doc = JsonDocument.Parse(json);
-                var root = doc.RootElement;
-                // Example: update properties or collections as needed
-                double pressure = root.TryGetProperty("pressure", out var p) && p.ValueKind == JsonValueKind.Number ? p.GetDouble() : 0;
-                double flow = root.TryGetProperty("flow", out var f) && f.ValueKind == JsonValueKind.Number ? f.GetDouble() : 0;
-                string setName = root.TryGetProperty("set_name", out var sn) && sn.ValueKind == JsonValueKind.String ? sn.GetString() : null;
-                DateTime timestamp = root.TryGetProperty("timestamp", out var ts) && ts.ValueKind == JsonValueKind.String && DateTime.TryParse(ts.GetString(), out var dt) ? dt : DateTime.MinValue;
-                // You can update a property or collection here, e.g.:
-                // LastEnvReading = new EnvReading { ... };
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Failed to poll env data: {ex.Message}");
-            }
-            UpdateEnvPollInterval();
-        }
-
-        private void UpdateEnvPollInterval()
-        {
-            // If any set/mister is running, poll every second; else every minute
-            bool isRunning = CurrentRun != null && !string.IsNullOrEmpty(CurrentRun.Phase);
-            var desired = isRunning ? _envPollIntervalRunning : _envPollIntervalIdle;
-            if (_envPollTimer.Interval != desired)
-                _envPollTimer.Interval = desired;
-        }
         #endregion
-
-        public class EnvReading
-        {
-            public DateTime Timestamp { get; set; }
-            public string SetName { get; set; }
-            public double Pressure { get; set; }
-            public double Flow { get; set; }
-            public double MoistureB { get; set; }
-        }
     }
 }
