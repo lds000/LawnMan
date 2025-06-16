@@ -45,6 +45,7 @@
                                         <TextBlock Text="System Status" FontWeight="Bold" FontSize="22" Foreground="{DynamicResource PrimaryText}"/>
                                     </StackPanel>
                                     <TextBlock Text="{Binding SystemStatus}" Foreground="Lime"/>
+                                    <TextBlock Text="{Binding LatestPressurePsi, StringFormat='Pressure: {0} psi'}"/>
                                     <ItemsControl ItemsSource="{Binding ZoneStatuses}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
@@ -79,7 +80,7 @@
                                 <Border Background="{DynamicResource CardBackground}" CornerRadius="10" Padding="12" Margin="0,8,0,12">
                                     <StackPanel>
                                         <TextBlock Text="Mist Status" FontWeight="Bold" FontSize="18" Foreground="{DynamicResource PrimaryText}"/>
-                                        <TextBlock Text="{Binding MistStatus.CurrentTemperature, StringFormat=Current Temp: {0}°}" FontSize="14"/>
+                                        <TextBlock Text="{Binding MistStatus.CurrentTemperature, StringFormat=Current Temp: {0:F1}°F}" FontSize="14"/>
                                         <TextBlock Text="{Binding MistStatus.IsMisting, StringFormat=Currently Misting: {0}}" FontSize="14"/>
                                         <TextBlock Text="{Binding MistStatus.LastMistEvent, StringFormat=Last Mist: {0:G}}" FontSize="14"/>
                                         <TextBlock Text="{Binding MistStatus.NextMistEvent, StringFormat=Next Mist: {0:G}}" FontSize="14"/>

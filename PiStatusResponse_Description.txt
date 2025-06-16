@@ -1,0 +1,144 @@
+PiStatusResponse: Structure, Types, and Expected Values
+
+Type: JSON object
+Purpose: Represents the full status of the sprinkler controller, as expected by the WPF app.
+
+---
+
+Properties
+
+1. system_status (string)
+- Description: Human-readable summary of the system state.
+- Examples:
+  - "All Systems Nominal" (normal/idle)
+  - "Manual Mode Active"
+  - "Test Mode Enabled"
+  - "Error: <description>"
+  - "Maintenance Mode"
+  - "Startup"
+  - "Offline"
+
+2. test_mode (bool)
+- Description: Whether the controller is in test mode.
+- Examples: true, false
+
+3. test_mode_timestamp (double)
+- Description: Unix timestamp (seconds since epoch, can be float) of when test mode was last toggled.
+- Examples: 1717973123.123, 0
+
+4. led_colors (object/dictionary)
+- Description: Mapping of zone/system names to color hex codes for UI display.
+- Examples:
+  { "system": "#00FF00", "zone1": "#FF0000" }
+- Keys: "system", "zone1", "zone2", etc.
+- Values: Hex color strings (e.g., "#00FF00" for green)
+
+5. zones (array of objects)
+- Description: List of all zones/sets and their statuses.
+- Each object:
+  - name (string): Name of the zone/set (e.g., "Front Lawn")
+  - status (string): Status of the zone
+    - Examples: "Idle", "Watering", "Soaking", "Error", "Disabled"
+
+6. current_run (object or null)
+- Description: Info about the currently running set, or null if idle.
+- Fields:
+  - set (string): Name of the set/zone
+  - start_time (string): ISO 8601 datetime (e.g., "2024-06-09T14:00:00")
+  - duration_minutes (int or null): Total run duration in minutes
+  - phase (string): Current phase ("Watering", "Soaking", "Idle", etc.)
+  - time_remaining_sec (int or null): Seconds left in the run
+  - pulse_time_left_sec (int or null): Seconds left in the current pulse (if pulsing)
+  - soak_remaining_sec (int or null): Seconds left in soak phase (if soaking)
+- Example:
+  {
+    "set": "Front Lawn",
+    "start_time": "2024-06-09T14:00:00",
+    "duration_minutes": 10,
+    "phase": "Watering",
+    "time_remaining_sec": 300,
+    "pulse_time_left_sec": 60,
+    "soak_remaining_sec": 0
+  }
+
+7. next_run (object or null)
+- Description: Info about the next scheduled run, or null if none.
+- Fields: Same as current_run.
+- Example:
+  {
+    "set": "Backyard",
+    "start_time": "2024-06-09T15:00:00",
+    "duration_minutes": 12,
+    "phase": "Idle",
+    "time_remaining_sec": null,
+    "pulse_time_left_sec": null,
+    "soak_remaining_sec": null
+  }
+
+8. last_completed_run (object or null)
+- Description: Info about the most recently completed run, or null if none.
+- Fields:
+  - set (string): Name of the set/zone
+  - end_time (string): ISO 8601 datetime
+  - duration_minutes (int or null): Duration in minutes
+  - status (string): Status of the run ("Completed", "Error", "Aborted", etc.)
+- Example:
+  {
+    "set": "Garden",
+    "end_time": "2024-06-09T13:00:00",
+    "duration_minutes": 15,
+    "status": "Completed"
+  }
+
+9. upcoming_runs (array of objects)
+- Description: List of upcoming scheduled runs.
+- Each object:
+  - set (string): Name of the set/zone
+  - start_time (string): ISO 8601 datetime
+  - duration_minutes (int): Duration in minutes
+- Example:
+  [
+    {
+      "set": "Backyard",
+      "start_time": "2024-06-09T15:00:00",
+      "duration_minutes": 12
+    },
+    {
+      "set": "Garden",
+      "start_time": "2024-06-09T16:00:00",
+      "duration_minutes": 15
+    }
+  ]
+
+10. today_is_watering_day (bool)
+- Description: Whether today is a scheduled watering day.
+- Examples: true, false
+
+---
+
+Example Minimal JSON
+
+{
+  "system_status": "All Systems Nominal",
+  "test_mode": false,
+  "test_mode_timestamp": 0,
+  "led_colors": {},
+  "zones": [],
+  "current_run": null,
+  "next_run": null,
+  "last_completed_run": null,
+  "upcoming_runs": [],
+  "today_is_watering_day": false
+}
+
+---
+
+Notes
+
+- All property names must be in lower_snake_case to match the C# [JsonPropertyName] attributes.
+- All fields are required, but objects like current_run, next_run, and last_completed_run can be null.
+- Arrays (zones, upcoming_runs) can be empty but must be present.
+- Timestamps should be ISO 8601 strings for times, and a Unix timestamp (float) for test_mode_timestamp.
+- Status and phase strings should be meaningful and consistent with the controller's logic.
+
+This is everything your controller needs to construct a valid PiStatusResponse for the WPF app.

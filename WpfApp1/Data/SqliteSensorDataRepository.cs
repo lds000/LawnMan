@@ -31,6 +31,13 @@ namespace BackyardBoss.Data
                     pressure_psi REAL,
                     flow_lpm REAL,
                     flow_total_liters REAL
+                );
+                CREATE TABLE IF NOT EXISTS pressure_avg (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp DATETIME NOT NULL,
+                    avg_pressure_psi REAL NOT NULL,
+                    num_samples INTEGER NOT NULL,
+                    version TEXT
                 );";
                 await cmd.ExecuteNonQueryAsync();
             }
@@ -121,6 +128,41 @@ namespace BackyardBoss.Data
             }
             return result;
         }
+
+        public async Task InsertPressureAvgAsync(DateTime timestamp, double avgPressurePsi, int numSamples, string version)
+        {
+            await using var conn = new SqliteConnection(_connectionString);
+            await conn.OpenAsync();
+            var cmd = conn.CreateCommand();
+            cmd.CommandText = @"INSERT INTO pressure_avg (timestamp, avg_pressure_psi, num_samples, version) VALUES (@timestamp, @avg, @samples, @version)";
+            cmd.Parameters.AddWithValue("@timestamp", timestamp);
+            cmd.Parameters.AddWithValue("@avg", avgPressurePsi);
+            cmd.Parameters.AddWithValue("@samples", numSamples);
+            cmd.Parameters.AddWithValue("@version", version ?? (object)DBNull.Value);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        public async Task<List<PressureAvgData>> GetPressureAvgLast7DaysAsync()
+        {
+            var result = new List<PressureAvgData>();
+            await using var conn = new SqliteConnection(_connectionString);
+            await conn.OpenAsync();
+            var cmd = conn.CreateCommand();
+            cmd.CommandText = @"SELECT timestamp, avg_pressure_psi, num_samples, version FROM pressure_avg WHERE timestamp >= @cutoff ORDER BY timestamp ASC";
+            cmd.Parameters.AddWithValue("@cutoff", DateTime.Now.AddDays(-7));
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                result.Add(new PressureAvgData
+                {
+                    Timestamp = reader.GetDateTime(0),
+                    AvgPressurePsi = reader.GetDouble(1),
+                    NumSamples = reader.GetInt32(2),
+                    Version = reader.IsDBNull(3) ? null : reader.GetString(3)
+                });
+            }
+            return result;
+        }
     }
 
     public class SensorReading
@@ -130,5 +172,13 @@ namespace BackyardBoss.Data
         public double PressurePsi { get; set; }
         public double FlowLpm { get; set; }
         public double FlowTotalLiters { get; set; }
+    }
+
+    public class PressureAvgData
+    {
+        public DateTime Timestamp { get; set; }
+        public double AvgPressurePsi { get; set; }
+        public int NumSamples { get; set; }
+        public string Version { get; set; }
     }
 }

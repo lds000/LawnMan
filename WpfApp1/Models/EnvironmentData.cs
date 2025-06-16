@@ -18,7 +18,7 @@ namespace BackyardBoss.Models
         public double WindSpeed { get; set; }
 
         [JsonPropertyName("barometric_pressure")]
-        public double BarometricPressure { get; set; }
+        public double? BarometricPressure { get; set; }
     }
 
     public class PlantData
@@ -44,16 +44,19 @@ namespace BackyardBoss.Models
         [JsonPropertyName("set_name")]
         public string SetName { get; set; }
 
-        [JsonPropertyName("pressure")]
-        public double Pressure { get; set; }
-
         [JsonPropertyName("flow_litres")]
         public double FlowLitres { get; set; }
 
         [JsonPropertyName("flow_pulses")]
         public int FlowPulses { get; set; }
 
+        [JsonPropertyName("pressure_psi")]
+        public double PressurePsi { get; set; }
+
         [JsonPropertyName("pressure_kpa")]
-        public double PressureKpa { get; set; }
+        public double? PressureKpa { get; set; }
+
+        [JsonPropertyName("version")]
+        public string Version { get; set; }
     }
 }

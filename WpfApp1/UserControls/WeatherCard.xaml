@@ -45,14 +45,23 @@
                 <StackPanel Orientation="Horizontal" >
                     <TextBlock Text="Feels like: " FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
                     <TextBlock Text="{Binding FeelsLike}" FontSize="12" Foreground="{DynamicResource PrimaryText}"/>
+                    <TextBlock Text=" (" FontSize="12" Foreground="{DynamicResource PrimaryText}"/>
+                    <TextBlock Text="{Binding EnvTemperature}" FontSize="12" Foreground="{DynamicResource PrimaryText}"/>
+                    <TextBlock Text=")" FontSize="12" Foreground="{DynamicResource PrimaryText}"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" >
                     <TextBlock Text="Humidity: " FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
                     <TextBlock Text="{Binding Humidity}" FontSize="12" Foreground="{DynamicResource PrimaryText}"/>
+                    <TextBlock Text=" (" FontSize="12" Foreground="{DynamicResource PrimaryText}"/>
+                    <TextBlock Text="{Binding EnvHumidity}" FontSize="12" Foreground="{DynamicResource PrimaryText}"/>
+                    <TextBlock Text=")" FontSize="12" Foreground="{DynamicResource PrimaryText}"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" >
                     <TextBlock Text="Wind: " FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
                     <TextBlock Text="{Binding WindSpeed}" FontSize="12" Foreground="{DynamicResource PrimaryText}"/>
+                    <TextBlock Text=" (" FontSize="12" Foreground="{DynamicResource PrimaryText}"/>
+                    <TextBlock Text="{Binding EnvWindSpeed}" FontSize="12" Foreground="{DynamicResource PrimaryText}"/>
+                    <TextBlock Text=")" FontSize="12" Foreground="{DynamicResource PrimaryText}"/>
                 </StackPanel>
 
                 <TextBlock Text="Pressure: " FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
@@ -68,7 +77,6 @@
                 <StackPanel Orientation="Horizontal" >
                     <TextBlock Text="Sunset: " FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
                     <TextBlock Text="{Binding Sunset}" FontSize="12" Foreground="{DynamicResource PrimaryText}"/>
-
                 </StackPanel>
             </StackPanel>
 
