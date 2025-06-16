@@ -161,6 +161,21 @@ namespace BackyardBoss.ViewModels
         #endregion
 
         #region Properties
+
+        private double? _latestPressurePsi;
+        public double? LatestPressurePsi
+        {
+            get => _latestPressurePsi;
+            set
+            {
+                if (_latestPressurePsi != value)
+                {
+                    _latestPressurePsi = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         public ObservableCollection<StartTimeViewModel> StartTimes => Schedule.StartTimes;
 
         public ObservableCollection<SprinklerSet> VisibleSets
@@ -624,6 +639,8 @@ namespace BackyardBoss.ViewModels
                 _debounceSaveTimer.Stop();
                 Save(SaveTarget.LocalAndSendToPi);
             };
+            _ = LoadPressureHistoryAsync();
+            UpdatePressureAvgPlot();
             // Subscribe to PressureAvgHistory changes to update plot
             PressureAvgHistory.CollectionChanged += (s, e) => UpdatePressureAvgPlot();
             // Populate mock data for dashboard demo
@@ -738,6 +755,7 @@ namespace BackyardBoss.ViewModels
                         {
                             var data = JsonSerializer.Deserialize<SetsData>(json.GetRawText());
                             if (data != null) SetsReadings.Add(data);
+                            LatestPressurePsi = data.PressurePsi;
                         }
                         else if (topic == "status/watering")
                         {
@@ -1248,11 +1266,22 @@ namespace BackyardBoss.ViewModels
 
             var model = new PlotModel { Title = "Pressure (5-min Avg, All Data)" };
             var series = new LineSeries { Title = "Avg Pressure (PSI)", MarkerType = MarkerType.Circle };
-
             foreach (var data in PressureAvgHistory.OrderBy(d => d.Timestamp))
             {
-                series.Points.Add(new DataPoint(DateTimeAxis.ToDouble(data.Timestamp), data.AvgPressurePsi));
+                var x = DateTimeAxis.ToDouble(data.Timestamp);
+                var y = data.AvgPressurePsi;
+                Debug.WriteLine($"Plot point: Timestamp={data.Timestamp}, X={x}, Y={y}");
+                series.Points.Add(new DataPoint(x, y));
             }
+
+            Debug.WriteLine($"Total series points: {series.Points.Count}");
+            if (series.Points.Count > 0)
+            {
+                Debug.WriteLine($"First point: X={series.Points[0].X}, Y={series.Points[0].Y}");
+                Debug.WriteLine($"Last point: X={series.Points[^1].X}, Y={series.Points[^1].Y}");
+            }
+
+            Debug.WriteLine(series.Points.Count);
 
             model.Series.Add(series);
             var xAxisNew = new DateTimeAxis { Position = AxisPosition.Bottom, StringFormat = "MM-dd HH:mm", Title = "Time" };
@@ -1260,14 +1289,42 @@ namespace BackyardBoss.ViewModels
             model.Axes.Add(xAxisNew);
             model.Axes.Add(yAxisNew);
 
+            /*
             // Restore previous zoom/pan
             if (xMin.HasValue && xMax.HasValue)
                 xAxisNew.Zoom(xMin.Value, xMax.Value);
             if (yMin.HasValue && yMax.HasValue)
                 yAxisNew.Zoom(yMin.Value, yMax.Value);
-
+            */
             SensorPlotModel = model;
             OnPropertyChanged(nameof(SensorPlotModel)); // Ensure property change notification
+        }
+
+        private async Task LoadPressureHistoryAsync()
+        {
+            try
+            {
+                var repo = new BackyardBoss.Data.SqliteSensorDataRepository("pressure_data.db");
+                var history = await repo.GetPressureAvg5MinAggregatesAsync();
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    PressureAvgHistory.Clear();
+                    foreach (var item in history)
+                        PressureAvgHistory.Add(new PressureAvgData
+                        {
+                            Timestamp = item.Timestamp,
+                            AvgPressurePsi = item.AvgPressurePsi,
+                            NumSamples = item.NumSamples,
+                            Version = item.Version
+                        });
+                });
+
+
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to load pressure history: {ex.Message}");
+            }
         }
         #endregion
     }

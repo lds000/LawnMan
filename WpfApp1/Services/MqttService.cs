@@ -1,12 +1,15 @@
+using BackyardBoss.Data;
+using MQTTnet;
+using MQTTnet.Client;
+using Renci.SshNet;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using System.Collections.Generic;
-using System.Linq;
-using MQTTnet;
-using MQTTnet.Client;
-using BackyardBoss.Data;
+using System.Windows;
+using BackyardBoss.ViewModels;
 
 namespace BackyardBoss.Services
 {
@@ -113,6 +116,28 @@ namespace BackyardBoss.Services
             sqliteRepo.InsertSensorReadingAsync(timestamp, 0, avgPressure, 0, avgFlow).Wait();
 
             System.Diagnostics.Debug.WriteLine($"Inserted averaged sensor reading: Timestamp={timestamp}, AvgPressurePsi={avgPressure}, AvgFlowTotalLiters={avgFlow}");
+
+            int numSamples = bufferCopy.Count;
+            string version = "1.0"; // Or use null if you don't track version
+
+            var avgData = new PressureAvgData
+            {
+                Timestamp = timestamp, // your calculated timestamp
+                AvgPressurePsi = avgPressure, // your calculated average
+                NumSamples = numSamples,      // your sample count
+                Version = version            // your version string, if any
+            };
+
+            // Add to PressureAvgHistory on the UI thread
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                var vm = ProgramEditorViewModel.Current;
+                if (vm != null)
+                {
+                    vm.PressureAvgHistory.Add(avgData);
+                    vm.LatestPressurePsi = avgPressure; // Optionally update LatestPressurePsi
+                }
+            });
         }
     }
 }
