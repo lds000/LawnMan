@@ -2,8 +2,11 @@ using System;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Linq;
 using MQTTnet;
 using MQTTnet.Client;
+using BackyardBoss.Data;
 
 namespace BackyardBoss.Services
 {
@@ -12,47 +15,55 @@ namespace BackyardBoss.Services
         private IMqttClient _client;
         public event Action<string, JsonElement> MessageReceived;
 
+        // Add a buffer to store sensor readings for averaging
+        private readonly List<(DateTime Timestamp, double PressurePsi, double FlowTotalLiters)> _sensorBuffer = new();
+        private readonly object _bufferLock = new();
+
+        // Timer to process the buffer every 5 seconds
+        private readonly System.Timers.Timer _averagingTimer;
+
         public MqttService()
         {
             var factory = new MqttFactory();
             _client = factory.CreateMqttClient();
+
+            // Initialize the averaging timer
+            _averagingTimer = new System.Timers.Timer(5000); // 5 seconds
+            _averagingTimer.Elapsed += ProcessSensorBuffer;
+            _averagingTimer.Start();
+
             _client.ApplicationMessageReceivedAsync += async e =>
             {
                 try
                 {
                     var topic = e.ApplicationMessage.Topic;
                     var payload = Encoding.UTF8.GetString(e.ApplicationMessage.Payload);
-                    // Only parse JSON for known topics
-                    if (topic == "sensors/environment" || topic == "sensors/plant" || topic == "sensors/sets" || topic == "status/watering" || topic == "sensors/pressure_avg")
+
+                    // Raise the event for all topics
+                    if (MessageReceived != null)
                     {
-                        if (!string.IsNullOrWhiteSpace(payload))
-                        {
-                            try
-                            {
-                                var json = JsonDocument.Parse(payload).RootElement;
-                                MessageReceived?.Invoke(topic, json);
-                            }
-                            catch (System.Text.Json.JsonException jsonEx)
-                            {
-                                System.Diagnostics.Debug.WriteLine($"MQTT JSON parse error on topic '{topic}': {jsonEx.Message}");
-                                System.Diagnostics.Debug.WriteLine($"Payload: {payload}");
-                            }
-                        }
-                        else
-                        {
-                            System.Diagnostics.Debug.WriteLine($"MQTT message on topic '{topic}' has empty payload.");
-                        }
+                        var json = JsonDocument.Parse(payload).RootElement;
+                        MessageReceived.Invoke(topic, json);
                     }
-                    else
+
+                    // Existing buffer logic for sensors/sets
+                    if (topic == "sensors/sets")
                     {
-                        System.Diagnostics.Debug.WriteLine($"MQTT message on topic '{topic}' is not parsed as JSON. Payload: {payload}");
+                        var json = JsonDocument.Parse(payload).RootElement;
+                        var data = JsonSerializer.Deserialize<BackyardBoss.Models.SetsData>(json.GetRawText());
+                        if (data != null)
+                        {
+                            lock (_bufferLock)
+                            {
+                                _sensorBuffer.Add((data.Timestamp, data.PressurePsi, data.FlowLitres));
+                            }
+                        }
                     }
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"MQTT handler error: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"Error processing MQTT message: {ex.Message}");
                 }
-                await Task.CompletedTask;
             };
         }
 
@@ -65,18 +76,43 @@ namespace BackyardBoss.Services
                     .WithCleanSession()
                     .Build();
                 await _client.ConnectAsync(options);
+
                 // Subscribe to topics after connecting
                 await _client.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("sensors/environment").Build());
                 await _client.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("sensors/plant").Build());
                 await _client.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("sensors/sets").Build());
                 await _client.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("status/watering").Build());
-                // Subscribe to sensors/pressure_avg
                 await _client.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("sensors/pressure_avg").Build());
+
+                System.Diagnostics.Debug.WriteLine("MQTT client connected and subscribed to topics.");
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"MQTT connection error: {ex.Message}");
             }
+        }
+
+        private void ProcessSensorBuffer(object sender, System.Timers.ElapsedEventArgs e)
+        {
+            List<(DateTime Timestamp, double PressurePsi, double FlowTotalLiters)> bufferCopy;
+            lock (_bufferLock)
+            {
+                bufferCopy = new List<(DateTime, double, double)>(_sensorBuffer);
+                _sensorBuffer.Clear();
+            }
+
+            if (bufferCopy.Count == 0) return;
+
+            // Calculate averages
+            var avgPressure = bufferCopy.Average(x => x.PressurePsi);
+            var avgFlow = bufferCopy.Average(x => x.FlowTotalLiters);
+            var timestamp = bufferCopy.Max(x => x.Timestamp); // Use the latest timestamp
+
+            // Insert averaged values into the database
+            var sqliteRepo = new SqliteSensorDataRepository("pressure_data.db");
+            sqliteRepo.InsertSensorReadingAsync(timestamp, 0, avgPressure, 0, avgFlow).Wait();
+
+            System.Diagnostics.Debug.WriteLine($"Inserted averaged sensor reading: Timestamp={timestamp}, AvgPressurePsi={avgPressure}, AvgFlowTotalLiters={avgFlow}");
         }
     }
 }

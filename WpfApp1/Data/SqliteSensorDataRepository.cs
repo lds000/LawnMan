@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using System.Diagnostics;
 using Microsoft.Data.Sqlite;
 
 namespace BackyardBoss.Data
@@ -162,6 +163,62 @@ namespace BackyardBoss.Data
                 });
             }
             return result;
+        }
+
+        /// <summary>
+        /// Returns all rows from the sensor_readings table without grouping by 5-minute intervals.
+        /// </summary>
+        public async Task<List<PressureAvgData>> GetPressureAvg5MinAggregatesAsync()
+        {
+            var result = new List<PressureAvgData>();
+            await using var conn = new SqliteConnection(_connectionString);
+            await conn.OpenAsync();
+            var cmd = conn.CreateCommand();
+
+            // Retrieve all rows without grouping
+            cmd.CommandText = @"
+                SELECT 
+                    timestamp,
+                    pressure_psi AS avg_pressure_psi,
+                    1 AS num_samples
+                FROM sensor_readings
+                WHERE timestamp >= @cutoff
+                ORDER BY timestamp ASC;";
+
+            cmd.Parameters.AddWithValue("@cutoff", DateTime.Now.AddDays(-7));
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                result.Add(new PressureAvgData
+                {
+                    Timestamp = reader.GetDateTime(0),
+                    AvgPressurePsi = reader.GetDouble(1),
+                    NumSamples = reader.GetInt32(2),
+                    Version = null // Not used for individual rows
+                });
+            }
+
+            Debug.WriteLine($"GetPressureAvg5MinAggregatesAsync retrieved {result.Count} rows.");
+            return result;
+        }
+
+        /// <summary>
+        /// Inserts a single sensor reading into the sensor_readings table.
+        /// </summary>
+        public async Task InsertSensorReadingAsync(DateTime timestamp, int zoneId, double pressurePsi, double flowLpm, double flowTotalLiters)
+        {
+            await using var conn = new SqliteConnection(_connectionString);
+            await conn.OpenAsync();
+            var cmd = conn.CreateCommand();
+            cmd.CommandText = @"INSERT INTO sensor_readings (timestamp, zone_id, pressure_psi, flow_lpm, flow_total_liters) 
+                                VALUES (@timestamp, @zone_id, @pressure, @flow, @totalLiters)";
+            cmd.Parameters.AddWithValue("@timestamp", timestamp);
+            cmd.Parameters.AddWithValue("@zone_id", zoneId);
+            cmd.Parameters.AddWithValue("@pressure", pressurePsi);
+            cmd.Parameters.AddWithValue("@flow", flowLpm);
+            cmd.Parameters.AddWithValue("@totalLiters", flowTotalLiters);
+            await cmd.ExecuteNonQueryAsync();
         }
     }
 

@@ -434,21 +434,16 @@
                     <Image HorizontalAlignment="Center" Source="pack://application:,,,/Assets/logos/BoiseStateLogoDarkBlue.png" Height="75" Width="Auto" Stretch="Uniform" Opacity="0.75"/>
                     <Button Style="{StaticResource NavButtonStyle}" Content="Overview" Command="{Binding SelectSectionCommand}" CommandParameter="Overview" ToolTip="View dashboard overview"/>
                     <Button Style="{StaticResource NavButtonStyle}" Content="Schedule" Command="{Binding SelectSectionCommand}" CommandParameter="Schedule" ToolTip="Edit watering schedule"/>
-                    <Button Style="{StaticResource NavButtonStyle}" Content="History" Command="{Binding SelectSectionCommand}" CommandParameter="History" ToolTip="View watering history"/>
                     <Button Style="{StaticResource NavButtonStyle}" Content="Misters" Command="{Binding SelectSectionCommand}" CommandParameter="Settings" ToolTip="Configure misters"/>
                     <!--
                     <Button Style="{StaticResource NavButtonStyle}" Content="Debug" Command="{Binding SelectSectionCommand}" CommandParameter="Debug" ToolTip="Debug and logs"/>
                     -->
-                    <Button Style="{StaticResource NavButtonStyle}" Content="Soil Data" Command="{Binding SelectSectionCommand}" CommandParameter="Soil Data" ToolTip="View soil moisture data"/>
                     <Button Style="{StaticResource NavButtonStyle}" Content="Sensors" Command="{Binding SelectSectionCommand}" CommandParameter="Sensor Data" ToolTip="View sensor pressure/flow data"/>
                     <Button Style="{StaticResource NavButtonStyle}" Content="Map" Command="{Binding SelectSectionCommand}" CommandParameter="Map" ToolTip="View map"/>
-                </StackPanel>
+                        <Button Style="{StaticResource NavButtonStyle}" Content="History" Command="{Binding SelectSectionCommand}" CommandParameter="History" ToolTip="View watering history"/>
+                    </StackPanel>
                 <StackPanel Grid.Row="1">
 
-                        <Button Style="{StaticResource ManualRunButtonStyle}"
-                                Content="Reload"
-                            Command="{Binding ReloadCommand}"
-                            ToolTip="Close and restart program"/>
 
                         <Button Style="{StaticResource ManualRunButtonStyle}" Content="Manual"
                             Command="{Binding RunOnceCommand}"

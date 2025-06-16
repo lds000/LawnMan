@@ -35,12 +35,6 @@ using WpfApp1;
 
 namespace BackyardBoss.ViewModels
 {
-    public enum SensorDataMode
-    {
-        PressureAndFlow,
-        TemperatureAndHumidity
-    }
-
     public class PiRunInfo
     {
         [JsonPropertyName("set")]
@@ -72,7 +66,7 @@ namespace BackyardBoss.ViewModels
     }
 
     public class UpcomingRunInfo
-    {   
+    {
         [JsonPropertyName("set")]
         public string Set { get; set; }
         [JsonPropertyName("start_time")]
@@ -114,7 +108,7 @@ namespace BackyardBoss.ViewModels
         [JsonPropertyName("today_is_watering_day")]
         public bool TodayIsWateringDay { get; set; }
         [JsonPropertyName("mist_status")]
-        public BackyardBoss.Models.MistStatus MistStatus { get; set; }
+        public BackyardBoss.Models.MistStatus MistStatus { get; set; } // <-- Add this property
     }
 
     public class ProgramEditorViewModel : INotifyPropertyChanged
@@ -163,15 +157,12 @@ namespace BackyardBoss.ViewModels
         private List<string> _availableZones = new();
         private string _selectedZone;
         private MqttService _mqttService;
-        private double? _latestPressurePsi;
-        private SensorDataMode _selectedSensorDataMode = SensorDataMode.PressureAndFlow;
-        private readonly SqliteSensorDataRepository _sqliteRepo = new SqliteSensorDataRepository("pressure_data.db");
 
         #endregion
 
         #region Properties
         public ObservableCollection<StartTimeViewModel> StartTimes => Schedule.StartTimes;
-        
+
         public ObservableCollection<SprinklerSet> VisibleSets
         {
             get => _visibleSets;
@@ -246,10 +237,10 @@ namespace BackyardBoss.ViewModels
         /// Gets or sets the visibility status indicating whether it is windy, greater than 5 mph wind.
         /// </summary>
         public Visibility IsWindyVisible
-        {  
+        {
             get
             {
-                
+
                 if (IsWindy)
                 {
                     return Visibility.Visible;
@@ -591,30 +582,7 @@ namespace BackyardBoss.ViewModels
         public ObservableCollection<EnvironmentData> EnvironmentReadings { get; set; } = new();
         public ObservableCollection<PlantData> PlantReadings { get; set; } = new();
         public ObservableCollection<SetsData> SetsReadings { get; set; } = new();
-        public double? LatestPressurePsi
-        {
-            get => _latestPressurePsi.HasValue ? Math.Round(_latestPressurePsi.Value, 1) : (double?)null;
-            set { _latestPressurePsi = value; OnPropertyChanged(); }
-        }
-
         public ObservableCollection<PressureAvgData> PressureAvgHistory { get; set; } = new();
-
-        public SensorDataMode SelectedSensorDataMode
-        {
-            get => _selectedSensorDataMode;
-            set
-            {
-                if (_selectedSensorDataMode != value)
-                {
-                    _selectedSensorDataMode = value;
-                    OnPropertyChanged();
-                    if (_selectedSensorDataMode == SensorDataMode.PressureAndFlow)
-                    {
-                        UpdatePressureAvgPlot();
-                    }
-                }
-            }
-        }
         #endregion
 
         #region Commands
@@ -649,8 +617,6 @@ namespace BackyardBoss.ViewModels
             UpdateIsWindy(); // Initial check
             CalculateTodayScheduleIndex();
             LoadSchedule(); // <-- Enable real data loading
-            // Initialize SQLite and load pressure data
-            _ = InitializePressureAvgHistoryAsync();
             // Debounce timer for saving and uploading schedule
             _debounceSaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
             _debounceSaveTimer.Tick += (s, e) =>
@@ -658,6 +624,8 @@ namespace BackyardBoss.ViewModels
                 _debounceSaveTimer.Stop();
                 Save(SaveTarget.LocalAndSendToPi);
             };
+            // Subscribe to PressureAvgHistory changes to update plot
+            PressureAvgHistory.CollectionChanged += (s, e) => UpdatePressureAvgPlot();
             // Populate mock data for dashboard demo
             SystemStatus = "All Systems Nominal";
             var demoSetNames = new[] { "Front Lawn", "Backyard", "Garden" };
@@ -744,26 +712,21 @@ namespace BackyardBoss.ViewModels
                         Console.WriteLine($"Received MQTT message on topic: {topic}");
                         if (topic == "sensors/environment")
                         {
-                            try
+                            var data = JsonSerializer.Deserialize<EnvironmentData>(json.GetRawText());
+                            if (data != null)
                             {
-                                var data = JsonSerializer.Deserialize<EnvironmentData>(json.GetRawText());
-                                if (data != null)
-                                {
-                                    EnvironmentReadings.Add(data);
-                                    // Convert wind speed from m/s to mph and update WeatherVM.EnvWindSpeed
-                                    double mph = data.WindSpeed * 2.23694;
-                                    WeatherVM.EnvWindSpeed = $"{mph:F1} mph";
-                                    // Update EnvHumidity as percentage
-                                    WeatherVM.EnvHumidity = $"{data.Humidity:F0}%";
-                                    // Convert Celsius to Fahrenheit for EnvTemperature
+                                EnvironmentReadings.Add(data);
+                                // Debug: Log the received wind speed
+                                Debug.WriteLine($"[MQTT] Received EnvWindSpeed: {data.WindSpeed}");
+                                // Update WeatherVM.EnvWindSpeed, EnvHumidity, EnvTemperature
+                                Application.Current.Dispatcher.Invoke(() => {
+                                    WeatherVM.EnvWindSpeed = data.WindSpeed.ToString("F1") + " mph";
+                                    WeatherVM.EnvHumidity = data.Humidity.ToString("F0") + "%";
                                     double tempF = data.Temperature * 9.0 / 5.0 + 32.0;
-                                    WeatherVM.EnvTemperature = $"{tempF:F1}°F";
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                Debug.WriteLine($"EnvironmentData deserialization error: {ex.Message}");
-                                Debug.WriteLine($"Payload: {json.GetRawText()}");
+                                    WeatherVM.EnvTemperature = tempF.ToString("F1") + "°F";
+                                    // Debug: Log the set value
+                                    Debug.WriteLine($"[UI] Set WeatherVM.EnvWindSpeed: {WeatherVM.EnvWindSpeed}");
+                                });
                             }
                         }
                         else if (topic == "sensors/plant")
@@ -773,20 +736,8 @@ namespace BackyardBoss.ViewModels
                         }
                         else if (topic == "sensors/sets")
                         {
-                            try
-                            {
-                                var data = JsonSerializer.Deserialize<SetsData>(json.GetRawText());
-                                if (data != null)
-                                {
-                                    SetsReadings.Add(data);
-                                    LatestPressurePsi = data.PressurePsi;
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                Debug.WriteLine($"SetsData deserialization error: {ex.Message}");
-                                Debug.WriteLine($"Payload: {json.GetRawText()}");
-                            }
+                            var data = JsonSerializer.Deserialize<SetsData>(json.GetRawText());
+                            if (data != null) SetsReadings.Add(data);
                         }
                         else if (topic == "status/watering")
                         {
@@ -801,33 +752,7 @@ namespace BackyardBoss.ViewModels
                                 NextRun = status.NextRun;
                                 LastCompletedRun = status.LastCompletedRun;
                                 UpcomingRuns = new ObservableCollection<UpcomingRunInfo>(status.UpcomingRuns ?? new List<UpcomingRunInfo>());
-                                MistStatus = status.MistStatus;
-                            }
-                        }
-                        else if (topic == "sensors/pressure_avg")
-                        {
-                            try
-                            {
-                                var data = JsonSerializer.Deserialize<PressureAvgData>(json.GetRawText());
-                                if (data != null)
-                                {
-                                    // Remove old data (older than 7 days)
-                                    var cutoff = DateTime.Now.AddDays(-7);
-                                    for (int i = PressureAvgHistory.Count - 1; i >= 0; i--)
-                                    {
-                                        if (PressureAvgHistory[i].Timestamp < cutoff)
-                                            PressureAvgHistory.RemoveAt(i);
-                                    }
-                                    PressureAvgHistory.Add(data);
-                                    // Save to SQLite
-                                    _ = _sqliteRepo.InsertPressureAvgAsync(data.Timestamp, data.AvgPressurePsi, data.NumSamples, data.Version);
-                                    // Optionally, trigger plot update here
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                Debug.WriteLine($"PressureAvgData deserialization error: {ex.Message}");
-                                Debug.WriteLine($"Payload: {json.GetRawText()}");
+                                MistStatus = status.MistStatus; // Now assign MistStatus from status
                             }
                         }
                     }
@@ -844,9 +769,6 @@ namespace BackyardBoss.ViewModels
                     SelectedSection = section;
                 }
             });
-
-            // Initialize RunOnceCommand
-            RunOnceCommand = new RelayCommand(_ => RunOnce());
         }
         #endregion
 
@@ -1306,38 +1228,46 @@ namespace BackyardBoss.ViewModels
         #region Pressure Plot Management
         public void UpdatePressureAvgPlot()
         {
-            var model = new PlotModel { Title = "Pressure (5-min Avg, Last 7 Days)" };
-            var series = new LineSeries { Title = "Avg Pressure (PSI)", MarkerType = MarkerType.Circle };
-            var data = PressureAvgHistory.OrderBy(d => d.Timestamp).ToList();
-            foreach (var d in data)
+            // Preserve current zoom/pan
+            double? xMin = null, xMax = null, yMin = null, yMax = null;
+            if (SensorPlotModel != null)
             {
-                series.Points.Add(new DataPoint(DateTimeAxis.ToDouble(d.Timestamp), d.AvgPressurePsi));
-            }
-            model.Series.Add(series);
-            model.Axes.Add(new DateTimeAxis { Position = AxisPosition.Bottom, StringFormat = "MM-dd HH:mm", Title = "Time" });
-            model.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Title = "Pressure (PSI)" });
-            SensorPlotModel = model;
-        }
-
-        private async Task InitializePressureAvgHistoryAsync()
-        {
-            await _sqliteRepo.InitializeAsync();
-            var history = await _sqliteRepo.GetPressureAvgLast7DaysAsync();
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-                PressureAvgHistory.Clear();
-                foreach (var d in history)
+                var xAxis = SensorPlotModel.Axes.OfType<DateTimeAxis>().FirstOrDefault();
+                var yAxis = SensorPlotModel.Axes.OfType<LinearAxis>().FirstOrDefault();
+                if (xAxis != null)
                 {
-                    PressureAvgHistory.Add(new PressureAvgData
-                    {
-                        Timestamp = d.Timestamp,
-                        AvgPressurePsi = d.AvgPressurePsi,
-                        NumSamples = d.NumSamples,
-                        Version = d.Version
-                    });
+                    xMin = xAxis.ActualMinimum;
+                    xMax = xAxis.ActualMaximum;
                 }
-                UpdatePressureAvgPlot();
-            });
+                if (yAxis != null)
+                {
+                    yMin = yAxis.ActualMinimum;
+                    yMax = yAxis.ActualMaximum;
+                }
+            }
+
+            var model = new PlotModel { Title = "Pressure (5-min Avg, All Data)" };
+            var series = new LineSeries { Title = "Avg Pressure (PSI)", MarkerType = MarkerType.Circle };
+
+            foreach (var data in PressureAvgHistory.OrderBy(d => d.Timestamp))
+            {
+                series.Points.Add(new DataPoint(DateTimeAxis.ToDouble(data.Timestamp), data.AvgPressurePsi));
+            }
+
+            model.Series.Add(series);
+            var xAxisNew = new DateTimeAxis { Position = AxisPosition.Bottom, StringFormat = "MM-dd HH:mm", Title = "Time" };
+            var yAxisNew = new LinearAxis { Position = AxisPosition.Left, Title = "Pressure (PSI)" };
+            model.Axes.Add(xAxisNew);
+            model.Axes.Add(yAxisNew);
+
+            // Restore previous zoom/pan
+            if (xMin.HasValue && xMax.HasValue)
+                xAxisNew.Zoom(xMin.Value, xMax.Value);
+            if (yMin.HasValue && yMax.HasValue)
+                yAxisNew.Zoom(yMin.Value, yMax.Value);
+
+            SensorPlotModel = model;
+            OnPropertyChanged(nameof(SensorPlotModel)); // Ensure property change notification
         }
         #endregion
     }
