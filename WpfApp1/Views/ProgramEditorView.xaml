@@ -112,10 +112,6 @@
                                             <TextBlock  Foreground="#455a64" FontSize="12" Text="{Binding TodayScheduleIndex}" />
                                         </StackPanel>
 
-                                        <TextBlock Text="⚠ Index Mismatch!" 
-               Foreground="Red" 
-               FontWeight="Bold"
-               Visibility="{Binding ScheduleIndexMismatch, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                     </StackPanel>
                                 </Border>
                                 <Border Margin="10,0,0,0" Grid.Column="1" Background="{DynamicResource CardBackground}" CornerRadius="10" Padding="12">

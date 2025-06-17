@@ -759,6 +759,11 @@ namespace BackyardBoss.ViewModels
                             if (data != null)
                             {
                                 EnvironmentReadings.Add(data);
+                                //set PiLocalTime
+
+                                PiLocalTime = data.Timestamp.ToShortTimeString();
+
+
                                 // Debug: Log the received wind speed
                                 Debug.WriteLine($"[MQTT] Received EnvWindSpeed: {data.WindSpeed}");
                                 // Update WeatherVM.EnvWindSpeed, EnvHumidity, EnvTemperature
@@ -828,6 +833,9 @@ namespace BackyardBoss.ViewModels
                     SelectedSection = section;
                 }
             });
+
+            // Initialize RunOnceCommand for Manual button
+            RunOnceCommand = new RelayCommand(_ => RunOnce());
         }
         #endregion
 
@@ -1310,7 +1318,6 @@ namespace BackyardBoss.ViewModels
             var smoothedSeries = new LineSeries { Title = "Smoothed (Moving Avg)", Color = OxyColors.Orange, MarkerType = MarkerType.None };
 
             var ordered = PressureAvgHistory.OrderBy(d => d.Timestamp).ToList();
-            // Raw data
             foreach (var data in ordered)
             {
                 var x = DateTimeAxis.ToDouble(data.Timestamp);
@@ -1318,7 +1325,6 @@ namespace BackyardBoss.ViewModels
                 series.Points.Add(new DataPoint(x, y));
             }
 
-            // Moving average smoothing (window size 5)
             int window = 5;
             for (int i = 0; i < ordered.Count; i++)
             {
@@ -1338,8 +1344,25 @@ namespace BackyardBoss.ViewModels
 
             SensorPlotModel = model;
             OnPropertyChanged(nameof(SensorPlotModel));
-        }
 
+            // Restore previous zoom/pan after plot is rendered and data is available
+            if (xMin.HasValue && xMax.HasValue && xAxisNew != null)
+            {
+                // Clamp to new axis range to avoid out-of-bounds zoom
+                double min = Math.Max(xAxisNew.ActualMinimum, xMin.Value);
+                double max = Math.Min(xAxisNew.ActualMaximum, xMax.Value);
+                if (min < max)
+                    xAxisNew.Zoom(min, max);
+            }
+            if (yMin.HasValue && yMax.HasValue && yAxisNew != null)
+            {
+                double min = Math.Max(yAxisNew.ActualMinimum, yMin.Value);
+                double max = Math.Min(yAxisNew.ActualMaximum, yMax.Value);
+                if (min < max)
+                    yAxisNew.Zoom(min, max);
+            }
+            model.InvalidatePlot(false);
+        }
         private async Task LoadPressureHistoryAsync()
         {
             try
