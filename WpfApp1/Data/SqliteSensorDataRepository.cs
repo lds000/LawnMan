@@ -37,6 +37,8 @@ namespace BackyardBoss.Data
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     timestamp DATETIME NOT NULL,
                     avg_pressure_psi REAL NOT NULL,
+                    avg_flow_lpm REAL,
+                    zone_id INTEGER,
                     num_samples INTEGER NOT NULL,
                     version TEXT
                 );";
@@ -149,7 +151,7 @@ namespace BackyardBoss.Data
             await using var conn = new SqliteConnection(_connectionString);
             await conn.OpenAsync();
             var cmd = conn.CreateCommand();
-            cmd.CommandText = @"SELECT timestamp, avg_pressure_psi, num_samples, version FROM pressure_avg WHERE timestamp >= @cutoff ORDER BY timestamp ASC";
+            cmd.CommandText = @"SELECT timestamp, pressure_psi, flow_lpm, zone_id, num_samples, version FROM pressure_avg WHERE timestamp >= @cutoff ORDER BY timestamp ASC";
             cmd.Parameters.AddWithValue("@cutoff", DateTime.Now.AddDays(-7));
             await using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -158,8 +160,10 @@ namespace BackyardBoss.Data
                 {
                     Timestamp = reader.GetDateTime(0),
                     AvgPressurePsi = reader.GetDouble(1),
-                    NumSamples = reader.GetInt32(2),
-                    Version = reader.IsDBNull(3) ? null : reader.GetString(3)
+                    AvgFlowLpm = reader.IsDBNull(2) ? 0 : reader.GetDouble(2),
+                    ZoneId = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
+                    NumSamples = reader.GetInt32(4),
+                    Version = reader.IsDBNull(5) ? null : reader.GetString(5)
                 });
             }
             return result;
@@ -179,8 +183,11 @@ namespace BackyardBoss.Data
             cmd.CommandText = @"
                 SELECT 
                     timestamp,
-                    pressure_psi AS avg_pressure_psi,
-                    1 AS num_samples
+                    pressure_psi,
+                    flow_lpm,
+                    zone_id,
+                    1 AS num_samples,
+                    version
                 FROM sensor_readings
                 WHERE timestamp >= @cutoff
                 ORDER BY timestamp ASC;";
@@ -194,8 +201,10 @@ namespace BackyardBoss.Data
                 {
                     Timestamp = reader.GetDateTime(0),
                     AvgPressurePsi = reader.GetDouble(1),
-                    NumSamples = reader.GetInt32(2),
-                    Version = null // Not used for individual rows
+                    AvgFlowLpm = reader.IsDBNull(2) ? 0 : reader.GetDouble(2),
+                    ZoneId = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
+                    NumSamples = reader.GetInt32(4),
+                    Version = reader.IsDBNull(5) ? null : reader.GetString(5)
                 });
             }
 
@@ -203,21 +212,19 @@ namespace BackyardBoss.Data
             return result;
         }
 
-        /// <summary>
-        /// Inserts a single sensor reading into the sensor_readings table.
-        /// </summary>
-        public async Task InsertSensorReadingAsync(DateTime timestamp, int zoneId, double pressurePsi, double flowLpm, double flowTotalLiters)
+
+        public async Task InsertPressureAndFlowAvgAsync(DateTime timestamp, double avgPressurePsi, double avgFlowLpm, int zoneId, int numSamples, string version)
         {
             await using var conn = new SqliteConnection(_connectionString);
             await conn.OpenAsync();
             var cmd = conn.CreateCommand();
-            cmd.CommandText = @"INSERT INTO sensor_readings (timestamp, zone_id, pressure_psi, flow_lpm, flow_total_liters) 
-                                VALUES (@timestamp, @zone_id, @pressure, @flow, @totalLiters)";
+            cmd.CommandText = @"INSERT INTO sensor_readings (timestamp, zone_id, pressure_psi, flow_lpm, num_samples, version) VALUES (@timestamp, @zoneId, @avgPressure, @avgFlow, @numSamples, @version)";
             cmd.Parameters.AddWithValue("@timestamp", timestamp);
-            cmd.Parameters.AddWithValue("@zone_id", zoneId);
-            cmd.Parameters.AddWithValue("@pressure", pressurePsi);
-            cmd.Parameters.AddWithValue("@flow", flowLpm);
-            cmd.Parameters.AddWithValue("@totalLiters", flowTotalLiters);
+            cmd.Parameters.AddWithValue("@zoneId", zoneId);
+            cmd.Parameters.AddWithValue("@avgPressure", avgPressurePsi);
+            cmd.Parameters.AddWithValue("@avgFlow", avgFlowLpm);
+            cmd.Parameters.AddWithValue("@numSamples", numSamples);
+            cmd.Parameters.AddWithValue("@version", version ?? (object)DBNull.Value);
             await cmd.ExecuteNonQueryAsync();
         }
     }
@@ -235,6 +242,8 @@ namespace BackyardBoss.Data
     {
         public DateTime Timestamp { get; set; }
         public double AvgPressurePsi { get; set; }
+        public double AvgFlowLpm { get; set; }
+        public int ZoneId { get; set; }
         public int NumSamples { get; set; }
         public string Version { get; set; }
     }

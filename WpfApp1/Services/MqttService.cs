@@ -109,34 +109,47 @@ namespace BackyardBoss.Services
 
             // Calculate averages
             var avgPressure = bufferCopy.Average(x => x.PressurePsi);
-            var avgFlow = bufferCopy.Average(x => x.FlowTotalLiters);
+            var avgFlowLpm = bufferCopy.Average(x => x.FlowTotalLiters); // Assuming FlowTotalLiters is LPM, else convert
             var timestamp = bufferCopy.Max(x => x.Timestamp); // Use the latest timestamp
+
+            // Determine current zone_id (0 if no set is running)
+            int zoneId = 0;
+            var vm = ProgramEditorViewModel.Current;
+            if (vm != null && vm.CurrentRun != null && !string.IsNullOrEmpty(vm.CurrentRun.Set))
+            {
+                // Try to map set name to a zone id (index+1), fallback to 0
+                var set = vm.Sets.FirstOrDefault(s => s.SetName == vm.CurrentRun.Set);
+                if (set != null)
+                    zoneId = vm.Sets.IndexOf(set) + 1;
+            }
 
             // Insert averaged values into the database
             var sqliteRepo = new SqliteSensorDataRepository("pressure_data.db");
-            sqliteRepo.InsertSensorReadingAsync(timestamp, 0, avgPressure, 0, avgFlow).Wait();
+            sqliteRepo.InsertPressureAndFlowAvgAsync(timestamp, avgPressure, avgFlowLpm, zoneId, bufferCopy.Count, "1.0").Wait();
 
-            System.Diagnostics.Debug.WriteLine($"Inserted averaged sensor reading: Timestamp={timestamp}, AvgPressurePsi={avgPressure}, AvgFlowTotalLiters={avgFlow}");
+            System.Diagnostics.Debug.WriteLine($"Inserted averaged sensor reading: Timestamp={timestamp}, AvgPressurePsi={avgPressure}, AvgFlowLpm={avgFlowLpm}, ZoneId={zoneId}");
 
             int numSamples = bufferCopy.Count;
-            string version = "1.0"; // Or use null if you don't track version
+            string version = "1.0";
 
             var avgData = new PressureAvgData
             {
-                Timestamp = timestamp, // your calculated timestamp
-                AvgPressurePsi = avgPressure, // your calculated average
-                NumSamples = numSamples,      // your sample count
-                Version = version            // your version string, if any
+                Timestamp = timestamp,
+                AvgPressurePsi = avgPressure,
+                AvgFlowLpm = avgFlowLpm,
+                ZoneId = zoneId,
+                NumSamples = numSamples,
+                Version = version
             };
 
             // Add to PressureAvgHistory on the UI thread
             Application.Current.Dispatcher.Invoke(() =>
             {
-                var vm = ProgramEditorViewModel.Current;
-                if (vm != null)
+                var vm2 = ProgramEditorViewModel.Current;
+                if (vm2 != null)
                 {
-                    vm.PressureAvgHistory.Add(avgData);
-                    vm.LatestPressurePsi = avgPressure; // Optionally update LatestPressurePsi
+                    vm2.PressureAvgHistory.Add(avgData);
+                    vm2.LatestPressurePsi = avgPressure;
                 }
             });
         }

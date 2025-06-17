@@ -1307,38 +1307,37 @@ namespace BackyardBoss.ViewModels
 
             var model = new PlotModel { Title = "Pressure (5-min Avg, All Data)" };
             var series = new LineSeries { Title = "Avg Pressure (PSI)", MarkerType = MarkerType.Circle };
-            foreach (var data in PressureAvgHistory.OrderBy(d => d.Timestamp))
+            var smoothedSeries = new LineSeries { Title = "Smoothed (Moving Avg)", Color = OxyColors.Orange, MarkerType = MarkerType.None };
+
+            var ordered = PressureAvgHistory.OrderBy(d => d.Timestamp).ToList();
+            // Raw data
+            foreach (var data in ordered)
             {
                 var x = DateTimeAxis.ToDouble(data.Timestamp);
                 var y = data.AvgPressurePsi;
-                Debug.WriteLine($"Plot point: Timestamp={data.Timestamp}, X={x}, Y={y}");
                 series.Points.Add(new DataPoint(x, y));
             }
 
-            Debug.WriteLine($"Total series points: {series.Points.Count}");
-            if (series.Points.Count > 0)
+            // Moving average smoothing (window size 5)
+            int window = 5;
+            for (int i = 0; i < ordered.Count; i++)
             {
-                Debug.WriteLine($"First point: X={series.Points[0].X}, Y={series.Points[0].Y}");
-                Debug.WriteLine($"Last point: X={series.Points[^1].X}, Y={series.Points[^1].Y}");
+                int start = Math.Max(0, i - window + 1);
+                int count = i - start + 1;
+                double avgY = ordered.Skip(start).Take(count).Average(p => p.AvgPressurePsi);
+                var x = DateTimeAxis.ToDouble(ordered[i].Timestamp);
+                smoothedSeries.Points.Add(new DataPoint(x, avgY));
             }
 
-            Debug.WriteLine(series.Points.Count);
-
-            model.Series.Add(series);
+            //model.Series.Add(series);
+            model.Series.Add(smoothedSeries);
             var xAxisNew = new DateTimeAxis { Position = AxisPosition.Bottom, StringFormat = "MM-dd HH:mm", Title = "Time" };
             var yAxisNew = new LinearAxis { Position = AxisPosition.Left, Title = "Pressure (PSI)" };
             model.Axes.Add(xAxisNew);
             model.Axes.Add(yAxisNew);
 
-            /*
-            // Restore previous zoom/pan
-            if (xMin.HasValue && xMax.HasValue)
-                xAxisNew.Zoom(xMin.Value, xMax.Value);
-            if (yMin.HasValue && yMax.HasValue)
-                yAxisNew.Zoom(yMin.Value, yMax.Value);
-            */
             SensorPlotModel = model;
-            OnPropertyChanged(nameof(SensorPlotModel)); // Ensure property change notification
+            OnPropertyChanged(nameof(SensorPlotModel));
         }
 
         private async Task LoadPressureHistoryAsync()
