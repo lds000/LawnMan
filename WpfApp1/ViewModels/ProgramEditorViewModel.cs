@@ -107,9 +107,14 @@ namespace BackyardBoss.ViewModels
         public List<UpcomingRunInfo> UpcomingRuns { get; set; }
         [JsonPropertyName("today_is_watering_day")]
         public bool TodayIsWateringDay { get; set; }
+    }
+
+    public class MistersStatusResponse
+    {
         [JsonPropertyName("mist_status")]
         public BackyardBoss.Models.MistStatus MistStatus { get; set; } // <-- Add this property
     }
+
 
     public class ProgramEditorViewModel : INotifyPropertyChanged
     {
@@ -176,6 +181,20 @@ namespace BackyardBoss.ViewModels
             }
         }
 
+        private double? _latestFlowGPM;
+        public double? LatestFlowGPM
+        {
+            get => _latestFlowGPM;
+            set
+            {
+                if (_latestFlowGPM != value)
+                {
+                    _latestFlowGPM = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         public ObservableCollection<StartTimeViewModel> StartTimes => Schedule.StartTimes;
 
         public ObservableCollection<SprinklerSet> VisibleSets
@@ -221,7 +240,14 @@ namespace BackyardBoss.ViewModels
         public ObservableCollection<UpcomingRunInfo> UpcomingRuns
         {
             get => _upcomingRuns;
-            set { _upcomingRuns = value; }
+            set
+            {
+                if (_upcomingRuns != value)
+                {
+                    _upcomingRuns = value;
+                    OnPropertyChanged();
+                }
+            }
         }
         public ObservableCollection<string> PiStatusLog { get; private set; } = new();
         public WeatherViewModel WeatherVM { get; } = new WeatherViewModel();
@@ -756,6 +782,7 @@ namespace BackyardBoss.ViewModels
                             var data = JsonSerializer.Deserialize<SetsData>(json.GetRawText());
                             if (data != null) SetsReadings.Add(data);
                             LatestPressurePsi = data.PressurePsi;
+                            LatestFlowGPM = data.FlowLitres;
                         }
                         else if (topic == "status/watering")
                         {
@@ -770,7 +797,21 @@ namespace BackyardBoss.ViewModels
                                 NextRun = status.NextRun;
                                 LastCompletedRun = status.LastCompletedRun;
                                 UpcomingRuns = new ObservableCollection<UpcomingRunInfo>(status.UpcomingRuns ?? new List<UpcomingRunInfo>());
-                                MistStatus = status.MistStatus; // Now assign MistStatus from status
+                            }
+                        }
+                        else if (topic == "status/misters")
+                        {
+                            try
+                            {
+                                var mistStatus = JsonSerializer.Deserialize<BackyardBoss.Models.MistStatus>(json.GetRawText());
+                                if (mistStatus != null)
+                                {
+                                    MistStatus = mistStatus;
+                                }
+                            }
+                            catch (System.Exception ex)
+                            {
+                                MessageBox.Show(ex.Message);
                             }
                         }
                     }

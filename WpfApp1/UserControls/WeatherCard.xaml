@@ -63,9 +63,12 @@
                     <TextBlock Text="{Binding EnvWindSpeed}" FontSize="12" Foreground="{DynamicResource PrimaryText}"/>
                     <TextBlock Text=")" FontSize="12" Foreground="{DynamicResource PrimaryText}"/>
                 </StackPanel>
+                <StackPanel Orientation="Horizontal" >
 
-                <TextBlock Text="Pressure: " FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
-                <TextBlock Text="{Binding Pressure}" FontSize="12" Foreground="{DynamicResource PrimaryText}"/>
+                    <TextBlock Text="Pressure: " FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                    <TextBlock Text="{Binding Pressure}" FontSize="12" Foreground="{DynamicResource PrimaryText}"/>
+                    <TextBlock Text=" bar" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                </StackPanel>
                 <StackPanel Orientation="Horizontal" >
                     <TextBlock Text="Visibility: " FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
                     <TextBlock Text="{Binding Visibility}" FontSize="12" Foreground="{DynamicResource PrimaryText}"/>
