@@ -64,6 +64,13 @@
                     <TextBlock Text=")" FontSize="12" Foreground="{DynamicResource PrimaryText}"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" >
+                    <TextBlock Text="Wind: " FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                    <TextBlock Text="{Binding EnvWindDirDeg}" FontSize="12" Foreground="{DynamicResource PrimaryText}"/>
+                    <TextBlock Text=" (" FontSize="12" Foreground="{DynamicResource PrimaryText}"/>
+                    <TextBlock Text="{Binding EnvWindDirCompass}" FontSize="12" Foreground="{DynamicResource PrimaryText}"/>
+                    <TextBlock Text=")" FontSize="12" Foreground="{DynamicResource PrimaryText}"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" >
 
                     <TextBlock Text="Pressure: " FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
                     <TextBlock Text="{Binding Pressure}" FontSize="12" Foreground="{DynamicResource PrimaryText}"/>

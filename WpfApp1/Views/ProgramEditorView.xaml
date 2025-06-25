@@ -46,7 +46,7 @@
                                     </StackPanel>
                                     <TextBlock Text="{Binding SystemStatus}" Foreground="Lime"/>
                                     <TextBlock FontSize="16" Text="{Binding LatestPressurePsi, StringFormat='Mainline Pressure: {0:F1} psi'}"/>
-                                    <TextBlock FontSize="16" Text="{Binding LatestFlowGPM, StringFormat='Mainline Pressure: {0:F1} psi'}"/>
+                                    <TextBlock FontSize="16" Text="{Binding LatestFlowGPM, StringFormat='Mainline Flow: {0:F1} gph'}"/>
                                     <ItemsControl ItemsSource="{Binding ZoneStatuses}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>

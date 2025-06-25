@@ -1,0 +1,56 @@
+# Expected MQTT Topics and Data for BackyardBoss
+
+## sensors/environment
+- **Type:** EnvironmentData
+- **Fields:**
+  - timestamp (DateTime)
+  - temperature (double)
+  - humidity (double)
+  - wind_speed (double)
+  - barometric_pressure (double?)
+
+## sensors/plant
+- **Type:** PlantData
+- **Fields:**
+  - timestamp (DateTime)
+  - moisture (double)
+  - lux (double)
+  - soil_temperature (double)
+
+## sensors/sets
+- **Type:** SetsData
+- **Fields:**
+  - timestamp (DateTime)
+  - set_name (string)
+  - flow_litres (double)
+  - flow_pulses (int)
+  - pressure_psi (double)
+  - pressure_kpa (double?)
+  - version (string)
+
+## status/watering
+- **Type:** PiStatusResponse
+- **Fields:**
+  - system_status (string)
+  - test_mode (bool)
+  - test_mode_timestamp (double)
+  - led_colors (Dictionary<string, string>)
+  - zones (List<ZoneStatus>)
+  - current_run (PiRunInfo)
+  - next_run (PiRunInfo)
+  - last_completed_run (LastCompletedRunInfo)
+  - upcoming_runs (List<UpcomingRunInfo>)
+  - today_is_watering_day (bool)
+
+## status/misters
+- **Type:** MistStatus
+- **Fields:**
+  - current_temperature (double)
+  - duration_minutes (int)
+  - interval_minutes (int)
+  - is_misting (bool)
+  - last_mist_event (DateTime?)
+  - next_mist_event (DateTime?)
+
+---
+All topics expect a single JSON object per message, matching the above field names and types. Numeric fields must be sent as numbers, not strings. Optional fields (marked with ?) may be null or omitted.

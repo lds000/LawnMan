@@ -107,6 +107,8 @@ namespace BackyardBoss.ViewModels
         public List<UpcomingRunInfo> UpcomingRuns { get; set; }
         [JsonPropertyName("today_is_watering_day")]
         public bool TodayIsWateringDay { get; set; }
+        [JsonPropertyName("schedule_index")]
+        public int? ScheduleIndex { get; set; } // Add schedule_index property for PiScheduleIndex
     }
 
     public class MistersStatusResponse
@@ -695,6 +697,7 @@ namespace BackyardBoss.ViewModels
             {
                 Interval = TimeSpan.FromSeconds(1)
             };
+            _timeTimer.Tick += (s, e) => OnPropertyChanged(nameof(CurrentTime));
             _timeTimer.Start();
             // Example: Load a default map image and demo lines
             MapImageSource = new BitmapImage(new Uri("pack://application:,,,/Assets/Map/default_map.png"));
@@ -787,7 +790,7 @@ namespace BackyardBoss.ViewModels
                             var data = JsonSerializer.Deserialize<SetsData>(json.GetRawText());
                             if (data != null) SetsReadings.Add(data);
                             LatestPressurePsi = data.PressurePsi;
-                            LatestFlowGPM = data.FlowLitres;
+                            LatestFlowGPM = data.FlowRateLpm * 0.264172 * 60;
                         }
                         else if (topic == "status/watering")
                         {
@@ -802,6 +805,7 @@ namespace BackyardBoss.ViewModels
                                 NextRun = status.NextRun;
                                 LastCompletedRun = status.LastCompletedRun;
                                 UpcomingRuns = new ObservableCollection<UpcomingRunInfo>(status.UpcomingRuns ?? new List<UpcomingRunInfo>());
+                                PiScheduleIndex = status.ScheduleIndex; // <-- Set PiScheduleIndex here
                             }
                         }
                         else if (topic == "status/misters")
@@ -836,6 +840,9 @@ namespace BackyardBoss.ViewModels
 
             // Initialize RunOnceCommand for Manual button
             RunOnceCommand = new RelayCommand(_ => RunOnce());
+
+            // Initialize StopAllCommand
+            StopAllCommand = new RelayCommand(_ => StopAll());
         }
         #endregion
 
@@ -1145,6 +1152,30 @@ namespace BackyardBoss.ViewModels
                 MessageBox.Show($"Failed to send manual run: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+        private void StopAll()
+        {
+            // Command structure for stop all
+            var command = new { stop_all = true };
+            string localPath = "stop_all_command.json";
+            string remotePath = "/home/lds00/sprinkler/stop_all_command.json";
+            string piHost = "100.116.147.6";
+            string username = "lds00";
+            string password = "Celica1!";
+            try
+            {
+                File.WriteAllText(localPath, System.Text.Json.JsonSerializer.Serialize(command, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+                using var sftp = new Renci.SshNet.SftpClient(piHost, username, password);
+                sftp.Connect();
+                using var stream = File.OpenRead(localPath);
+                sftp.UploadFile(stream, remotePath, true);
+                sftp.Disconnect();
+                MessageBox.Show("Stop All command sent to Raspberry Pi.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to send Stop All command: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
         #endregion
 
         #region UI Helpers
@@ -1363,24 +1394,91 @@ namespace BackyardBoss.ViewModels
             }
             model.InvalidatePlot(false);
         }
+
+        /*Old load pressure history:
+                        var repo = new BackyardBoss.Data.SqliteSensorDataRepository("pressure_data.db");
+                        var history = await repo.GetPressureAvg5MinAggregatesAsync();
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            PressureAvgHistory.Clear();
+                            foreach (var item in history)
+                                PressureAvgHistory.Add(new PressureAvgData
+                                {
+                                    Timestamp = item.Timestamp,
+                                    AvgPressurePsi = item.AvgPressurePsi,
+                                    NumSamples = item.NumSamples,
+                                    Version = item.Version
+                                });
+                        });
+
+
+        */
+
+        /*
+         * This endpoint provides the most recent average pressure readings (in PSI) from the Sensor Pi.
+
+- **URL:**  
+  `http://<sensor_pi_ip>:5001/pressure-avg-latest`  
+  (Replace `<sensor_pi_ip>` with your Sensor Pi’s IP address, e.g., `100.117.254.20`.)
+
+- **Query Parameter:**  
+  Add `?n=10` to the URL to get the 10 most recent readings. If omitted, it defaults to 5.
+
+- **Example:**  
+  `http://100.117.254.20:5001/pressure-avg-latest?n=10`
+
+- **Response:**  
+  A JSON list, each entry includes:
+  - `timestamp`: when the average was logged
+  - `avg_psi`: the average PSI value
+  - `samples`: number of samples used for the average
+
+- If the log file is empty or missing, you’ll get an empty list.
+- If you request more readings than exist, you’ll get all available readings.
+- If you get an error, check that the Flask API is running and port 5001 is open.
+- No authentication is required. This endpoint is read-only and safe for dashboards, scripts, or manual checks.
+
+        */
         private async Task LoadPressureHistoryAsync()
         {
             try
             {
-                var repo = new BackyardBoss.Data.SqliteSensorDataRepository("pressure_data.db");
-                var history = await repo.GetPressureAvg5MinAggregatesAsync();
-                Application.Current.Dispatcher.Invoke(() =>
+                //100.117.254.20
+                // Construct the URL for the API endpoint and get last 100 readings into PressureAvgHistory
+                string sensorPiIp = "100.117.254.20"; // Replace with your Sensor Pi's IP
+                string url = $"http://{sensorPiIp}:5001/pressure-avg-latest?n=500";
+                using var client = new HttpClient();
+                var response = await client.GetStringAsync(url);
+                var options = new JsonSerializerOptions
                 {
-                    PressureAvgHistory.Clear();
-                    foreach (var item in history)
-                        PressureAvgHistory.Add(new PressureAvgData
+                    PropertyNameCaseInsensitive = true,
+                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+                };
+                var history = JsonSerializer.Deserialize<List<PressureAvgData>>(response, options);
+                if (history != null)
+                {
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        PressureAvgHistory.Clear();
+                        foreach (var item in history)
                         {
-                            Timestamp = item.Timestamp,
-                            AvgPressurePsi = item.AvgPressurePsi,
-                            NumSamples = item.NumSamples,
-                            Version = item.Version
-                        });
-                });
+                            PressureAvgHistory.Add(new PressureAvgData
+                            {
+                                Timestamp = item.Timestamp,
+                                AvgPressurePsi = item.AvgPressurePsi,
+                                NumSamples = item.NumSamples,
+                            });
+                        }
+                    });
+                    Debug.WriteLine($"Loaded {PressureAvgHistory.Count} pressure readings from API.");
+                    UpdatePressureAvgPlot();
+                }
+                else
+                {
+                    Debug.WriteLine("No pressure history data found or deserialization failed.");
+                }
+
+
 
 
             }

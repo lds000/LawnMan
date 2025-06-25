@@ -47,6 +47,10 @@ namespace BackyardBoss.Models
         [JsonPropertyName("flow_litres")]
         public double FlowLitres { get; set; }
 
+        [JsonPropertyName("flow_rate_lpm")]
+        public double FlowRateLpm { get; set; }
+
+
         [JsonPropertyName("flow_pulses")]
         public int FlowPulses { get; set; }
 
