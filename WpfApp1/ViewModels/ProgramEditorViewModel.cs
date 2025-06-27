@@ -42,7 +42,7 @@ namespace BackyardBoss.ViewModels
         [JsonPropertyName("start_time")]
         public string StartTime { get; set; }
         [JsonPropertyName("duration_minutes")]
-        public int? DurationMinutes { get; set; }
+        public double? DurationMinutes { get; set; } // Changed from int? to double?
         [JsonPropertyName("phase")]
         public string Phase { get; set; }
         [JsonPropertyName("time_remaining_sec")]
@@ -60,7 +60,7 @@ namespace BackyardBoss.ViewModels
         [JsonPropertyName("end_time")]
         public string EndTime { get; set; }
         [JsonPropertyName("duration_minutes")]
-        public int? DurationMinutes { get; set; }
+        public double? DurationMinutes { get; set; } // Changed from int? to double?
         [JsonPropertyName("status")]
         public string Status { get; set; }
     }
@@ -72,16 +72,16 @@ namespace BackyardBoss.ViewModels
         [JsonPropertyName("start_time")]
         public string StartTime { get; set; }
         [JsonPropertyName("duration_minutes")]
-        public int DurationMinutes { get; set; }
+        public double DurationMinutes { get; set; } // Changed from int to double
 
         public string StartTimeDisplay =>
        DateTime.TryParse(StartTime, out var dt)
            ? dt.ToString("MMM dd, yyyy 'at' h:mm tt")
            : StartTime;
 
-        public int SeasonallyAdjustedMinutes
+        public double SeasonallyAdjustedMinutes
         {
-            get => (int)Math.Round(DurationMinutes * ProgramEditorViewModel.Current?.SeasonalAdjustment ?? 1.0);
+            get => DurationMinutes * (ProgramEditorViewModel.Current?.SeasonalAdjustment ?? 1.0);
         }
     }
 
@@ -775,6 +775,8 @@ namespace BackyardBoss.ViewModels
                                     WeatherVM.EnvHumidity = data.Humidity.ToString("F0") + "%";
                                     double tempF = data.Temperature * 9.0 / 5.0 + 32.0;
                                     WeatherVM.EnvTemperature = tempF.ToString("F1") + "°F";
+                                    WeatherVM.EnvWindDirDeg = data.WindDirDeg?.ToString("F0") ?? "-";
+                                    WeatherVM.EnvWindDirCompass = data.WindDirCompass ?? "-";
                                     // Debug: Log the set value
                                     Debug.WriteLine($"[UI] Set WeatherVM.EnvWindSpeed: {WeatherVM.EnvWindSpeed}");
                                 });
@@ -1044,13 +1046,13 @@ namespace BackyardBoss.ViewModels
                     var cumulative = programStartTime;
                     foreach (var set in Sets)
                     {
-                        int adjusted = (int)Math.Round(set.RunDurationMinutes * SeasonalAdjustment);
+                        double adjusted = set.RunDurationMinutes * SeasonalAdjustment;
                         UpcomingRunsPreview.Add(new ScheduledRunPreview
                         {
                             SetName = set.SetName,
                             StartTime = cumulative.ToString(@"hh\:mm"),
                             RunDurationMinutes = set.RunDurationMinutes,
-                            SeasonallyAdjustedMinutes = adjusted
+                            SeasonallyAdjustedMinutes = (int)Math.Round(adjusted)
                         });
                         cumulative = cumulative.Add(TimeSpan.FromMinutes(adjusted));
                     }
@@ -1122,7 +1124,7 @@ namespace BackyardBoss.ViewModels
                 }
             }
         }
-        private void SendManualRun(string setName, int durationMinutes)
+        private void SendManualRun(string setName, double durationMinutes)
         {
             var command = new
             {

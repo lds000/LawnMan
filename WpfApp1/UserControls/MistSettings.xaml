@@ -42,7 +42,7 @@
                                     <Run Text="{Binding Duration}"/>
                                     <Run Text=" minutes)"/>
                                 </TextBlock>
-                                <Slider Style="{StaticResource TouchSliderStyle}" Minimum="0" Maximum="10" TickFrequency="1" IsSnapToTickEnabled="True" Width="300"
+                                <Slider Style="{StaticResource TouchSliderStyle}" Minimum="0" Maximum="10" TickFrequency="0.5" IsSnapToTickEnabled="True" Width="300"
                                         Height="30" Value="{Binding Duration, Mode=TwoWay}" Margin="0,0,10,0"/>
                             </StackPanel>
                         </StackPanel>

@@ -8,7 +8,7 @@ namespace BackyardBoss.Models
         [JsonPropertyName("current_temperature")]
         public double CurrentTemperature { get; set; }
         [JsonPropertyName("duration_minutes")]
-        public int DurationMinutes { get; set; }
+        public double? DurationMinutes { get; set; }
         [JsonPropertyName("interval_minutes")]
         public int IntervalMinutes { get; set; }
         [JsonPropertyName("is_misting")]

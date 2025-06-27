@@ -17,6 +17,12 @@ namespace BackyardBoss.Models
         [JsonPropertyName("wind_speed")]
         public double WindSpeed { get; set; }
 
+        [JsonPropertyName("wind_direction_deg")]
+        public double? WindDirDeg { get; set; }
+
+        [JsonPropertyName("wind_direction_compass")]
+        public string WindDirCompass { get; set; }
+
         [JsonPropertyName("barometric_pressure")]
         public double? BarometricPressure { get; set; }
     }

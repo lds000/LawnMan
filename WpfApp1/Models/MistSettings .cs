@@ -19,7 +19,7 @@ namespace BackyardBoss.Models
     public class MistSettingViewModel : INotifyPropertyChanged
     {
         private int _interval;
-        private int _duration;
+        private double _duration; // Changed from int to double
         private bool _mistEnabled;
 
         [JsonPropertyName("temperature")]
@@ -36,7 +36,7 @@ namespace BackyardBoss.Models
         }
 
         [JsonPropertyName("duration")]
-        public int Duration
+        public double Duration // Changed from int to double
         {
             get => _duration;
             set { if (_duration != value) { _duration = value; OnPropertyChanged();

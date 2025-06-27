@@ -20,6 +20,8 @@ public class WeatherViewModel : INotifyPropertyChanged
     private string _envWindSpeed = "";
     private string _envHumidity = "";
     private string _envTemperature = "";
+    private string _envWindDirDeg = "";
+    private string _envWindDirCompass = "";
 
     public string TemperatureDisplay => $"Temp: {Temperature}";
     public string HumidityDisplay => $"Humidity: {Humidity}%";
@@ -146,6 +148,32 @@ public class WeatherViewModel : INotifyPropertyChanged
             if (_envTemperature != value)
             {
                 _envTemperature = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public string EnvWindDirDeg
+    {
+        get => _envWindDirDeg;
+        set
+        {
+            if (_envWindDirDeg != value)
+            {
+                _envWindDirDeg = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public string EnvWindDirCompass
+    {
+        get => _envWindDirCompass;
+        set
+        {
+            if (_envWindDirCompass != value)
+            {
+                _envWindDirCompass = value;
                 OnPropertyChanged();
             }
         }
