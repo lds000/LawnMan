@@ -626,6 +626,32 @@ namespace BackyardBoss.ViewModels
         public ObservableCollection<PlantData> PlantReadings { get; set; } = new();
         public ObservableCollection<SetsData> SetsReadings { get; set; } = new();
         public ObservableCollection<PressureAvgData> PressureAvgHistory { get; set; } = new();
+
+        public enum SensorDataMode
+        {
+            Pressure,
+            Flow,
+            Temperature,
+            WindSpeed
+        }
+
+        private SensorDataMode _selectedSensorDataMode = SensorDataMode.Pressure;
+        public SensorDataMode SelectedSensorDataMode
+        {
+            get => _selectedSensorDataMode;
+            set
+            {
+                if (_selectedSensorDataMode != value)
+                {
+                    _selectedSensorDataMode = value;
+                    OnPropertyChanged();
+                    LoadAndPlotSelectedSensorDataAsync();
+                }
+            }
+        }
+
+        public static Array SensorDataModes => Enum.GetValues(typeof(SensorDataMode));
+
         #endregion
 
         #region Commands
@@ -1397,50 +1423,6 @@ namespace BackyardBoss.ViewModels
             model.InvalidatePlot(false);
         }
 
-        /*Old load pressure history:
-                        var repo = new BackyardBoss.Data.SqliteSensorDataRepository("pressure_data.db");
-                        var history = await repo.GetPressureAvg5MinAggregatesAsync();
-                        Application.Current.Dispatcher.Invoke(() =>
-                        {
-                            PressureAvgHistory.Clear();
-                            foreach (var item in history)
-                                PressureAvgHistory.Add(new PressureAvgData
-                                {
-                                    Timestamp = item.Timestamp,
-                                    AvgPressurePsi = item.AvgPressurePsi,
-                                    NumSamples = item.NumSamples,
-                                    Version = item.Version
-                                });
-                        });
-
-
-        */
-
-        /*
-         * This endpoint provides the most recent average pressure readings (in PSI) from the Sensor Pi.
-
-- **URL:**  
-  `http://<sensor_pi_ip>:5001/pressure-avg-latest`  
-  (Replace `<sensor_pi_ip>` with your Sensor Pi’s IP address, e.g., `100.117.254.20`.)
-
-- **Query Parameter:**  
-  Add `?n=10` to the URL to get the 10 most recent readings. If omitted, it defaults to 5.
-
-- **Example:**  
-  `http://100.117.254.20:5001/pressure-avg-latest?n=10`
-
-- **Response:**  
-  A JSON list, each entry includes:
-  - `timestamp`: when the average was logged
-  - `avg_psi`: the average PSI value
-  - `samples`: number of samples used for the average
-
-- If the log file is empty or missing, you’ll get an empty list.
-- If you request more readings than exist, you’ll get all available readings.
-- If you get an error, check that the Flask API is running and port 5001 is open.
-- No authentication is required. This endpoint is read-only and safe for dashboards, scripts, or manual checks.
-
-        */
         private async Task LoadPressureHistoryAsync()
         {
             try
@@ -1479,15 +1461,102 @@ namespace BackyardBoss.ViewModels
                 {
                     Debug.WriteLine("No pressure history data found or deserialization failed.");
                 }
-
-
-
-
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Failed to load pressure history: {ex.Message}");
             }
+        }
+
+        private async void LoadAndPlotSelectedSensorDataAsync()
+        {
+            string sensorPiIp = "100.117.254.20";
+            string url = _selectedSensorDataMode switch
+            {
+                SensorDataMode.Pressure => $"http://{sensorPiIp}:5001/pressure-avg-latest?n=500",
+                SensorDataMode.Flow => $"http://{sensorPiIp}:5001/flow-avg-latest?n=500",
+                SensorDataMode.Temperature => $"http://{sensorPiIp}:5001/temperature-avg-latest?n=500",
+                SensorDataMode.WindSpeed => $"http://{sensorPiIp}:5001/wind-avg-latest?n=500",
+                _ => $"http://{sensorPiIp}:5001/pressure-avg-latest?n=500"
+            };
+            try
+            {
+                using var client = new HttpClient();
+                var response = await client.GetStringAsync(url);
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+                };
+                if (_selectedSensorDataMode == SensorDataMode.Pressure)
+                {
+                    var history = JsonSerializer.Deserialize<List<PressureAvgData>>(response, options);
+                    if (history != null)
+                    {
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            PressureAvgHistory.Clear();
+                            foreach (var item in history)
+                            {
+                                PressureAvgHistory.Add(item);
+                            }
+                        });
+                        UpdatePressureAvgPlot();
+                    }
+                }
+                else
+                {
+                    // Manually parse JSON for each type
+                    var doc = JsonDocument.Parse(response);
+                    var list = new List<SensorDataPoint>();
+                    foreach (var el in doc.RootElement.EnumerateArray())
+                    {
+                        var ts = el.GetProperty("timestamp").GetDateTime();
+                        double value = 0;
+                        switch (_selectedSensorDataMode)
+                        {
+                            case SensorDataMode.Flow:
+                                value = el.TryGetProperty("avg_flow", out var flowProp) ? flowProp.GetDouble() : 0;
+                                break;
+                            case SensorDataMode.Temperature:
+                                value = el.TryGetProperty("avg_temp", out var tempProp) ? tempProp.GetDouble() : 0;
+                                break;
+                            case SensorDataMode.WindSpeed:
+                                value = el.TryGetProperty("avg_wind", out var windProp) ? windProp.GetDouble() : 0;
+                                break;
+                        }
+                        list.Add(new SensorDataPoint { Timestamp = ts, Value = value });
+                    }
+                    UpdateGenericSensorPlot(list);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to load sensor data: {ex.Message}");
+            }
+        }
+
+        public class SensorDataPoint
+        {
+            public DateTime Timestamp { get; set; }
+            public double Value { get; set; }
+        }
+
+        private void UpdateGenericSensorPlot(List<SensorDataPoint> data)
+        {
+            var model = new PlotModel { Title = _selectedSensorDataMode.ToString() + " (5-min Avg, All Data)" };
+            var series = new LineSeries { Title = _selectedSensorDataMode.ToString(), MarkerType = MarkerType.Circle };
+            foreach (var point in data.OrderBy(d => d.Timestamp))
+            {
+                var x = DateTimeAxis.ToDouble(point.Timestamp);
+                var y = point.Value;
+                series.Points.Add(new DataPoint(x, y));
+            }
+            model.Series.Add(series);
+            model.Axes.Add(new DateTimeAxis { Position = AxisPosition.Bottom, StringFormat = "MM-dd HH:mm", Title = "Time" });
+            model.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Title = _selectedSensorDataMode.ToString() });
+            SensorPlotModel = model;
+            OnPropertyChanged(nameof(SensorPlotModel));
         }
         #endregion
     }
