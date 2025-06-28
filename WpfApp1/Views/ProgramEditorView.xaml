@@ -326,12 +326,13 @@
             Displays sensor data in a DataGrid.
         -->
         <DataTemplate x:Key="SensorDataTemplate">
-            <StackPanel DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=UserControl}}">
-                <ComboBox Width="200" Margin="0,0,16,0"
+            <StackPanel 
+                DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                <StackPanel Orientation="Horizontal">
+                    <ListBox Style="{StaticResource BoiseStateListBoxStyle}" Width="135" Margin="0,0,10,0"
                           ItemsSource="{Binding Source={x:Static vm:ProgramEditorViewModel.SensorDataModes}}"
                           SelectedItem="{Binding SelectedSensorDataMode, Mode=TwoWay}">
-                </ComboBox>
-                <StackPanel Orientation="Horizontal">
+                    </ListBox>
                     <oxy:PlotView Model="{Binding SensorPlotModel}" Height="400" Width="700" />
                 </StackPanel>
             </StackPanel>

@@ -678,6 +678,14 @@ namespace BackyardBoss.ViewModels
         #region Constructor
         public ProgramEditorViewModel()
         {
+
+            _debounceSaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+            _debounceSaveTimer.Tick += (s, e) =>
+            {
+                _debounceSaveTimer.Stop();
+                Save(SaveTarget.LocalAndSendToPi);
+            };
+
             DebugLogger.LogVariableStatus("Constructor initialized.");
             Current = this;
             WeatherVM = new WeatherViewModel();
@@ -686,15 +694,6 @@ namespace BackyardBoss.ViewModels
             UpdateIsWindy(); // Initial check
             CalculateTodayScheduleIndex();
             LoadSchedule(); // <-- Enable real data loading
-            // Debounce timer for saving and uploading schedule
-            _debounceSaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
-            _debounceSaveTimer.Tick += (s, e) =>
-            {
-                _debounceSaveTimer.Stop();
-                Save(SaveTarget.LocalAndSendToPi);
-            };
-            _ = LoadPressureHistoryAsync();
-            UpdatePressureAvgPlot();
             // Subscribe to PressureAvgHistory changes to update plot
             PressureAvgHistory.CollectionChanged += (s, e) => UpdatePressureAvgPlot();
             // Populate mock data for dashboard demo
@@ -1423,50 +1422,6 @@ namespace BackyardBoss.ViewModels
             model.InvalidatePlot(false);
         }
 
-        private async Task LoadPressureHistoryAsync()
-        {
-            try
-            {
-                //100.117.254.20
-                // Construct the URL for the API endpoint and get last 100 readings into PressureAvgHistory
-                string sensorPiIp = "100.117.254.20"; // Replace with your Sensor Pi's IP
-                string url = $"http://{sensorPiIp}:5001/pressure-avg-latest?n=500";
-                using var client = new HttpClient();
-                var response = await client.GetStringAsync(url);
-                var options = new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true,
-                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-                };
-                var history = JsonSerializer.Deserialize<List<PressureAvgData>>(response, options);
-                if (history != null)
-                {
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        PressureAvgHistory.Clear();
-                        foreach (var item in history)
-                        {
-                            PressureAvgHistory.Add(new PressureAvgData
-                            {
-                                Timestamp = item.Timestamp,
-                                AvgPressurePsi = item.AvgPressurePsi,
-                                NumSamples = item.NumSamples,
-                            });
-                        }
-                    });
-                    Debug.WriteLine($"Loaded {PressureAvgHistory.Count} pressure readings from API.");
-                    UpdatePressureAvgPlot();
-                }
-                else
-                {
-                    Debug.WriteLine("No pressure history data found or deserialization failed.");
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Failed to load pressure history: {ex.Message}");
-            }
-        }
 
         private async void LoadAndPlotSelectedSensorDataAsync()
         {
@@ -1488,24 +1443,6 @@ namespace BackyardBoss.ViewModels
                     PropertyNameCaseInsensitive = true,
                     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
                 };
-                if (_selectedSensorDataMode == SensorDataMode.Pressure)
-                {
-                    var history = JsonSerializer.Deserialize<List<PressureAvgData>>(response, options);
-                    if (history != null)
-                    {
-                        Application.Current.Dispatcher.Invoke(() =>
-                        {
-                            PressureAvgHistory.Clear();
-                            foreach (var item in history)
-                            {
-                                PressureAvgHistory.Add(item);
-                            }
-                        });
-                        UpdatePressureAvgPlot();
-                    }
-                }
-                else
-                {
                     // Manually parse JSON for each type
                     var doc = JsonDocument.Parse(response);
                     var list = new List<SensorDataPoint>();
@@ -1519,16 +1456,18 @@ namespace BackyardBoss.ViewModels
                                 value = el.TryGetProperty("avg_flow", out var flowProp) ? flowProp.GetDouble() : 0;
                                 break;
                             case SensorDataMode.Temperature:
-                                value = el.TryGetProperty("avg_temp", out var tempProp) ? tempProp.GetDouble() : 0;
+                                value = (el.TryGetProperty("avg_temp", out var tempProp) ? tempProp.GetDouble() : 0) * 9 / 5 + 32;
                                 break;
                             case SensorDataMode.WindSpeed:
                                 value = el.TryGetProperty("avg_wind", out var windProp) ? windProp.GetDouble() : 0;
                                 break;
-                        }
-                        list.Add(new SensorDataPoint { Timestamp = ts, Value = value });
+                        case SensorDataMode.Pressure:
+                            value = el.TryGetProperty("avg_psi", out var pressureProp) ? pressureProp.GetDouble() : 0;
+                            break;
+                    }
+                    list.Add(new SensorDataPoint { Timestamp = ts, Value = value });
                     }
                     UpdateGenericSensorPlot(list);
-                }
             }
             catch (Exception ex)
             {
@@ -1542,17 +1481,38 @@ namespace BackyardBoss.ViewModels
             public double Value { get; set; }
         }
 
-        private void UpdateGenericSensorPlot(List<SensorDataPoint> data)
+        private void UpdateGenericSensorPlot(List<SensorDataPoint> data, Boolean SmoothData = true)
         {
             var model = new PlotModel { Title = _selectedSensorDataMode.ToString() + " (5-min Avg, All Data)" };
             var series = new LineSeries { Title = _selectedSensorDataMode.ToString(), MarkerType = MarkerType.Circle };
-            foreach (var point in data.OrderBy(d => d.Timestamp))
+            var ordered = data.OrderBy(d => d.Timestamp).ToList();
+
+            if (!SmoothData && ordered.Count > 1)
             {
-                var x = DateTimeAxis.ToDouble(point.Timestamp);
-                var y = point.Value;
-                series.Points.Add(new DataPoint(x, y));
+                foreach (var point in ordered)
+                {
+                    var x = DateTimeAxis.ToDouble(point.Timestamp);
+                    var y = point.Value;
+                    series.Points.Add(new DataPoint(x, y));
+                }
+                model.Series.Add(series);
             }
-            model.Series.Add(series);
+         
+            if (SmoothData && ordered.Count > 1)
+            {
+                int window = 5;
+                var smoothedSeries = new LineSeries { Title = "Smoothed (Moving Avg)", Color = OxyColors.Orange, MarkerType = MarkerType.None };
+                for (int i = 0; i < ordered.Count; i++)
+                {
+                    int start = Math.Max(0, i - window + 1);
+                    int count = i - start + 1;
+                    double avgY = ordered.Skip(start).Take(count).Average(p => p.Value);
+                    var x = DateTimeAxis.ToDouble(ordered[i].Timestamp);
+                    smoothedSeries.Points.Add(new DataPoint(x, avgY));
+                }
+                model.Series.Add(smoothedSeries);
+            }
+
             model.Axes.Add(new DateTimeAxis { Position = AxisPosition.Bottom, StringFormat = "MM-dd HH:mm", Title = "Time" });
             model.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Title = _selectedSensorDataMode.ToString() });
             SensorPlotModel = model;

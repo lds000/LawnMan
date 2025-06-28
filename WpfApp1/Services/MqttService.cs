@@ -123,33 +123,8 @@ namespace BackyardBoss.Services
                     zoneId = vm.Sets.IndexOf(set) + 1;
             }
 
-            // Insert averaged values into the database
-            //var sqliteRepo = new SqliteSensorDataRepository("pressure_data.db");
-            //sqliteRepo.InsertPressureAndFlowAvgAsync(timestamp, avgPressure, avgFlowLpm, zoneId, bufferCopy.Count, "1.0").Wait();
 
-            //System.Diagnostics.Debug.WriteLine($"Inserted averaged sensor reading: Timestamp={timestamp}, AvgPressurePsi={avgPressure}, AvgFlowLpm={avgFlowLpm}, ZoneId={zoneId}");
 
-            int numSamples = bufferCopy.Count;
-            string version = "1.0";
-
-            var avgData = new PressureAvgData
-            {
-                Timestamp = timestamp,
-                AvgPressurePsi = avgPressure,
-                AvgFlowLpm = avgFlowLpm,
-                NumSamples = numSamples,
-            };
-
-            // Add to PressureAvgHistory on the UI thread
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-                var vm2 = ProgramEditorViewModel.Current;
-                if (vm2 != null)
-                {
-                    vm2.PressureAvgHistory.Add(avgData);
-                    vm2.LatestPressurePsi = avgPressure;
-                }
-            });
         }
     }
 }
