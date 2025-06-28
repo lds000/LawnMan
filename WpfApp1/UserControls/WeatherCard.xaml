@@ -42,7 +42,7 @@
                        x:Name="CompassImg"
                        Source="pack://application:,,,/Assets/Indicators/CompassArrow.png">
                     <Image.RenderTransform>
-                        <RotateTransform Angle="{Binding EnvWindDirDeg, Converter={StaticResource DegreesToAngleConverter}}" CenterX="35" CenterY="35"/>
+                        <RotateTransform Angle="0" CenterX="35" CenterY="35"/>
                     </Image.RenderTransform>
                 </Image>
             </StackPanel>
