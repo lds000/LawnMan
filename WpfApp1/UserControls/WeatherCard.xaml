@@ -10,6 +10,7 @@
         <ResourceDictionary>
             <!--BoolToVisibilityConverter-->
             <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+            <conv:DegreesToAngleConverter x:Key="DegreesToAngleConverter" />
         </ResourceDictionary>
     </UserControl.Resources>
     <Border Background="{DynamicResource CardBackground}"
@@ -36,12 +37,18 @@
                        VerticalAlignment="Center"
                        HorizontalAlignment="Center"/>
             </Border>
-            <TextBlock HorizontalAlignment="Center" Text="Boise, ID" FontSize="10" Foreground="{DynamicResource SecondaryTextBrush}"/>
-            <TextBlock HorizontalAlignment="Center" Text="{Binding Temperature}" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource PrimaryText}"/>
-            <TextBlock HorizontalAlignment="Center" Text="{Binding Condition}" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                <Image HorizontalAlignment="Center" 
+                       Width="70" Height="70" 
+                       x:Name="CompassImg"
+                       Source="pack://application:,,,/Assets/Indicators/CompassArrow.png">
+                    <Image.RenderTransform>
+                        <RotateTransform Angle="{Binding EnvWindDirDeg, Converter={StaticResource DegreesToAngleConverter}}" CenterX="35" CenterY="35"/>
+                    </Image.RenderTransform>
+                </Image>
             </StackPanel>
 
             <StackPanel Grid.Column="1" VerticalAlignment="Top" >
+                <TextBlock HorizontalAlignment="Center" Text="{Binding Condition}" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
                 <StackPanel Orientation="Horizontal" >
                     <TextBlock Text="Feels like: " FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
                     <TextBlock Text="{Binding FeelsLike}" FontSize="12" Foreground="{DynamicResource PrimaryText}"/>
@@ -81,11 +88,9 @@
                     <TextBlock Text="{Binding Visibility}" FontSize="12" Foreground="{DynamicResource PrimaryText}"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" >
-                    <TextBlock Text="Sunrise: " FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                    <TextBlock Text="Sun: " FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
                     <TextBlock Text="{Binding Sunrise}" FontSize="12" Foreground="{DynamicResource PrimaryText}"/>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" >
-                    <TextBlock Text="Sunset: " FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                    <TextBlock Text="/" FontSize="12" Foreground="{DynamicResource PrimaryText}"/>
                     <TextBlock Text="{Binding Sunset}" FontSize="12" Foreground="{DynamicResource PrimaryText}"/>
                 </StackPanel>
             </StackPanel>

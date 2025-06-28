@@ -16,6 +16,7 @@
 	  <None Remove="Assets\Icons\unknown.PNG" />
 	  <None Remove="Assets\Icons\watering-can.png" />
 	  <None Remove="Assets\Icons\windy.png" />
+	  <None Remove="Assets\Indicators\CompassArrow.png" />
 	  <None Remove="Assets\logos\BoiseStateLogo.png" />
 	  <None Remove="Assets\logos\BoiseStateLogoBlack.png" />
 	  <None Remove="Assets\logos\BoiseStateLogoDarkBlue.png" />
@@ -59,6 +60,9 @@
 	  </Resource>
 	  <Resource Include="Assets\Icons\watering-can.png" />
 	  <Resource Include="Assets\Icons\windy.png" />
+	  <Resource Include="Assets\Indicators\CompassArrow.png">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Assets\logos\BoiseStateLogo.png" />
 	  <Resource Include="Assets\logos\BoiseStateLogoBlack.png" />
 	  <Resource Include="Assets\logos\BoiseStateLogoDarkBlue.png" />

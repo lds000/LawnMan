@@ -632,7 +632,8 @@ namespace BackyardBoss.ViewModels
             Pressure,
             Flow,
             Temperature,
-            WindSpeed
+            WindSpeed,
+            Moisture
         }
 
         private SensorDataMode _selectedSensorDataMode = SensorDataMode.Pressure;
@@ -1432,6 +1433,7 @@ namespace BackyardBoss.ViewModels
                 SensorDataMode.Flow => $"http://{sensorPiIp}:5001/flow-avg-latest?n=500",
                 SensorDataMode.Temperature => $"http://{sensorPiIp}:5001/temperature-avg-latest?n=500",
                 SensorDataMode.WindSpeed => $"http://{sensorPiIp}:5001/wind-avg-latest?n=500",
+                SensorDataMode.Moisture => $"http://{sensorPiIp}:5001/moisture-avg-latest?n=500",
                 _ => $"http://{sensorPiIp}:5001/pressure-avg-latest?n=500"
             };
             try
@@ -1464,6 +1466,9 @@ namespace BackyardBoss.ViewModels
                         case SensorDataMode.Pressure:
                             value = el.TryGetProperty("avg_psi", out var pressureProp) ? pressureProp.GetDouble() : 0;
                             break;
+                            case SensorDataMode.Moisture:
+                                value = el.TryGetProperty("value", out var moistureProp) ? moistureProp.GetDouble() : 0;
+                                break;
                     }
                     list.Add(new SensorDataPoint { Timestamp = ts, Value = value });
                     }
