@@ -33,10 +33,10 @@ namespace BackyardBoss.Models
         public DateTime Timestamp { get; set; }
 
         [JsonPropertyName("moisture")]
-        public double Moisture { get; set; }
+        public double? Moisture { get; set; }
 
         [JsonPropertyName("lux")]
-        public double Lux { get; set; }
+        public double? Lux { get; set; }
 
         [JsonPropertyName("soil_temperature")]
         public double? SoilTemperature { get; set; }

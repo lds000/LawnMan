@@ -50,6 +50,8 @@
                                     <TextBlock FontSize="16" Text="{Binding LatestPressurePsi, StringFormat='Mainline Pressure: {0:F1} psi'}"/>
                                     <TextBlock FontSize="16" Text="{Binding LatestFlowGPM, StringFormat='Mainline Flow: {0:F1} gph'}"/>
                                     <TextBlock FontSize="16" Text="{Binding LatestSoilMoisture, StringFormat='Soil Moisture: {0:F1} %'}"/>
+                                    <usercontrols:PlantMoistureControl MoisturePercent="{Binding LatestSoilMoisture}" Width="64" Height="64" Margin="0,8,0,8"/>
+                                    <!--Put plant control object here-->
 
                                     <ItemsControl ItemsSource="{Binding ZoneStatuses}">
                                         <ItemsControl.ItemTemplate>

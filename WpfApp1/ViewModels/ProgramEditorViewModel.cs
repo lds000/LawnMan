@@ -8,15 +8,18 @@ using BackyardBoss.UserControls;
 using BackyardBoss.ViewModels;
 using BackyardBoss.Views;
 using OxyPlot;
+using OxyPlot.Annotations;
 using OxyPlot.Axes;
 using OxyPlot.Legends;
 using OxyPlot.Series;
 using Renci.SshNet;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -461,6 +464,10 @@ namespace BackyardBoss.ViewModels
                 {
                     _selectedSection = value;
                     OnPropertyChanged(nameof(SelectedSection));
+                    if (_selectedSection == "Sensor Data")
+                    {
+                        LoadAndPlotSelectedSensorDataAsync();
+                    }
                 }
             }
         }
@@ -823,7 +830,7 @@ namespace BackyardBoss.ViewModels
 
 
                                 // Debug: Log the received wind speed
-                                Debug.WriteLine($"[MQTT] Received EnvWindSpeed: {data.WindSpeed}");
+                                //Debug.WriteLine($"[MQTT] Received EnvWindSpeed: {data.WindSpeed}");
                                 // Update WeatherVM.EnvWindSpeed, EnvHumidity, EnvTemperature
                                 Application.Current.Dispatcher.Invoke(() => {
                                     WeatherVM.EnvWindSpeed = data.WindSpeed.ToString("F1") + " mph";
@@ -833,7 +840,7 @@ namespace BackyardBoss.ViewModels
                                     WeatherVM.EnvWindDirDeg = data.WindDirDeg?.ToString("F0") ?? "-";
                                     WeatherVM.EnvWindDirCompass = data.WindDirCompass ?? "-";
                                     // Debug: Log the set value
-                                    Debug.WriteLine($"[UI] Set WeatherVM.EnvWindSpeed: {WeatherVM.EnvWindSpeed}");
+                                    //Debug.WriteLine($"[UI] Set WeatherVM.EnvWindSpeed: {WeatherVM.EnvWindSpeed}");
                                 });
                             }
                         }
@@ -1566,10 +1573,71 @@ namespace BackyardBoss.ViewModels
                 model.Series.Add(smoothedSeries);
             }
 
+            if (_selectedSensorDataMode == SensorDataMode.Temperature)
+            {
+                // Add a horizontal line annotation at 90°F
+                var thresholdLine = new LineAnnotation
+                {
+                    Type = LineAnnotationType.Horizontal,
+                    Y = 90, // The Y value for the threshold
+                    Color = OxyColors.Red,
+                    LineStyle = LineStyle.Dash,
+                    Text = "Mister Threshold (90°F)",
+                    TextOrientation = AnnotationTextOrientation.Horizontal,
+                    StrokeThickness = 2
+                };
+                model.Annotations.Add(thresholdLine);
+            }
+
+            if (ordered.Count > 0)
+            {
+                try
+                {
+                    DateTime start = ordered.First().Timestamp;
+                    DateTime end = ordered.Last().Timestamp;
+
+                    // Parse sunrise and sunset times from WeatherVM
+                    DateTime sunrise = DateTime.ParseExact(WeatherVM.Sunrise, "h:mm tt", CultureInfo.InvariantCulture);
+                    DateTime sunset = DateTime.ParseExact(WeatherVM.Sunset, "h:mm tt", CultureInfo.InvariantCulture);
+
+                    for (var day = start.Date; day < end; day = day.AddDays(1))
+                    {
+                        var sunsetTime = day + sunset.TimeOfDay;
+                        var nextSunriseTime = day.AddDays(1) + sunrise.TimeOfDay;
+
+                        Debug.WriteLine($"sunsetTime: {sunsetTime} ({DateTimeAxis.ToDouble(sunsetTime)})");
+                        Debug.WriteLine($"nextSunriseTime: {nextSunriseTime} ({DateTimeAxis.ToDouble(nextSunriseTime)})");
+
+                        var minX = DateTimeAxis.ToDouble(sunsetTime);
+                        var maxX = DateTimeAxis.ToDouble(nextSunriseTime);
+
+                        if (minX < maxX)
+                        {
+                            var nightAnnotation = new RectangleAnnotation
+                            {
+                                MinimumX = minX,
+                                MaximumX = maxX,
+                                MinimumY = double.MinValue,
+                                MaximumY = double.MaxValue,
+                                Fill = OxyColor.FromAColor(255, OxyColors.Red), // Fully opaque and bright for testing
+                                Layer = AnnotationLayer.AboveSeries // Above series for visibility
+                            };
+                            model.Annotations.Add(nightAnnotation);
+                            Debug.WriteLine("Night annotation added to model.");
+                        }
+                    }
+                    Debug.WriteLine($"Total annotations: {model.Annotations.Count}");
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Night annotation error: " + ex.Message);
+                }
+            }
             model.Axes.Add(new DateTimeAxis { Position = AxisPosition.Bottom, StringFormat = "MM-dd HH:mm", Title = "Time" });
             model.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Title = title });
             SensorPlotModel = model;
             OnPropertyChanged(nameof(SensorPlotModel));
+            model.InvalidatePlot(true);
         }
         #endregion
     }
