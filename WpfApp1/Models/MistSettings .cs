@@ -20,7 +20,7 @@ namespace BackyardBoss.Models
     {
         private int _interval;
         private double _duration; // Changed from int to double
-        private bool _mistEnabled;
+        private bool _mistEnabled = true; // Default to true
 
         [JsonPropertyName("temperature")]
         public int Temperature { get; set; }
@@ -46,6 +46,7 @@ namespace BackyardBoss.Models
         }
 
         [JsonPropertyName("mist_enabled")]
+        [JsonInclude]
         public bool MistEnabled
         {
             get => _mistEnabled;

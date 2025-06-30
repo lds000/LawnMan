@@ -169,6 +169,22 @@ namespace BackyardBoss.ViewModels
 
         #region Properties
 
+        private double? _latestSoilMoisture;
+
+        
+        public double? LatestSoilMoisture
+        {
+            get => _latestSoilMoisture;
+            set
+            {
+                if (_latestSoilMoisture != value)
+                {
+                    _latestSoilMoisture = value;
+                    OnPropertyChanged(nameof(LatestSoilMoisture));
+                }
+            }
+        }
+
         private double? _latestPressurePsi;
         public double? LatestPressurePsi
         {
@@ -636,6 +652,19 @@ namespace BackyardBoss.ViewModels
             Moisture
         }
 
+        private static string GetSensorDataUnitString(SensorDataMode mode)
+        {
+            return mode switch
+            {
+                SensorDataMode.Pressure => "PSI",
+                SensorDataMode.Flow => "GPH", // or "GPM" if you prefer
+                SensorDataMode.Temperature => "°F",
+                SensorDataMode.WindSpeed => "MPH",
+                SensorDataMode.Moisture => "%",
+                _ => ""
+            };
+        }
+
         private SensorDataMode _selectedSensorDataMode = SensorDataMode.Pressure;
         public SensorDataMode SelectedSensorDataMode
         {
@@ -811,7 +840,11 @@ namespace BackyardBoss.ViewModels
                         else if (topic == "sensors/plant")
                         {
                             var data = JsonSerializer.Deserialize<PlantData>(json.GetRawText());
-                            if (data != null) PlantReadings.Add(data);
+                            if (data != null)
+                            {
+                                PlantReadings.Add(data);
+                                LatestSoilMoisture = data.Moisture;
+                            }
                         }
                         else if (topic == "sensors/sets")
                         {
@@ -852,7 +885,10 @@ namespace BackyardBoss.ViewModels
                             }
                         }
                     }
-                    catch { /* Optionally log/handle error */ }
+                    catch (Exception ex)
+                    {
+                        DebugLogger.LogError($"MQTT message processing error: {ex.Message}");
+                    }
                 });
             };
             _ = _mqttService.ConnectAsync(); // Use default broker address (100.116.147.6)
@@ -882,7 +918,7 @@ namespace BackyardBoss.ViewModels
 
         private void WeatherVM_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(WeatherViewModel.WindSpeed))
+            if (e.PropertyName == nameof(WeatherViewModel.EnvWindSpeed))
             {
                 UpdateIsWindy();
             }
@@ -890,11 +926,19 @@ namespace BackyardBoss.ViewModels
 
         private void UpdateIsWindy()
         {
-            // Try to parse wind speed as double (mph)
-            if (double.TryParse(WeatherVM.WindSpeed, out var windMph))
-                IsWindy = windMph > 5.0;
-            else
-                IsWindy = false;
+            // Parse EnvWindSpeed (strip units if present)
+            var envWind = WeatherVM.EnvWindSpeed;
+            if (!string.IsNullOrWhiteSpace(envWind))
+            {
+                // Remove any non-numeric characters (e.g., " mph")
+                var numeric = new string(envWind.TakeWhile(c => char.IsDigit(c) || c == '.' || c == '-').ToArray());
+                if (double.TryParse(numeric, out var windMph))
+                {
+                    IsWindy = windMph > 5.0;
+                    return;
+                }
+            }
+            IsWindy = false;
         }
 
         #region Schedule Management
@@ -1456,6 +1500,8 @@ namespace BackyardBoss.ViewModels
                         {
                             case SensorDataMode.Flow:
                                 value = el.TryGetProperty("avg_flow", out var flowProp) ? flowProp.GetDouble() : 0;
+                            //convert from liters per minute to gallons per hour
+                            value = value * 0.264172 * 60 * 60;
                                 break;
                             case SensorDataMode.Temperature:
                                 value = (el.TryGetProperty("avg_temp", out var tempProp) ? tempProp.GetDouble() : 0) * 9 / 5 + 32;
@@ -1486,10 +1532,12 @@ namespace BackyardBoss.ViewModels
             public double Value { get; set; }
         }
 
-        private void UpdateGenericSensorPlot(List<SensorDataPoint> data, Boolean SmoothData = true)
+        private void UpdateGenericSensorPlot(List<SensorDataPoint> data, Boolean SmoothData = false)
         {
-            var model = new PlotModel { Title = _selectedSensorDataMode.ToString() + " (5-min Avg, All Data)" };
-            var series = new LineSeries { Title = _selectedSensorDataMode.ToString(), MarkerType = MarkerType.Circle };
+            string unit = GetSensorDataUnitString(_selectedSensorDataMode);
+            string title = $"{_selectedSensorDataMode} ({unit})";
+            var model = new PlotModel { Title = title };
+            var series = new LineSeries { Title = title, MarkerType = MarkerType.Circle };
             var ordered = data.OrderBy(d => d.Timestamp).ToList();
 
             if (!SmoothData && ordered.Count > 1)
@@ -1519,7 +1567,7 @@ namespace BackyardBoss.ViewModels
             }
 
             model.Axes.Add(new DateTimeAxis { Position = AxisPosition.Bottom, StringFormat = "MM-dd HH:mm", Title = "Time" });
-            model.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Title = _selectedSensorDataMode.ToString() });
+            model.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Title = title });
             SensorPlotModel = model;
             OnPropertyChanged(nameof(SensorPlotModel));
         }

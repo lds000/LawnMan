@@ -37,6 +37,7 @@
                                 System Status Card:
                                 Shows overall system status and per-zone status.
                             -->
+                            
                             <Border Background="{DynamicResource CardBackground}" CornerRadius="10" Padding="16" Margin="0,0,16,0">
                                 <StackPanel>
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
@@ -44,9 +45,12 @@
          Fill="{Binding SystemLedColor, Converter={StaticResource ColorStringToBrushConverter}}"/>
                                         <TextBlock Text="System Status" FontWeight="Bold" FontSize="22" Foreground="{DynamicResource PrimaryText}"/>
                                     </StackPanel>
+
                                     <TextBlock Text="{Binding SystemStatus}" Foreground="Lime"/>
                                     <TextBlock FontSize="16" Text="{Binding LatestPressurePsi, StringFormat='Mainline Pressure: {0:F1} psi'}"/>
                                     <TextBlock FontSize="16" Text="{Binding LatestFlowGPM, StringFormat='Mainline Flow: {0:F1} gph'}"/>
+                                    <TextBlock FontSize="16" Text="{Binding LatestSoilMoisture, StringFormat='Soil Moisture: {0:F1} %'}"/>
+
                                     <ItemsControl ItemsSource="{Binding ZoneStatuses}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
@@ -458,28 +462,21 @@
                             HorizontalAlignment="Center"
                             Grid.Column="2"
                             VerticalAlignment="Center" 
-                            Orientation="Vertical">
-                            <TextBlock Text="{Binding CurrentRunDisplay, FallbackValue=Idle}"
-                                       FontSize="14"
-                                       HorizontalAlignment="Center"
-                                       Foreground="Lime"
-                                       FontWeight="Bold"
-                                       Margin="0"/>
-                                <StackPanel Orientation="Horizontal">
-                                    <Image Source="{Binding StatusIconPath}" Width="50" Height="50" HorizontalAlignment="Center" />
-                                    <Image Visibility="{Binding IsWindyVisible}" Source="pack://application:,,,/Assets/Icons/windy.PNG" Width="50" Height="50"/>
-                                    <Border 
-                                        Visibility="{Binding IsWateringOrMistingVisible}"
-                                        Width="48"
-                                        Height="48"
-                                        CornerRadius="5" Background="{StaticResource HighlightBrush}">
-                                        <StackPanel HorizontalAlignment="Center">
-                                            <TextBlock Foreground="Black" FontWeight="Bold" FontSize="15" Text="43 psi"/>
-                                            <TextBlock Foreground="Black" FontWeight="Bold" FontSize="15" Text="4 gpm"/>
-                                        </StackPanel>
-                                    </Border>
+                            Orientation="Horizontal">
+                            <usercontrols:FlowVisualizationControl Width="60" Height="60" FlowRate="{Binding LatestFlowGPM}"/>
+                            <Image Source="{Binding StatusIconPath}" Width="50" Height="50" HorizontalAlignment="Center" />
+                            <Image Visibility="{Binding IsWindyVisible}" Source="pack://application:,,,/Assets/Icons/windy.PNG" Width="50" Height="50"/>
+                            <Border 
+                                Visibility="{Binding IsWateringOrMistingVisible}"
+                                Width="48"
+                                Height="48"
+                                CornerRadius="5" Background="{StaticResource HighlightBrush}">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Foreground="Black" FontWeight="Bold" FontSize="15" Text="43 psi"/>
+                                    <TextBlock Foreground="Black" FontWeight="Bold" FontSize="15" Text="4 gpm"/>
                                 </StackPanel>
-                            </StackPanel>
+                            </Border>
+                        </StackPanel>
                     </Grid>
                 </Border>
 

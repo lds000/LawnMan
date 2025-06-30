@@ -39,7 +39,7 @@ namespace BackyardBoss.Models
         public double Lux { get; set; }
 
         [JsonPropertyName("soil_temperature")]
-        public double SoilTemperature { get; set; }
+        public double? SoilTemperature { get; set; }
     }
 
     public class SetsData
