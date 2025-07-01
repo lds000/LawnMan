@@ -1,0 +1,21 @@
+<svg width="400" height="400" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+  <!-- Drop shadow for realism -->
+  <defs>
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.4"></feDropShadow>
+    </filter>
+  </defs>
+
+  <!-- Compass needle group (for rotation) -->
+  <g transform="rotate(0 200 200)" filter="url(#shadow)">
+    <!-- Main needle shape: north (red) -->
+    <path d="M200,40 L190,200 L200,195 L210,200 Z" fill="darkred" stroke="black" stroke-width="1.5"></path>
+    
+    <!-- Tail needle shape: south (white/silver) -->
+    <path d="M200,360 L190,200 L200,205 L210,200 Z" fill="gainsboro" stroke="black" stroke-width="1.5"></path>
+
+    <!-- Decorative center circle -->
+    <circle cx="200" cy="200" r="10" fill="gold" stroke="black" stroke-width="2"></circle>
+    <circle cx="200" cy="200" r="4" fill="black"></circle>
+  </g>
+</svg>

@@ -578,30 +578,58 @@ namespace BackyardBoss.ViewModels
                 if (SystemStatus != null && SystemStatus.Contains("Offline", StringComparison.OrdinalIgnoreCase))
                     return "Offline";
                 if (CurrentRun == null)
-                    return "Idle";
+                    return MistStatus != null && MistStatus.IsMisting ? "Misters" : "Idle";
+
                 string phase = CurrentRun.Phase ?? string.Empty;
+                string baseDisplay;
                 if (phase.Equals("Soaking", StringComparison.OrdinalIgnoreCase) && CurrentRun.SoakRemainingSec.HasValue)
                 {
                     int sec = CurrentRun.SoakRemainingSec.Value;
                     int sec2 = CurrentRun.TimeRemainingSec.Value;
-                    return $"{CurrentRun.Set} Soak ({sec / 60:D2}:{sec % 60:D2} -> {sec2 / 60:D2}:{sec2 % 60:D2})";
+                    baseDisplay = $"{CurrentRun.Set} Soak ({sec / 60:D2}:{sec % 60:D2} -> {sec2 / 60:D2}:{sec2 % 60:D2})";
                 }
                 else if (CurrentRun.TimeRemainingSec.HasValue)
                 {
                     int sec = CurrentRun.TimeRemainingSec.Value;
-                    return $"{CurrentRun.Set} {CurrentRun.Phase} ({sec / 60:D2}:{sec % 60:D2})";
+                    baseDisplay = $"{CurrentRun.Set} {CurrentRun.Phase} ({sec / 60:D2}:{sec % 60:D2})";
                 }
                 else
                 {
-                    return $"{CurrentRun.Set} {CurrentRun.Phase}";
+                    baseDisplay = $"{CurrentRun.Set} {CurrentRun.Phase}";
                 }
+
+                // Append Misters if running
+                if (MistStatus != null && MistStatus.IsMisting)
+                {
+                    baseDisplay += " + Misters";
+                }
+                return baseDisplay;
             }
         }
         public BackyardBoss.Models.MistStatus MistStatus
         {
             get => _mistStatus;
-            set { _mistStatus = value; OnPropertyChanged(); }
+            set
+            {
+                if (_mistStatus != value)
+                {
+                    if (_mistStatus is INotifyPropertyChanged oldMist)
+                        oldMist.PropertyChanged -= MistStatus_PropertyChanged;
+                    _mistStatus = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(CurrentRunDisplay));
+                    if (_mistStatus is INotifyPropertyChanged newMist)
+                        newMist.PropertyChanged += MistStatus_PropertyChanged;
+                }
+            }
         }
+
+        private void MistStatus_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(BackyardBoss.Models.MistStatus.IsMisting))
+                OnPropertyChanged(nameof(CurrentRunDisplay));
+        }
+
         public ImageSource MapImageSource
         {
             get => _mapImageSource;
@@ -1573,6 +1601,10 @@ namespace BackyardBoss.ViewModels
                 model.Series.Add(smoothedSeries);
             }
 
+            // Add axes BEFORE adding annotations
+            model.Axes.Add(new DateTimeAxis { Position = AxisPosition.Bottom, StringFormat = "MM-dd HH:mm", Title = "Time" });
+            model.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Title = title });
+
             if (_selectedSensorDataMode == SensorDataMode.Temperature)
             {
                 // Add a horizontal line annotation at 90°F
@@ -1596,45 +1628,62 @@ namespace BackyardBoss.ViewModels
                     DateTime start = ordered.First().Timestamp;
                     DateTime end = ordered.Last().Timestamp;
 
-                    // Parse sunrise and sunset times from WeatherVM
                     DateTime sunrise = DateTime.ParseExact(WeatherVM.Sunrise, "h:mm tt", CultureInfo.InvariantCulture);
                     DateTime sunset = DateTime.ParseExact(WeatherVM.Sunset, "h:mm tt", CultureInfo.InvariantCulture);
 
+                    // Use data min/max for Y
+                    double minY = ordered.Min(p => p.Value);
+                    double maxY = ordered.Max(p => p.Value);
+
                     for (var day = start.Date; day < end; day = day.AddDays(1))
                     {
-                        var sunsetTime = day + sunset.TimeOfDay;
-                        var nextSunriseTime = day.AddDays(1) + sunrise.TimeOfDay;
-
-                        Debug.WriteLine($"sunsetTime: {sunsetTime} ({DateTimeAxis.ToDouble(sunsetTime)})");
-                        Debug.WriteLine($"nextSunriseTime: {nextSunriseTime} ({DateTimeAxis.ToDouble(nextSunriseTime)})");
-
-                        var minX = DateTimeAxis.ToDouble(sunsetTime);
-                        var maxX = DateTimeAxis.ToDouble(nextSunriseTime);
+                        // Night region: 2 hours BEFORE sunset (today) to 2 hours AFTER sunrise (next day)
+                        var nightStart = day + sunset.TimeOfDay - TimeSpan.FromHours(2);
+                        var nightEnd = day.AddDays(1) + sunrise.TimeOfDay + TimeSpan.FromHours(2);
+                        var minX = DateTimeAxis.ToDouble(nightStart);
+                        var maxX = DateTimeAxis.ToDouble(nightEnd);
 
                         if (minX < maxX)
                         {
-                            var nightAnnotation = new RectangleAnnotation
+                            // Simulate gradient: white → blue → dark blue → black (midnight) → dark blue → blue → white
+                            OxyColor[] gradient = new[]
                             {
-                                MinimumX = minX,
-                                MaximumX = maxX,
-                                MinimumY = double.MinValue,
-                                MaximumY = double.MaxValue,
-                                Fill = OxyColor.FromAColor(255, OxyColors.Red), // Fully opaque and bright for testing
-                                Layer = AnnotationLayer.AboveSeries // Above series for visibility
+                                OxyColors.White,
+                                OxyColor.FromRgb(0, 128, 255), // blue
+                                OxyColor.FromRgb(0, 0, 139),   // dark blue
+                                OxyColors.Black,
+                                OxyColor.FromRgb(0, 0, 139),   // dark blue
+                                OxyColor.FromRgb(0, 128, 255), // blue
+                                OxyColors.White
                             };
-                            model.Annotations.Add(nightAnnotation);
-                            Debug.WriteLine("Night annotation added to model.");
+                            int rectangles = 40; // More rectangles for smoother gradient
+                            for (int i = 0; i < rectangles; i++)
+                            {
+                                double t = (double)i / (rectangles - 1);
+                                // Map t to gradient stops
+                                double scaled = t * (gradient.Length - 1);
+                                int idx = (int)Math.Floor(scaled);
+                                double frac = scaled - idx;
+                                OxyColor color = OxyColor.Interpolate(gradient[idx], gradient[Math.Min(idx + 1, gradient.Length - 1)], frac);
+                                var rect = new RectangleAnnotation
+                                {
+                                    MinimumX = minX + i * (maxX - minX) / rectangles,
+                                    MaximumX = minX + (i + 1) * (maxX - minX) / rectangles,
+                                    MinimumY = minY,
+                                    MaximumY = maxY,
+                                    Fill = color,
+                                    Layer = AnnotationLayer.BelowSeries
+                                };
+                                model.Annotations.Add(rect);
+                            }
                         }
                     }
-                    Debug.WriteLine($"Total annotations: {model.Annotations.Count}");
                 }
                 catch (Exception ex)
                 {
                     MessageBox.Show("Night annotation error: " + ex.Message);
                 }
             }
-            model.Axes.Add(new DateTimeAxis { Position = AxisPosition.Bottom, StringFormat = "MM-dd HH:mm", Title = "Time" });
-            model.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Title = title });
             SensorPlotModel = model;
             OnPropertyChanged(nameof(SensorPlotModel));
             model.InvalidatePlot(true);

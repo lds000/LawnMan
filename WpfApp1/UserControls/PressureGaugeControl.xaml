@@ -1,0 +1,18 @@
+<UserControl x:Class="BackyardBoss.UserControls.PressureGaugeControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="120" d:DesignWidth="120">
+    <Grid>
+        <!-- Gauge background -->
+        <Image Source="pack://application:,,,/Assets/Gauges/WaterPressureGauge.png" Stretch="Fill"/>
+        <!-- Rotating needle -->
+        <Image Source="pack://application:,,,/Assets/Gauges/PressureIndicator.png" Width="80" Height="80" RenderTransformOrigin="0.5,0.8">
+            <Image.RenderTransform>
+                <RotateTransform Angle="{Binding NeedleAngle, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+            </Image.RenderTransform>
+        </Image>
+    </Grid>
+</UserControl>
