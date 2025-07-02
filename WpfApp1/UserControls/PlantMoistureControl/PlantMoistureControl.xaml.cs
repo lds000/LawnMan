@@ -49,10 +49,30 @@ namespace BackyardBoss.UserControls
 
         private void UpdateClip()
         {
-            if (BlueClipRect != null)
-                BlueClipRect.Rect = new Rect(0, BlueClipTop, 64, BlueClipHeight);
+            double plantStartY = 11;
+            double plantHeight = 49; // 60-11
+            double moistPercent = Math.Max(0, Math.Min(100, MoisturePercent));
+            double dryPercent = 100 - moistPercent;
+            double dryHeight = plantHeight * dryPercent / 100.0;
+            double moistHeight = plantHeight - dryHeight;
+            double moistTop = plantStartY + dryHeight;
+
+            // Green: dry region (top)
             if (GreenClipRect != null)
-                GreenClipRect.Rect = new Rect(0, 0, 64, GreenClipHeight);
+            {
+                if (dryHeight > 0)
+                    GreenClipRect.Rect = new Rect(0, plantStartY, 64, dryHeight);
+                else
+                    GreenClipRect.Rect = Rect.Empty;
+            }
+            // Blue: moist region (bottom)
+            if (BlueClipRect != null)
+            {
+                if (moistHeight > 0)
+                    BlueClipRect.Rect = new Rect(0, moistTop, 64, moistHeight);
+                else
+                    BlueClipRect.Rect = Rect.Empty;
+            }
         }
 
         public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;

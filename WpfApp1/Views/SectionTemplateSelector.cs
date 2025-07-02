@@ -7,6 +7,8 @@ namespace BackyardBoss.Views
     public class SectionTemplateSelector : DataTemplateSelector
     {
         public DataTemplate OverviewTemplate { get; set; }
+
+        public DataTemplate GaugesTemplate { get; set; }
         public DataTemplate SetsTemplate { get; set; }
         public DataTemplate ScheduleTemplate { get; set; }
         public DataTemplate HistoryTemplate { get; set; }
@@ -21,7 +23,8 @@ namespace BackyardBoss.Views
             string section = item as string;
             return section switch
             {
-                "Overview" => OverviewTemplate,
+                "Overview" =>   OverviewTemplate,
+                "Gauges" => GaugesTemplate,
                 "Sets" => SetsTemplate,
                 "Schedule" => ScheduleTemplate,
                 "History" => HistoryTemplate,

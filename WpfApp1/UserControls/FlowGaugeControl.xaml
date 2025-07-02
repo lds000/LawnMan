@@ -1,4 +1,4 @@
-<UserControl x:Class="BackyardBoss.UserControls.PressureGaugeControl"
+﻿<UserControl x:Class="BackyardBoss.UserControls.FlowGaugeControl"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -10,22 +10,22 @@
             <!-- Gauge background -->
             <Image Source="pack://application:,,,/Assets/Gauges/WaterPressureGauge.png" Stretch="Fill"/>
             <!-- Numbers and tick marks overlay image -->
-			<Canvas>
-				<Canvas.RenderTransform>
-					<TransformGroup>
-						<ScaleTransform ScaleX="0.43" ScaleY="0.43"/>
-						<TranslateTransform X="13" Y="13"/>
-					</TransformGroup>
-				</Canvas.RenderTransform>
-				<Image Source="pack://application:,,,/Assets/Gauges/pressure_gauge_numbers.png" Stretch="Fill" Panel.ZIndex="1"/>
-			</Canvas>
+            <Canvas>
+                <Canvas.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform ScaleX="0.43" ScaleY="0.43"/>
+                        <TranslateTransform X="13" Y="13"/>
+                    </TransformGroup>
+                </Canvas.RenderTransform>
+                <Image Source="pack://application:,,,/Assets/Gauges/flow_gauge_numbers.png" Stretch="Fill" Panel.ZIndex="1"/>
+            </Canvas>
             <!-- Rotating needle as vector graphics -->
             <Canvas Width="200" Height="200"
                     IsHitTestVisible="False"
                     Panel.ZIndex="2">
                 <Canvas.RenderTransform>
                     <TransformGroup>
-                        <RotateTransform Angle="{Binding NeedleAngle, RelativeSource={RelativeSource AncestorType=UserControl}}" CenterX="100" CenterY="107"/>
+                        <RotateTransform Angle="{Binding NeedleAngleFlow, RelativeSource={RelativeSource AncestorType=UserControl}}" CenterX="100" CenterY="107"/>
                         <ScaleTransform ScaleX="0.9" ScaleY="0.9"/>
                         <TranslateTransform X="10" Y="0"/>
                     </TransformGroup>

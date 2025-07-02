@@ -11,7 +11,9 @@
 	<ItemGroup>
 	  <None Remove="Assets\Gauges\CompassImage.png" />
 	  <None Remove="Assets\Gauges\CompassNeedle.svg" />
+	  <None Remove="Assets\Gauges\flow_gauge_numbers.png" />
 	  <None Remove="Assets\Gauges\PressureIndicator.png" />
+	  <None Remove="Assets\Gauges\pressure_gauge_numbers.png" />
 	  <None Remove="Assets\Gauges\WaterFlowGauge.png" />
 	  <None Remove="Assets\Gauges\WaterPressureGauge.png" />
 	  <None Remove="Assets\Icons\idle.PNG" />
@@ -54,7 +56,13 @@
 	  <Resource Include="Assets\Gauges\CompassNeedle.svg">
 	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 	  </Resource>
+	  <Resource Include="Assets\Gauges\flow_gauge_numbers.png">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Assets\Gauges\PressureIndicator.png">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Gauges\pressure_gauge_numbers.png">
 	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Assets\Gauges\WaterFlowGauge.png">

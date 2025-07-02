@@ -29,12 +29,13 @@ namespace BackyardBoss.UserControls
 
         private static void OnPressureValueChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
+                
             if (d is PressureGaugeControl ctrl)
             {
                 // Map 0-120 psi to -120 to 120 degrees
+
                 double psi = (double)e.NewValue;
-                double angle = -120 + (psi / 120.0) * 240.0;
-                ctrl.NeedleAngle = angle;
+                double angle = -124 + (psi / 80.0) * 248.0; ctrl.NeedleAngle = angle;
             }
         }
 

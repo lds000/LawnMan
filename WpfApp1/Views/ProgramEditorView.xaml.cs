@@ -15,5 +15,10 @@ namespace BackyardBoss.Views
 
 
         }
+
+        private void PlantMoistureControl_GiveFeedback(object sender, GiveFeedbackEventArgs e)
+        {
+
+        }
     }
 }

@@ -71,10 +71,6 @@
                                             Height="64" 
                                             Margin="0"/>
                                             <TextBlock FontSize="16" Text="{Binding LatestSoilMoisture, StringFormat=' {0:F1} %'}"/>
-                                            <!-- Pressure gauge control -->
-                                            <usercontrols:PressureGaugeControl
-                                                Width="100" Height="100"
-                                                PressureValue="{Binding LatestPressurePsi}"/>
                                         </StackPanel>
                                     </Grid>
                                 </Border>
@@ -168,6 +164,52 @@
                     </Grid>
                 </ContentPresenter.Content>
             </ContentPresenter>
+        </DataTemplate>
+
+        <DataTemplate x:Key="GaugesTemplate">
+            <Grid DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition/>
+                    <ColumnDefinition/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition/>
+                </Grid.RowDefinitions>
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                Grid.Column="0"
+                                            Grid.Row="0"
+                    >
+                <usercontrols:PlantMoistureControl
+                                            VerticalAlignment="Center"
+                                            MoisturePercent="{Binding LatestSoilMoisture}"
+                                            Width="64"
+                                            Height="64" 
+                                            Margin="0"/>
+                <TextBlock 
+                    HorizontalAlignment="Center" 
+                    VerticalAlignment="Center" 
+                    FontSize="20" 
+                    Text="{Binding LatestSoilMoisture, StringFormat=' {0:F1} %'}"/>
+                </StackPanel>
+                <!-- Pressure gauge control -->
+                <StackPanel Grid.Row="1" Grid.Column="0">
+                <usercontrols:PressureGaugeControl
+                    Margin="0"
+                                                Width="150" Height="225"
+                                                PressureValue="{Binding LatestPressurePsi}"/>
+                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" Padding="0" Margin="0" FontSize="20" Text="{Binding LatestPressurePsi, StringFormat=' {0:F1} PSI'}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Row="1" Grid.Column="1">
+                    <usercontrols:FlowGaugeControl
+                    Margin="0"
+                                                Width="150" Height="225"
+                                                FlowValue="{Binding LatestFlowGPM}"/>
+                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" Padding="0" Margin="0" FontSize="20" Text="{Binding LatestFlowGPM, StringFormat=' {0:F1} GPH'}"/>
+                </StackPanel>
+
+            </Grid>
         </DataTemplate>
         <!--
             ScheduleTemplate:
@@ -394,6 +436,7 @@
         -->
         <views:SectionTemplateSelector x:Key="SectionTemplateSelector"
             OverviewTemplate="{StaticResource OverviewTemplate}"
+            GaugesTemplate="{StaticResource GaugesTemplate}"
             ScheduleTemplate="{StaticResource ScheduleTemplate}"
             HistoryTemplate="{StaticResource HistoryTemplate}"
             SettingsTemplate="{StaticResource SettingsTemplate}"
@@ -426,7 +469,8 @@
                 <StackPanel>
                     <Image HorizontalAlignment="Center" Source="pack://application:,,,/Assets/logos/BoiseStateLogoDarkBlue.png" Height="75" Width="Auto" Stretch="Uniform" Opacity="0.75"/>
                     <Button Style="{StaticResource NavButtonStyle}" Content="Overview" Command="{Binding SelectSectionCommand}" CommandParameter="Overview" ToolTip="View dashboard overview"/>
-                    <Button Style="{StaticResource NavButtonStyle}" Content="Schedule" Command="{Binding SelectSectionCommand}" CommandParameter="Schedule" ToolTip="Edit watering schedule"/>
+                        <Button Style="{StaticResource NavButtonStyle}" Content="Gauges" Command="{Binding SelectSectionCommand}" CommandParameter="Gauges" ToolTip="View dashboard Gauges"/>
+                        <Button Style="{StaticResource NavButtonStyle}" Content="Schedule" Command="{Binding SelectSectionCommand}" CommandParameter="Schedule" ToolTip="Edit watering schedule"/>
                     <Button Style="{StaticResource NavButtonStyle}" Content="Misters" Command="{Binding SelectSectionCommand}" CommandParameter="Settings" ToolTip="Configure misters"/>
                     <!--
                     <Button Style="{StaticResource NavButtonStyle}" Content="Debug" Command="{Binding SelectSectionCommand}" CommandParameter="Debug" ToolTip="Debug and logs"/>
