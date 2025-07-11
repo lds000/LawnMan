@@ -55,7 +55,10 @@
                                             <ColumnDefinition/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition/>
+                                            <RowDefinition/>
+                                        </Grid.RowDefinitions>
                                         <GroupBox Header="Mainline" BorderThickness="1">
                                         <StackPanel>
                                             <TextBlock FontSize="16" Text="{Binding LatestPressurePsi, StringFormat=' {0:F1} psi'}"/>
@@ -63,8 +66,16 @@
                                             <!--Put plant control object here-->
                                         </StackPanel>
                                         </GroupBox>
+                                        <!--LatestSoilTemperature-->
+                                        <GroupBox Header="Soil" BorderThickness="1" Grid.Row="1">
+                                            <StackPanel>
+                                                <TextBlock FontSize="16" Text="{Binding LatestSoilTemperature, StringFormat=' {0:F1} °F'}"/>
+                                                <!--Put plant control object here-->
+                                            </StackPanel>
+                                        </GroupBox>
                                         <StackPanel Grid.Column="1">
                                         <usercontrols:PlantMoistureControl
+                                            Grid.RowSpan="2"
                                             VerticalAlignment="Center"
                                             MoisturePercent="{Binding LatestSoilMoisture}"
                                             Width="64"
@@ -106,8 +117,7 @@
                                     <StackPanel Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center">
 
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock Margin="0,0,5,0" Text="Time:" FontWeight="Bold"/>
-                                            <TextBlock Text="{Binding PiLocalTime}" />
+                                            <TextBlock FontSize="16" Text="{Binding CurrentRunDisplay}" />
                                         </StackPanel>
 
                                         <StackPanel Orientation="Horizontal">
@@ -171,20 +181,22 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition/>
                     <ColumnDefinition/>
+                    <ColumnDefinition/>
+                    <ColumnDefinition/>
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition/>
                 </Grid.RowDefinitions>
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                                Grid.Column="0"
-                                            Grid.Row="0"
+                                                                Grid.Column="2"
+                                            Grid.RowSpan="2"
                     >
                 <usercontrols:PlantMoistureControl
                                             VerticalAlignment="Center"
                                             MoisturePercent="{Binding LatestSoilMoisture}"
-                                            Width="64"
-                                            Height="64" 
+                                            Width="300"
+                                            Height="300" 
                                             Margin="0"/>
                 <TextBlock 
                     HorizontalAlignment="Center" 
@@ -208,7 +220,12 @@
                                                 FlowValue="{Binding LatestFlowGPM}"/>
                     <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" Padding="0" Margin="0" FontSize="20" Text="{Binding LatestFlowGPM, StringFormat=' {0:F1} GPH'}"/>
                 </StackPanel>
-
+                <StackPanel Grid.Row="0" Grid.Column="0">
+                    <usercontrols:CompassControl
+                        Width="200"
+                        Height="200"
+                        WindDirection="{Binding WeatherVM.EnvWindDirDeg}"/>
+                </StackPanel>
             </Grid>
         </DataTemplate>
         <!--

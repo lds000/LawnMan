@@ -6,7 +6,9 @@
              mc:Ignorable="d"
              d:DesignHeight="100" d:DesignWidth="100"
              Loaded="UserControl_Loaded">
-    <Grid>
+    <Grid x:Name="RootGrid">
+        <Viewbox Stretch="Uniform">
+            <Grid Width="64" Height="64">
         <!-- Green plant (dry, top layer, clipped to dry percent, starts at Y=11) -->
         <Canvas Width="64" Height="64">
             <Canvas.Clip>
@@ -42,5 +44,7 @@
             <Ellipse Canvas.Left="32.3" Canvas.Top="8.3" Width="2.4" Height="2.4" Fill="White"/>
             <Ellipse Canvas.Left="31.2" Canvas.Top="7.2" Width="1.6" Height="1.6" Fill="Yellow"/>
         </Canvas>
+            </Grid>
+        </Viewbox>
     </Grid>
 </UserControl>

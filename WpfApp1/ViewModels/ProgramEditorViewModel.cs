@@ -188,6 +188,20 @@ namespace BackyardBoss.ViewModels
             }
         }
 
+        private double? _lastSoilMoisture;
+        public double? LatestSoilTemperature
+        {
+            get => _lastSoilMoisture;
+            set
+            {
+                if (_lastSoilMoisture != value)
+                {
+                    _lastSoilMoisture = value;
+                    OnPropertyChanged(nameof(LatestSoilTemperature));
+                }
+            }
+        }
+
         private double? _latestPressurePsi;
         public double? LatestPressurePsi
         {
@@ -586,7 +600,7 @@ namespace BackyardBoss.ViewModels
                 {
                     int sec = CurrentRun.SoakRemainingSec.Value;
                     int sec2 = CurrentRun.TimeRemainingSec.Value;
-                    baseDisplay = $"{CurrentRun.Set} Soak ({sec / 60:D2}:{sec % 60:D2} -> {sec2 / 60:D2}:{sec2 % 60:D2})";
+                    baseDisplay = $"{CurrentRun.Set} Soak ({sec / 60:D2}:{sec % 60:D2} of {sec2 / 60:D2}:{sec2 % 60:D2})";
                 }
                 else if (CurrentRun.TimeRemainingSec.HasValue)
                 {
@@ -610,7 +624,7 @@ namespace BackyardBoss.ViewModels
         {
             get => _mistStatus;
             set
-            {
+            {   
                 if (_mistStatus != value)
                 {
                     if (_mistStatus is INotifyPropertyChanged oldMist)
@@ -684,7 +698,8 @@ namespace BackyardBoss.ViewModels
             Flow,
             Temperature,
             WindSpeed,
-            Moisture
+            Moisture,
+            SoilTemperature // <-- Added for soil temp
         }
 
         private static string GetSensorDataUnitString(SensorDataMode mode)
@@ -696,6 +711,7 @@ namespace BackyardBoss.ViewModels
                 SensorDataMode.Temperature => "°F",
                 SensorDataMode.WindSpeed => "MPH",
                 SensorDataMode.Moisture => "%",
+                SensorDataMode.SoilTemperature => "°F", // Now displays in Fahrenheit
                 _ => ""
             };
         }
@@ -878,6 +894,8 @@ namespace BackyardBoss.ViewModels
                             if (data != null)
                             {
                                 PlantReadings.Add(data);
+                                //convert C to F
+                                LatestSoilTemperature = data.SoilTemperature * 9/5 + 32;
                                 LatestSoilMoisture = data.Moisture;
                             }
                         }
@@ -1508,12 +1526,13 @@ namespace BackyardBoss.ViewModels
             string sensorPiIp = "100.117.254.20";
             string url = _selectedSensorDataMode switch
             {
-                SensorDataMode.Pressure => $"http://{sensorPiIp}:5001/pressure-avg-latest?n=500",
-                SensorDataMode.Flow => $"http://{sensorPiIp}:5001/flow-avg-latest?n=500",
-                SensorDataMode.Temperature => $"http://{sensorPiIp}:5001/temperature-avg-latest?n=500",
-                SensorDataMode.WindSpeed => $"http://{sensorPiIp}:5001/wind-avg-latest?n=500",
-                SensorDataMode.Moisture => $"http://{sensorPiIp}:5001/moisture-avg-latest?n=500",
-                _ => $"http://{sensorPiIp}:5001/pressure-avg-latest?n=500"
+                SensorDataMode.Pressure => $"http://{sensorPiIp}:5001/pressure-avg-latest?n=100",
+                SensorDataMode.Flow => $"http://{sensorPiIp}:5001/flow-avg-latest?n=100",
+                SensorDataMode.Temperature => $"http://{sensorPiIp}:5001/temperature-avg-latest?n=100",
+                SensorDataMode.WindSpeed => $"http://{sensorPiIp}:5001/wind-avg-latest?n=100",
+                SensorDataMode.Moisture => $"http://{sensorPiIp}:5001/moisture-avg-latest?n=100",
+                SensorDataMode.SoilTemperature => $"http://{sensorPiIp}:5001/soil-temperature-avg-latest2?n=100",
+                _ => $"http://{sensorPiIp}:5001/pressure-avg-latest?n=100"
             };
             try
             {
@@ -1527,7 +1546,9 @@ namespace BackyardBoss.ViewModels
                     // Manually parse JSON for each type
                     var doc = JsonDocument.Parse(response);
                     var list = new List<SensorDataPoint>();
-                    foreach (var el in doc.RootElement.EnumerateArray())
+                foreach (var el in doc.RootElement.EnumerateArray())
+                {
+                    try
                     {
                         var ts = el.GetProperty("timestamp").GetDateTime();
                         double value = 0;
@@ -1535,8 +1556,8 @@ namespace BackyardBoss.ViewModels
                         {
                             case SensorDataMode.Flow:
                                 value = el.TryGetProperty("avg_flow", out var flowProp) ? flowProp.GetDouble() : 0;
-                            //convert from liters per minute to gallons per hour
-                            value = value * 0.264172 * 60 * 60;
+                                //convert from liters per minute to gallons per hour
+                                value = value * 0.264172 * 60 * 60;
                                 break;
                             case SensorDataMode.Temperature:
                                 value = (el.TryGetProperty("avg_temp", out var tempProp) ? tempProp.GetDouble() : 0) * 9 / 5 + 32;
@@ -1544,15 +1565,23 @@ namespace BackyardBoss.ViewModels
                             case SensorDataMode.WindSpeed:
                                 value = el.TryGetProperty("avg_wind", out var windProp) ? windProp.GetDouble() : 0;
                                 break;
-                        case SensorDataMode.Pressure:
-                            value = el.TryGetProperty("avg_psi", out var pressureProp) ? pressureProp.GetDouble() : 0;
-                            break;
+                            case SensorDataMode.Pressure:
+                                value = el.TryGetProperty("avg_psi", out var pressureProp) ? pressureProp.GetDouble() : 0;
+                                break;
                             case SensorDataMode.Moisture:
                                 value = el.TryGetProperty("value", out var moistureProp) ? moistureProp.GetDouble() : 0;
                                 break;
+                            case SensorDataMode.SoilTemperature:
+                                value = (el.TryGetProperty("avg_soil_temp", out var soilTempProp) ? soilTempProp.GetDouble() : 0) * 9 / 5 + 32;
+                                break;
+                        }
+                        list.Add(new SensorDataPoint { Timestamp = ts, Value = value });
                     }
-                    list.Add(new SensorDataPoint { Timestamp = ts, Value = value });
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Failed to parse sensor data point: {ex.Message}");
                     }
+                }
                     UpdateGenericSensorPlot(list);
             }
             catch (Exception ex)

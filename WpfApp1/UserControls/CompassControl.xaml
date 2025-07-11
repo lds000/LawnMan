@@ -1,0 +1,27 @@
+<UserControl x:Class="BackyardBoss.UserControls.CompassControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Width="150" Height="150">
+    <Grid>
+        <!-- Compass background image -->
+        <Image Source="pack://application:,,,/Assets/Gauges/CompassImage.png" Stretch="Fill"/>
+        <!-- Compass needle (SVG converted to XAML, translated to center at 75,75) -->
+        <Canvas Width="150" Height="150">
+            <Canvas.RenderTransform>
+				<TransformGroup>
+					<RotateTransform x:Name="NeedleRotate" Angle="0" CenterX="75" CenterY="75"/>
+					<ScaleTransform ScaleX="0.26" ScaleY="0.26"/>
+					<TranslateTransform X="53" Y="68"/>
+				</TransformGroup>
+				
+            </Canvas.RenderTransform>
+            <!-- Main needle shape: north (red) -->
+            <Path Data="M75,-85 L65,75 L75,70 L85,75 Z" Fill="DarkRed" Stroke="Black" StrokeThickness="1.5"/>
+            <!-- Tail needle shape: south (white/silver) -->
+            <Path Data="M75,235 L65,75 L75,80 L85,75 Z" Fill="Gainsboro" Stroke="Black" StrokeThickness="1.5"/>
+            <!-- Decorative center circle -->
+            <Ellipse Canvas.Left="65" Canvas.Top="65" Width="20" Height="20" Fill="Gold" Stroke="Black" StrokeThickness="2"/>
+            <Ellipse Canvas.Left="71" Canvas.Top="71" Width="8" Height="8" Fill="Black"/>
+        </Canvas>
+    </Grid>
+</UserControl>

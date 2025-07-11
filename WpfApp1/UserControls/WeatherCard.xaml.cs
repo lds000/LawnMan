@@ -15,9 +15,9 @@ namespace BackyardBoss.UserControls
     public partial class WeatherCard : UserControl
     {
         // Animation tuning variables
-        public double SpringConstant { get; set; } = 8; // Higher = stiffer spring
-        public double Damping { get; set; } = 2; // Higher = more damping
-        public double PhysicsUpdateHz { get; set; } = 60.0; // Simulation frequency
+        public double SpringConstant { get; set; } = 0.8; // Higher = stiffer spring
+        public double Damping { get; set; } = 0.5; // Higher = more damping
+        public double PhysicsUpdateHz { get; set; } = 10.0; // Simulation frequency
 
         public static readonly DependencyProperty WindDirectionProperty =
             DependencyProperty.Register(
