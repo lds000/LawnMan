@@ -733,6 +733,29 @@ namespace BackyardBoss.ViewModels
 
         public static Array SensorDataModes => Enum.GetValues(typeof(SensorDataMode));
 
+        public string SensorSystemHealth
+        {
+            get => LatestSystemStatus?.SystemHealth ?? "-";
+        }
+
+        public string SensorCPUTemp
+        {
+            get => LatestSystemStatus != null ? $"{LatestSystemStatus.CpuTempC * 9/5 + 32:F1}" : "-";
+        }
+
+        private SystemStatusData _latestSystemStatus;
+        public SystemStatusData LatestSystemStatus
+        {
+            get => _latestSystemStatus;
+            set
+            {
+                _latestSystemStatus = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(SensorSystemHealth));
+                OnPropertyChanged(nameof(SensorCPUTemp));
+            }
+        }
+
         #endregion
 
         #region Commands
@@ -895,7 +918,7 @@ namespace BackyardBoss.ViewModels
                             {
                                 PlantReadings.Add(data);
                                 //convert C to F
-                                LatestSoilTemperature = data.SoilTemperature * 9/5 + 32;
+                                LatestSoilTemperature = data.SoilTemperature * 9 / 5 + 32;
                                 LatestSoilMoisture = data.Moisture;
                             }
                         }
@@ -935,6 +958,14 @@ namespace BackyardBoss.ViewModels
                             catch (System.Exception ex)
                             {
                                 MessageBox.Show(ex.Message);
+                            }
+                        }
+                        else if (topic == "status/system")
+                        {
+                            var sysStatus = JsonSerializer.Deserialize<BackyardBoss.Models.SystemStatusData>(json.GetRawText());
+                            if (sysStatus != null)
+                            {
+                                LatestSystemStatus = sysStatus;
                             }
                         }
                     }

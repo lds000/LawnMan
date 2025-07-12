@@ -44,7 +44,28 @@
                                             <Ellipse Width="14" Height="14" Margin="0,0,8,0" Fill="{Binding SystemLedColor, Converter={StaticResource ColorStringToBrushConverter}}"/>
                                             <TextBlock Text="System Status" FontWeight="Bold" FontSize="20" Foreground="{DynamicResource PrimaryText}"/>
                                         </StackPanel>
-
+                                        <ItemsControl ItemsSource="{Binding ZoneStatuses}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <!-- Exclude Misters -->
+                                                    <DataTemplate.Resources>
+                                                        <Style TargetType="StackPanel">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Name}" Value="Misters">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </DataTemplate.Resources>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                        <Ellipse Width="14" Height="14" Margin="0,0,8,0"
+                                                                 Fill="{Binding Status, Converter={StaticResource ZoneStatusToBrushConverter}}"/>
+                                                        <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource PrimaryText}"/>
+                                                        <TextBlock Text="{Binding Status}" FontSize="14" Margin="8,0,0,0"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
                                         <TextBlock Text="{Binding SystemStatus}" Foreground="Lime"/>
                                     </StackPanel>
                                 </Border>
@@ -86,6 +107,26 @@
                                     </Grid>
                                 </Border>
 
+                                <!-- System Status Card -->
+                                <Border Background="{DynamicResource CardBackground}" CornerRadius="10" Padding="16" Margin="0,0,16,0">
+                                    <StackPanel>
+                                        <TextBlock Text="Raspberry Pi System" FontWeight="Bold" FontSize="20" Foreground="{DynamicResource PrimaryText}" Margin="0,0,0,8"/>
+                                        <TextBlock Text="{Binding LatestSystemStatus.Hostname, StringFormat=Host: {0}}" FontSize="14"/>
+                                        <TextBlock Text="{Binding LatestSystemStatus.Ip, StringFormat=IP: {0}}" FontSize="14"/>
+                                        <TextBlock Text="{Binding LatestSystemStatus.CpuTempC, StringFormat=CPU Temp: {0:F1}°C}" FontSize="14"/>
+                                        <TextBlock Text="{Binding LatestSystemStatus.CpuTempWarning, StringFormat=CPU Temp Status: {0}}" FontSize="14"/>
+                                        <TextBlock Text="{Binding LatestSystemStatus.SystemHealth, StringFormat=System Health: {0}}" FontSize="14"/>
+                                        <TextBlock Text="{Binding LatestSystemStatus.UptimeSec, StringFormat=Uptime: {0:F0} sec}" FontSize="14"/>
+                                        <TextBlock Text="{Binding LatestSystemStatus.Mem.TotalKb, StringFormat=Mem Total: {0} KB}" FontSize="14"/>
+                                        <TextBlock Text="{Binding LatestSystemStatus.Mem.FreeKb, StringFormat=Mem Free: {0} KB}" FontSize="14"/>
+                                        <TextBlock Text="{Binding LatestSystemStatus.Disk.TotalBytes, StringFormat=Disk Total: {0} bytes}" FontSize="14"/>
+                                        <TextBlock Text="{Binding LatestSystemStatus.Disk.FreeBytes, StringFormat=Disk Free: {0} bytes}" FontSize="14"/>
+                                        <TextBlock Text="{Binding LatestSystemStatus.LoadAvg.OneMin, StringFormat=LoadAvg 1min: {0:F2}}" FontSize="14"/>
+                                        <TextBlock Text="{Binding LatestSystemStatus.LoadAvg.FiveMin, StringFormat=LoadAvg 5min: {0:F2}}" FontSize="14"/>
+                                        <TextBlock Text="{Binding LatestSystemStatus.LoadAvg.FifteenMin, StringFormat=LoadAvg 15min: {0:F2}}" FontSize="14"/>
+                                    </StackPanel>
+                                </Border>
+
                             </StackPanel>                            
                             <!--
                                 Status Icon and Labels:
@@ -114,23 +155,14 @@
                             <StackPanel>
                                 <Border Background="{DynamicResource CardBackground}" CornerRadius="10" Padding="12" Margin="0,0,0,12">
 
-                                    <StackPanel Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <StackPanel Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center">
 
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock FontSize="16" Text="{Binding CurrentRunDisplay}" />
-                                        </StackPanel>
+                                        <StackPanel>
+                                            <TextBlock FontWeight="Bold" FontSize="20" Text="Sensor Health:" />
+                                            <TextBlock FontSize="16" Text="{Binding SensorSystemHealth}" />
 
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Margin="0,0,5,0" Text="Timezone:" FontWeight="Bold"/>
-                                            <TextBlock Text="{Binding PiTimezone}" />
+                                            <TextBlock FontSize="16" Text="{Binding SensorCPUTemp, StringFormat=CPU Temp: {0:F1}°F}" />
                                         </StackPanel>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Foreground="#455a64" FontSize="12" Margin="0,0,5,0" Text="Pi:PC Day:" FontWeight="Bold"/>
-                                            <TextBlock  Foreground="#455a64" FontSize="12" Text="{Binding PiScheduleIndex}" />
-                                            <TextBlock  Foreground="#455a64" FontSize="12" Text="/"/>
-                                            <TextBlock  Foreground="#455a64" FontSize="12" Text="{Binding TodayScheduleIndex}" />
-                                        </StackPanel>
-
                                     </StackPanel>
                                 </Border>
                                 <Border Margin="10,0,0,0" Grid.Column="1" Background="{DynamicResource CardBackground}" CornerRadius="10" Padding="12">

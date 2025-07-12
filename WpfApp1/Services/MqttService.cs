@@ -87,6 +87,7 @@ namespace BackyardBoss.Services
                 await _client.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("status/watering").Build());
                 await _client.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("status/misters").Build());
                 await _client.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("sensors/pressure_avg").Build());
+                await _client.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("status/system").Build()); // <-- Added subscription for status/system
 
                 System.Diagnostics.Debug.WriteLine("MQTT client connected and subscribed to topics.");
             }
