@@ -4,7 +4,7 @@
         xmlns:views="clr-namespace:BackyardBoss.Views"
         Title="Backyard Boss" Height="600" Width="1024"
          WindowStyle="None"
-        WindowState="Normal"
+        WindowState="Maximized"
         ResizeMode="NoResize"
         
         >

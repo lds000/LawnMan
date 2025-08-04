@@ -1741,7 +1741,7 @@ namespace BackyardBoss.ViewModels
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Night annotation error: " + ex.Message);
+                    //MessageBox.Show("Night annotation error: " + ex.Message);
                 }
             }
             SensorPlotModel = model;
