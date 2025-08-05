@@ -1,0 +1,430 @@
+BACKYARD BOSS GUI SYSTEM - COMPLETE TECHNICAL SPECIFICATION
+===========================================================
+
+SYSTEM OVERVIEW
+---------------
+The Backyard Boss GUI is a Windows Presentation Foundation (WPF) application built on .NET 8 that serves as the primary control interface for a smart sprinkler system. It runs on a Microsoft Mini PC connected to a wall-mounted display, providing a comprehensive dashboard for monitoring and controlling irrigation operations across multiple zones.
+
+HARDWARE CONFIGURATION
+----------------------
+Host Device: Microsoft Mini PC
+- OS: Windows 10/11
+- Display: Wall-mounted touchscreen/monitor
+- Network: Ethernet/WiFi connection to local network
+- Tailscale IP: 100.111.141.110
+- Local Network: Same subnet as Raspberry Pi devices
+
+NETWORK TOPOLOGY
+----------------
+The GUI communicates with two Raspberry Pi devices:
+
+1. Sprinkler Main Module (Raspberry Pi 4 Model B)
+   - Tailscale IP: 100.116.147.6
+   - Role: Main controller, MQTT broker host, valve control
+   - Services: MQTT broker (port 1883), SSH/SFTP (port 22)
+   - Username: lds00
+   - Password: Celica1!
+
+2. Sensor Module (Raspberry Pi Zero W)
+   - Tailscale IP: 100.117.254.20
+   - Role: Environmental data collection and publishing
+   - Services: HTTP API (port 5001), MQTT client
+   - Endpoints:
+     * GET http://100.117.254.20:5001/pressure-avg-latest?n=100
+     * GET http://100.117.254.20:5001/flow-avg-latest?n=100
+     * GET http://100.117.254.20:5001/temperature-avg-latest?n=100
+     * GET http://100.117.254.20:5001/wind-avg-latest?n=100
+     * GET http://100.117.254.20:5001/moisture-avg-latest?n=100
+     * GET http://100.117.254.20:5001/soil-temperature-avg-latest2?n=100
+
+COMMUNICATION PROTOCOLS
+-----------------------
+
+1. MQTT Communication
+   - Broker Address: 100.116.147.6:1883
+   - Client ID: BackyardBossGUI-[timestamp]
+   - Subscribed Topics:
+     * sensors/environment - Environmental data (temp, humidity, wind)
+     * sensors/plant - Soil moisture and temperature
+     * sensors/sets - Pressure and flow readings
+     * status/watering - System status and active runs
+     * status/misters - Misting system status
+     * status/system - System health metrics
+   - QoS Level: 0 (At most once delivery)
+   - Keep Alive: 60 seconds
+   - Clean Session: true
+
+2. SFTP File Transfer
+   - Host: 100.116.147.6
+   - Port: 22
+   - Username: lds00
+   - Password: Celica1!
+   - Remote Directory: /home/lds00/sprinkler/
+
+FILE SYSTEM INTERACTIONS
+------------------------
+
+Remote Files on Sprinkler Pi (100.116.147.6):
+
+1. /home/lds00/sprinkler/sprinkler_schedule.json
+   - Primary schedule configuration file
+   - Updated via SFTP on schedule changes
+   - JSON structure:
+     {
+       "scheduleDays": [true, false, ...], // 14 boolean values
+       "startTimes": [
+         {"time": "06:00", "isEnabled": true},
+         {"time": "17:00", "isEnabled": true}
+       ],
+       "sets": [
+         {
+           "setName": "Front Lawn",
+           "runDurationMinutes": 10,
+           "mode": false,
+           "pulseMinutes": 0,
+           "soakMinutes": 0
+         }
+       ],
+       "seasonalAdjustment": 1.0,
+       "mist": {
+         "temperatureSettings": [
+           {"temperature": 90, "interval": 20, "duration": 2, "isEnabled": true}
+         ]
+       }
+     }
+
+2. /home/lds00/sprinkler/manual_command.json
+   - Temporary file for manual run commands
+   - Deleted after processing by sprinkler controller
+   - JSON structure:
+     {
+       "manual_run": {
+         "sets": ["Front Lawn", "Garden"],
+         "duration_minutes": 15
+       }
+     }
+
+3. /home/lds00/sprinkler/stop_all_command.json
+   - Emergency stop command file
+   - JSON structure:
+     {
+       "stop_all": true
+     }
+
+4. /home/lds00/sprinkler/test_mode.txt
+   - Contains "1" for test mode enabled, "0" for disabled
+   - Read by sprinkler controller on startup
+
+Local Files (GUI Application):
+
+1. sprinkler_schedule.json
+   - Local cache of schedule
+   - Synchronized with remote on save
+   - Location: Application directory
+
+2. myMap.json
+   - Sprinkler map configuration
+   - Defines visual layout of zones
+   - JSON structure includes points, connections, and colors
+
+3. manual_command.json
+   - Temporary local file before SFTP upload
+
+4. stop_all_command.json
+   - Temporary local file before SFTP upload
+
+DATA MODELS AND STRUCTURES
+--------------------------
+
+1. MQTT Message Formats:
+
+   sensors/environment:
+   {
+     "timestamp": "2024-01-15T10:30:00",
+     "temperature": 25.5,  // Celsius
+     "humidity": 65.2,     // Percentage
+     "windSpeed": 3.2,     // MPH
+     "windDirDeg": 180,    // Degrees
+     "windDirCompass": "S" // Cardinal direction
+   }
+
+   sensors/plant:
+   {
+     "timestamp": "2024-01-15T10:30:00",
+     "moisture": 45.6,        // Percentage
+     "soilTemperature": 22.3  // Celsius
+   }
+
+   sensors/sets:
+   {
+     "timestamp": "2024-01-15T10:30:00",
+     "pressurePsi": 45.2,     // PSI
+     "flowRateLpm": 15.3      // Liters per minute
+   }
+
+   status/watering:
+   {
+     "system_status": "All Systems Nominal",
+     "test_mode": false,
+     "test_mode_timestamp": 1705332600.0,
+     "led_colors": {
+       "system": "green",
+       "zone1": "blue",
+       "zone2": "off"
+     },
+     "zones": [
+       {"name": "Front Lawn", "status": "Idle"},
+       {"name": "Garden", "status": "Watering"}
+     ],
+     "current_run": {
+       "set": "Garden",
+       "start_time": "2024-01-15T10:25:00",
+       "duration_minutes": 15.0,
+       "phase": "Running",
+       "time_remaining_sec": 300,
+       "pulse_time_left_sec": null,
+       "soak_remaining_sec": null
+     },
+     "next_run": {
+       "set": "Front Lawn",
+       "start_time": "2024-01-15T17:00:00",
+       "duration_minutes": 10.0
+     },
+     "last_completed_run": {
+       "set": "Backyard",
+       "end_time": "2024-01-15T06:30:00",
+       "duration_minutes": 20.0,
+       "status": "Completed"
+     },
+     "upcoming_runs": [
+       {
+         "set": "Front Lawn",
+         "start_time": "2024-01-15T17:00:00",
+         "duration_minutes": 10.0
+       }
+     ],
+     "today_is_watering_day": true,
+     "schedule_index": 5
+   }
+
+   status/misters:
+   {
+     "is_misting": true,
+     "current_temp": 92.5,
+     "trigger_temp": 90.0,
+     "duration_remaining_sec": 60,
+     "next_check_sec": 1200
+   }
+
+   status/system:
+   {
+     "timestamp": "2024-01-15T10:30:00",
+     "system_health": "Good",
+     "cpu_temp_c": 45.2,
+     "memory_usage_percent": 35.6,
+     "disk_usage_percent": 22.1,
+     "uptime_hours": 168.5
+   }
+
+FUNCTIONAL MODULES
+------------------
+
+1. Dashboard Module
+   - Real-time status display with icon indicators
+   - Current activity monitor with countdown
+   - Environmental metrics display
+   - System health monitoring
+   - Weather integration (OpenWeatherMap API)
+   - Wind speed warnings (threshold: 5 MPH)
+
+2. Schedule Management Module
+   - 14-day calendar interface
+   - Start time management (add/remove/edit)
+   - Set configuration (name, duration, pulse/soak)
+   - Seasonal adjustment slider (0-200%)
+   - Auto-save with 2-second debounce
+   - Schedule validation and sync status
+
+3. Manual Control Module
+   - Run Once dialog with set selection
+   - Custom duration overrides
+   - Emergency stop functionality
+   - Test mode toggle
+   - Direct zone control
+
+4. Sensor Data Visualization Module
+   - Interactive time-series plots (OxyPlot)
+   - Multiple data types with unit conversion
+   - Data smoothing algorithms (5-point moving average)
+   - Day/night shading on graphs
+   - Temperature threshold indicators
+   - Zoom/pan preservation
+
+5. System Map Module
+   - Visual zone representation
+   - Active zone highlighting
+   - Connection path visualization
+   - JSON-based configuration
+   - Dynamic color updates
+
+6. Misting System Module
+   - Temperature-based triggers
+   - Multiple threshold configurations
+   - Interval and duration settings
+   - Status integration with main display
+
+USER INTERFACE COMPONENTS
+-------------------------
+
+1. Main Window
+   - Tab-based navigation
+   - Sections: Overview, Schedule, Manual, Sensors, Map
+   - Status bar with connection indicators
+   - Real-time clock display
+
+2. Schedule Editor
+   - Two-week checkbox grid
+   - Start time list with time pickers
+   - Set list with inline editing
+   - Seasonal adjustment slider
+   - Save indicator
+
+3. Manual Control Panel
+   - Quick action buttons
+   - Set selection checkboxes
+   - Duration input fields
+   - Execution confirmation
+
+4. Sensor Dashboard
+   - Data type selector dropdown
+   - Interactive plot area
+   - Latest reading displays
+   - Export options
+
+5. System Map View
+   - Zoomable map canvas
+   - Legend with zone names
+   - Active zone indicators
+   - Connection status colors
+
+ERROR HANDLING AND LOGGING
+--------------------------
+
+1. Connection Failures
+   - MQTT reconnection with exponential backoff
+   - SFTP retry logic (3 attempts)
+   - Offline mode with cached data
+   - User notifications via MessageBox
+
+2. Data Validation
+   - JSON schema validation
+   - Range checking for sensor values
+   - Schedule conflict detection
+   - Invalid command rejection
+
+3. Logging System
+   - DebugLogger static class
+   - Log categories: FileIO, AutoSave, VariableStatus, Error
+   - Console output for development
+   - Future: Log file rotation
+
+CONFIGURATION AND SETTINGS
+--------------------------
+
+1. Application Settings
+   - Connection timeouts
+   - Retry intervals
+   - UI refresh rates
+   - Default values
+
+2. User Preferences
+   - Window position/size
+   - Selected data view
+   - Graph zoom levels
+   - Notification preferences
+
+SECURITY CONSIDERATIONS
+-----------------------
+
+1. Credentials
+   - Currently hard-coded (development phase)
+   - Future: Secure credential storage
+   - SSH key authentication planned
+
+2. Network Security
+   - Tailscale VPN for secure communication
+   - No public internet exposure
+   - Local network isolation
+
+PERFORMANCE SPECIFICATIONS
+--------------------------
+
+1. Update Frequencies
+   - MQTT messages: Real-time processing
+   - UI refresh: 1 second for time displays
+   - Sensor plots: On-demand with caching
+   - Schedule sync: 2-second debounce
+
+2. Data Retention
+   - Sensor readings: In-memory collections
+   - Plot data: Last 100 points per type
+   - Schedule: Persistent local cache
+
+DEPLOYMENT AND INSTALLATION
+---------------------------
+
+1. Prerequisites
+   - Windows 10/11
+   - .NET 8 Runtime
+   - Visual C++ Redistributables
+   - Network connectivity
+
+2. Installation Process
+   - Copy application files to Program Files
+   - Configure Windows startup
+   - Set display to always-on
+   - Configure touch input (if applicable)
+
+3. Configuration Steps
+   - Verify Tailscale connection
+   - Test MQTT connectivity
+   - Validate SFTP access
+   - Load initial schedule
+
+MAINTENANCE AND TROUBLESHOOTING
+-------------------------------
+
+1. Common Issues
+   - Connection timeouts: Check Tailscale status
+   - Missing data: Verify MQTT subscriptions
+   - Schedule sync failures: Check SFTP credentials
+   - UI freezes: Review async operation handling
+
+2. Diagnostic Tools
+   - Built-in debug logging
+   - MQTT message monitor
+   - Connection status indicators
+   - System health display
+
+3. Update Procedures
+   - Application updates via file replacement
+   - Schedule backup before updates
+   - Configuration migration support
+
+FUTURE ENHANCEMENTS
+-------------------
+
+1. Planned Features
+   - Web-based remote access
+   - Mobile companion app
+   - Historical data export
+   - Advanced scheduling (weather-based)
+   - Multi-property support
+
+2. Integration Possibilities
+   - Home automation systems
+   - Weather station integration
+   - Soil sensor networks
+   - Water usage monitoring
+
+This specification represents the complete technical implementation of the Backyard Boss GUI system, providing all necessary details for system integration, maintenance, and future development.
